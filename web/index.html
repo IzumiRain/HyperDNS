@@ -1,0 +1,1352 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>HyperDNS — Next-Gen Gaming & Anti-Sanction SmartDNS Controller</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Feather Icons Reliable CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/feather-icons/dist/feather.min.js"></script>
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <!-- Custom CSS -->
+  <link rel="stylesheet" href="/css/style.css">
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            cyan: { 400: '#00f0ff', 500: '#00d2df' },
+            slate: { 900: '#060913', 800: '#0d1426', 700: '#16213e' }
+          }
+        }
+      }
+    }
+  </script>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col md:flex-row selection:bg-cyan-500 selection:text-slate-950">
+
+  <!-- TOAST NOTIFICATION CONTAINER -->
+  <div id="toast-container" class="fixed bottom-20 md:bottom-6 right-4 sm:right-6 z-50 flex flex-col gap-2 pointer-events-none max-w-sm w-full"></div>
+
+  <!-- LOGIN OVERLAY -->
+  <div id="login-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md px-4 hidden">
+    <div class="glass-panel p-6 sm:p-8 w-full max-w-md border border-cyan-500/30">
+      <div class="flex items-center gap-3 mb-6">
+        <div class="w-10 h-10 rounded-xl bg-cyan-500/20 flex items-center justify-center text-cyan-400 border border-cyan-500/30">
+          <i data-feather="shield"></i>
+        </div>
+        <div>
+          <h2 class="text-xl font-bold text-white tracking-wider font-heading">HyperDNS</h2>
+          <p class="text-xs text-cyan-400 font-mono">STANDALONE CONTROLLER</p>
+        </div>
+      </div>
+      <form id="login-form" class="space-y-4">
+        <div>
+          <label class="block text-xs font-semibold text-slate-400 mb-1">ADMIN USERNAME</label>
+          <input type="text" id="login-username" value="admin" required
+            class="w-full px-4 py-2.5 rounded-lg bg-slate-950/80 border border-slate-700 text-white focus:outline-none focus:border-cyan-400 text-sm font-mono">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-400 mb-1">PASSWORD</label>
+          <input type="password" id="login-password" value="admin" required
+            class="w-full px-4 py-2.5 rounded-lg bg-slate-950/80 border border-slate-700 text-white focus:outline-none focus:border-cyan-400 text-sm font-mono">
+        </div>
+        <div id="login-error" class="text-xs text-red-400 hidden">Invalid username or password.</div>
+        <button type="submit"
+          class="w-full py-3 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-bold rounded-lg transition duration-200 shadow-lg shadow-cyan-500/20 text-sm font-heading">
+          AUTHENTICATE & ACCESS
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- FIRST-TIME DEFAULT PASSWORD CHANGE MODAL -->
+  <div id="change-pwd-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md px-4 hidden">
+    <div class="glass-panel p-6 sm:p-8 w-full max-w-md border border-amber-500/40 shadow-2xl shadow-amber-500/10">
+      <div class="flex items-center gap-3 mb-4">
+        <div class="w-10 h-10 rounded-xl bg-amber-500/20 flex items-center justify-center text-amber-400 border border-amber-500/30">
+          <i data-feather="alert-triangle"></i>
+        </div>
+        <div>
+          <h2 class="text-lg font-bold text-white tracking-wide font-heading">Security Setup</h2>
+          <p class="text-xs text-amber-400 font-mono">DEFAULT PASSWORD DETECTED</p>
+        </div>
+      </div>
+      <p class="text-xs text-slate-300 leading-relaxed mb-6">
+        You are currently using default credentials (<code class="text-amber-300 font-bold">admin / admin</code>). Please configure a new administrator password:
+      </p>
+      <form id="change-pwd-form" class="space-y-4">
+        <div>
+          <label class="block text-xs font-semibold text-slate-400 mb-1">NEW ADMIN USERNAME</label>
+          <input type="text" id="new-admin-user" value="admin" required
+            class="w-full px-4 py-2.5 rounded-lg bg-slate-950/80 border border-slate-700 text-white focus:outline-none focus:border-amber-400 text-sm font-mono">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-400 mb-1">NEW PASSWORD</label>
+          <input type="password" id="new-admin-pass" placeholder="Enter secure password" required minlength="4"
+            class="w-full px-4 py-2.5 rounded-lg bg-slate-950/80 border border-slate-700 text-white focus:outline-none focus:border-amber-400 text-sm font-mono">
+        </div>
+        <button type="submit"
+          class="w-full py-3 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 text-slate-950 font-bold rounded-lg transition duration-200 shadow-lg shadow-amber-500/20 text-sm font-heading">
+          SAVE NEW CREDENTIALS
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- SERVER DIAGNOSTICS & POLICY TEST SUITE MODAL -->
+  <div id="diagnostics-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md px-3 sm:px-4 hidden">
+    <div class="glass-panel p-4 sm:p-6 w-full max-w-2xl border border-cyan-500/40 shadow-2xl max-h-[90vh] flex flex-col">
+      <div class="flex items-center justify-between pb-3 sm:pb-4 border-b border-slate-800">
+        <div class="flex items-center gap-2.5 sm:gap-3">
+          <div class="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-cyan-500/20 flex items-center justify-center text-cyan-400 border border-cyan-500/30">
+            <i data-feather="check-circle" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <h2 class="text-sm sm:text-base font-bold text-white font-heading">Gaming Diagnostic Suite</h2>
+            <p class="text-[11px] text-slate-400">Verifying VPS route latency & handshake</p>
+          </div>
+        </div>
+        <button id="close-diagnostics-btn" class="text-slate-400 hover:text-white p-1">
+          <i data-feather="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <div class="py-3 sm:py-4 flex-1 overflow-y-auto space-y-4">
+        <!-- Diagnostic Score Banner -->
+        <div class="p-3 sm:p-4 rounded-xl bg-slate-950/80 border border-slate-800 flex items-center justify-between gap-2">
+          <div>
+            <div class="text-[10px] text-slate-400 font-mono">GAMING SUITABILITY SCORE</div>
+            <div id="diag-score" class="text-2xl sm:text-3xl font-extrabold font-heading text-emerald-400 mt-0.5">--%</div>
+            <div id="diag-quality" class="text-[11px] font-semibold text-cyan-400 mt-0.5">Ready to test</div>
+          </div>
+          <button id="rerun-diagnostics-btn" class="px-3 sm:px-4 py-2 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-bold rounded-lg text-xs font-heading flex items-center gap-1.5 transition whitespace-nowrap">
+            <i data-feather="play" class="w-3.5 h-3.5"></i> Run Test
+          </button>
+        </div>
+
+        <!-- Diagnostic Items List -->
+        <div id="diag-items-list" class="space-y-1.5 max-h-72 overflow-y-auto pr-1">
+          <div class="text-xs text-slate-500 text-center py-6">Click "Run Test" to benchmark routes to Riot, Epic, Steam, Discord, PUBG, CoD, and EA.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ADD CLIENT / USER MODAL -->
+  <div id="add-client-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md px-4 hidden">
+    <div class="glass-panel p-6 sm:p-8 w-full max-w-md border border-cyan-500/40 shadow-2xl">
+      <div class="flex items-center justify-between pb-4 border-b border-slate-800 mb-4">
+        <div class="flex items-center gap-2.5">
+          <div class="w-9 h-9 rounded-xl bg-cyan-500/20 flex items-center justify-center text-cyan-400 border border-cyan-500/30">
+            <i data-feather="user-plus" class="w-4 h-4"></i>
+          </div>
+          <div>
+            <h2 class="text-sm sm:text-base font-bold text-white font-heading">Add New Client Account</h2>
+            <p class="text-[11px] text-slate-400">Generate IP whitelist registration slug</p>
+          </div>
+        </div>
+        <button id="close-add-client-btn" class="text-slate-400 hover:text-white p-1">
+          <i data-feather="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <form id="add-client-form" class="space-y-4">
+        <div>
+          <label class="block text-xs font-semibold text-slate-400 mb-1">CLIENT NAME / LABEL</label>
+          <input type="text" id="client-name-input" placeholder="e.g. Reza (PS5 & Phone)" required
+            class="w-full px-3.5 py-2.5 rounded-lg bg-slate-950 border border-slate-700 text-white focus:outline-none focus:border-cyan-400 text-xs">
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-400 mb-1">PLAN DURATION / EXPIRATION</label>
+          <select id="client-expires-select" class="w-full px-3.5 py-2.5 rounded-lg bg-slate-950 border border-slate-700 text-white focus:outline-none focus:border-cyan-400 text-xs font-mono">
+            <option value="30">30 Days (1 Month)</option>
+            <option value="7">7 Days (1 Week)</option>
+            <option value="1">1 Day (24 Hours)</option>
+            <option value="90">90 Days (3 Months)</option>
+            <option value="365">365 Days (1 Year)</option>
+            <option value="0">Lifetime (No Expiration)</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-400 mb-1">INITIAL IP ADDRESS (OPTIONAL)</label>
+          <input type="text" id="client-initial-ip" placeholder="e.g. 2.189.86.32 (or leave blank for auto-link)"
+            class="w-full px-3.5 py-2.5 rounded-lg bg-slate-950 border border-slate-700 text-white focus:outline-none focus:border-cyan-400 text-xs font-mono">
+          <p class="text-[10px] text-slate-500 mt-1">If blank, client can self-register using their personal URL.</p>
+        </div>
+
+        <button type="submit"
+          class="w-full py-3 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-bold rounded-lg text-xs font-heading transition shadow-lg shadow-cyan-500/20">
+          CREATE CLIENT & GENERATE LINK
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- ================================================================= -->
+  <!-- VERTICAL LEFT SIDEBAR (Desktop - Sticky on Left) -->
+  <!-- ================================================================= -->
+  <aside class="w-full md:w-64 bg-slate-950/90 backdrop-blur-2xl border-b md:border-b-0 md:border-r border-slate-800/80 hidden md:flex flex-col justify-between p-4 flex-shrink-0 md:h-screen md:sticky md:top-0">
+    
+    <!-- Sidebar Top: Brand & Live Pulse -->
+    <div class="space-y-6">
+      <div class="flex items-center gap-3 px-2 py-1">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-cyan-500/20 to-purple-500/20 border border-cyan-400/40 flex items-center justify-center text-cyan-400 shadow-lg shadow-cyan-500/10 flex-shrink-0">
+          <i data-feather="zap" class="w-5 h-5"></i>
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="font-extrabold tracking-wider text-base text-white font-heading">HyperDNS</span>
+            <span class="text-[10px] px-1.5 py-0.5 rounded bg-cyan-500/20 text-cyan-300 font-mono font-bold border border-cyan-500/30">beta 1.1.0</span>
+          </div>
+          <div class="flex items-center gap-1.5 text-[11px] text-emerald-400 font-mono mt-0.5">
+            <span class="pulse-dot"></span>
+            <span>ONLINE · SMARTDNS</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Sidebar Navigation Menu -->
+      <nav class="space-y-1">
+        <button class="sidebar-nav-item active" data-tab="dashboard">
+          <i data-feather="activity" class="w-4 h-4"></i>
+          <span>Dashboard</span>
+        </button>
+        <button class="sidebar-nav-item" data-tab="clients">
+          <i data-feather="users" class="w-4 h-4"></i>
+          <span>Clients &amp; Whitelist</span>
+        </button>
+        <button class="sidebar-nav-item" data-tab="policy">
+          <i data-feather="layers" class="w-4 h-4"></i>
+          <span>Policies</span>
+        </button>
+        <button class="sidebar-nav-item" data-tab="stream">
+          <i data-feather="terminal" class="w-4 h-4"></i>
+          <span>Live Query Log</span>
+        </button>
+        <button class="sidebar-nav-item" data-tab="rules">
+          <i data-feather="sliders" class="w-4 h-4"></i>
+          <span>Custom Rules</span>
+        </button>
+        <button class="sidebar-nav-item" data-tab="connect">
+          <i data-feather="wifi" class="w-4 h-4"></i>
+          <span>Connect Guide</span>
+        </button>
+      </nav>
+    </div>
+
+    <!-- Sidebar Bottom: Server IP Badge, Diagnostics & Actions -->
+    <div class="space-y-3 pt-4 border-t border-slate-800/80">
+      
+      <!-- Public IP Box with Copy -->
+      <div id="copy-ip-btn" class="p-2.5 rounded-xl bg-slate-900/90 border border-slate-800 flex items-center justify-between cursor-pointer group hover:border-cyan-400/50 transition active:scale-95" title="Click to copy server IP">
+        <div class="flex items-center gap-2">
+          <i data-feather="globe" class="w-4 h-4 text-cyan-400"></i>
+          <div>
+            <div class="text-[9px] font-mono uppercase text-slate-500">Server Public IP</div>
+            <div id="header-public-ip" class="text-xs font-mono font-bold text-slate-200 group-hover:text-cyan-300">127.0.0.1</div>
+          </div>
+        </div>
+        <i data-feather="copy" class="w-3.5 h-3.5 text-slate-500 group-hover:text-cyan-400"></i>
+      </div>
+
+      <!-- Diagnostics Suite Button -->
+      <button id="open-diagnostics-btn" class="w-full py-2.5 px-3 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 text-xs font-bold font-heading flex items-center justify-center gap-2 transition">
+        <i data-feather="activity" class="w-4 h-4"></i>
+        <span>Run Diagnostics</span>
+      </button>
+
+      <!-- Action Icons Row -->
+      <div class="flex items-center justify-between gap-2">
+        <button id="restart-engine-btn" class="flex-1 py-2 px-2 rounded-lg bg-slate-900 hover:bg-orange-500/20 text-slate-400 hover:text-orange-400 border border-slate-800 flex items-center justify-center gap-1.5 text-[11px] font-semibold transition" title="Restart Core Engine & Reload Rules">
+          <i data-feather="power" class="w-3.5 h-3.5"></i>
+          <span>Restart</span>
+        </button>
+
+        <button id="flush-cache-btn" class="p-2 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-cyan-400 border border-slate-800 transition" title="Flush DNS Cache">
+          <i data-feather="refresh-cw" class="w-4 h-4"></i>
+        </button>
+        
+        <button id="logout-btn" class="p-2 rounded-lg bg-slate-900 hover:bg-red-500/20 text-slate-400 hover:text-red-400 border border-slate-800 transition" title="Sign Out">
+          <i data-feather="log-out" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+    </div>
+
+  </aside>
+
+  <!-- ================================================================= -->
+  <!-- MAIN APP CONTAINER (Full width with fluid padding) -->
+  <!-- ================================================================= -->
+  <div class="flex-1 flex flex-col min-w-0 min-h-screen overflow-x-hidden">
+    
+    <!-- MOBILE TOP HEADER (< 768px) -->
+    <header class="md:hidden border-b border-slate-800/80 bg-slate-950/85 backdrop-blur-xl sticky top-0 z-30 px-4 h-14 flex items-center justify-between flex-shrink-0">
+      <div class="flex items-center gap-2.5">
+        <div class="w-8 h-8 rounded-lg bg-cyan-500/20 border border-cyan-400/40 flex items-center justify-center text-cyan-400">
+          <i data-feather="zap" class="w-4 h-4"></i>
+        </div>
+        <div>
+          <span class="font-extrabold text-sm text-white font-heading">HyperDNS</span>
+          <span class="text-[9px] px-1 py-0.5 rounded bg-cyan-500/20 text-cyan-300 font-mono font-bold border border-cyan-500/30 ml-1">v1.1</span>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-2">
+        <button id="mobile-open-diag" class="p-1.5 rounded-lg bg-cyan-500/10 text-cyan-300 border border-cyan-500/30 text-xs font-semibold transition" title="Run Diagnostics">
+          <i data-feather="activity" class="w-4 h-4"></i>
+        </button>
+        <button id="mobile-restart-btn" class="p-1.5 rounded-lg bg-slate-800 text-slate-300 hover:text-orange-400 border border-slate-700 transition" title="Restart Engine">
+          <i data-feather="power" class="w-4 h-4"></i>
+        </button>
+        <button id="mobile-logout-btn" class="p-1.5 rounded-lg bg-slate-800 text-slate-300 hover:text-red-400 border border-slate-700 transition" title="Sign Out">
+          <i data-feather="log-out" class="w-4 h-4"></i>
+        </button>
+      </div>
+    </header>
+
+    <!-- CONTENT WRAPPER -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 flex-1 w-full pb-24 md:pb-8">
+      
+      <!-- ============================================== -->
+      <!-- TAB 1: DASHBOARD OVERVIEW -->
+      <!-- ============================================== -->
+      <section id="tab-dashboard" class="tab-content space-y-6">
+        
+        <!-- 6 Telemetry Metric Cards (Responsive Grid) -->
+        <div class="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-3 sm:gap-4">
+          
+          <!-- Card 1: QPS -->
+          <div class="glass-panel p-3.5 sm:p-4 relative overflow-hidden">
+            <div class="flex items-center justify-between mb-1 sm:mb-2">
+              <span class="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-slate-400">Query Rate</span>
+              <div class="p-1 sm:p-1.5 rounded-lg bg-cyan-500/10 text-cyan-400"><i data-feather="zap" class="w-3.5 h-3.5"></i></div>
+            </div>
+            <div class="flex items-baseline gap-1">
+              <span id="stat-qps" class="text-xl sm:text-2xl font-extrabold font-mono text-white">0.0</span>
+              <span class="text-[9px] sm:text-[10px] text-slate-400">QPS</span>
+            </div>
+            <div class="text-[9px] sm:text-[10px] text-slate-500 mt-0.5 sm:mt-1 font-mono truncate">Total: <span id="stat-total-queries" class="text-slate-300 font-bold">0</span></div>
+          </div>
+
+          <!-- Card 2: Cache Hit Rate -->
+          <div class="glass-panel p-3.5 sm:p-4 relative overflow-hidden">
+            <div class="flex items-center justify-between mb-1 sm:mb-2">
+              <span class="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-slate-400">RAM Cache</span>
+              <div class="p-1 sm:p-1.5 rounded-lg bg-emerald-500/10 text-emerald-400"><i data-feather="database" class="w-3.5 h-3.5"></i></div>
+            </div>
+            <div class="flex items-baseline gap-1">
+              <span id="stat-cache-ratio" class="text-xl sm:text-2xl font-extrabold font-mono text-emerald-400">0.0%</span>
+              <span class="text-[9px] sm:text-[10px] text-slate-400">hit</span>
+            </div>
+            <div class="text-[9px] sm:text-[10px] text-slate-500 mt-0.5 sm:mt-1 font-mono truncate">Items: <span id="stat-cache-entries" class="text-slate-300 font-bold">0</span></div>
+          </div>
+
+          <!-- Card 3: Active SNI Proxy Connections -->
+          <div class="glass-panel p-3.5 sm:p-4 relative overflow-hidden">
+            <div class="flex items-center justify-between mb-1 sm:mb-2">
+              <span class="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-slate-400">SNI Proxy</span>
+              <div class="p-1 sm:p-1.5 rounded-lg bg-purple-500/10 text-purple-400"><i data-feather="share-2" class="w-3.5 h-3.5"></i></div>
+            </div>
+            <div class="flex items-baseline gap-1">
+              <span id="stat-proxy-active" class="text-xl sm:text-2xl font-extrabold font-mono text-purple-300">0</span>
+              <span class="text-[9px] sm:text-[10px] text-slate-400">relays</span>
+            </div>
+            <div class="text-[9px] sm:text-[10px] text-slate-500 mt-0.5 sm:mt-1 font-mono truncate">Total: <span id="stat-proxy-total" class="text-slate-300 font-bold">0</span></div>
+          </div>
+
+          <!-- Card 4: CPU Load -->
+          <div class="glass-panel p-3.5 sm:p-4 relative overflow-hidden">
+            <div class="flex items-center justify-between mb-1 sm:mb-2">
+              <span class="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-slate-400">CPU Usage</span>
+              <div class="p-1 sm:p-1.5 rounded-lg bg-orange-500/10 text-orange-400"><i data-feather="cpu" class="w-3.5 h-3.5"></i></div>
+            </div>
+            <div class="flex items-baseline gap-1">
+              <span id="stat-cpu-percent" class="text-xl sm:text-2xl font-extrabold font-mono text-orange-300">0.5%</span>
+            </div>
+            <div class="text-[9px] sm:text-[10px] text-slate-500 mt-0.5 sm:mt-1 font-mono truncate">Cores: <span id="stat-cpu-cores" class="text-slate-300 font-bold">1</span> · <span id="stat-goroutines" class="text-slate-300">0</span> thr</div>
+          </div>
+
+          <!-- Card 5: RAM Usage -->
+          <div class="glass-panel p-3.5 sm:p-4 relative overflow-hidden">
+            <div class="flex items-center justify-between mb-1 sm:mb-2">
+              <span class="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-slate-400">RAM Usage</span>
+              <div class="p-1 sm:p-1.5 rounded-lg bg-blue-500/10 text-blue-400"><i data-feather="server" class="w-3.5 h-3.5"></i></div>
+            </div>
+            <div class="flex items-baseline gap-1">
+              <span id="stat-memory" class="text-xl sm:text-2xl font-extrabold font-mono text-blue-300">0.0</span>
+              <span class="text-[9px] sm:text-[10px] text-slate-400">MB</span>
+            </div>
+            <div class="text-[9px] sm:text-[10px] text-slate-500 mt-0.5 sm:mt-1 font-mono truncate">Sys: <span id="stat-memory-sys" class="text-slate-300 font-bold">0</span> MB</div>
+          </div>
+
+          <!-- Card 6: Live Bandwidth / Traffic -->
+          <div class="glass-panel p-3.5 sm:p-4 relative overflow-hidden col-span-2 sm:col-span-1">
+            <div class="flex items-center justify-between mb-1 sm:mb-2">
+              <span class="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-slate-400">Live Traffic</span>
+              <div class="p-1 sm:p-1.5 rounded-lg bg-emerald-500/10 text-emerald-400"><i data-feather="activity" class="w-3.5 h-3.5"></i></div>
+            </div>
+            <div class="flex items-baseline gap-1 font-mono text-xs font-bold text-slate-200 truncate">
+              <span class="text-emerald-400">↓</span><span id="stat-speed-in">0.0</span> <span class="text-[10px]">KB/s</span>
+              <span class="text-cyan-400 ml-1">↑</span><span id="stat-speed-out">0.0</span>
+            </div>
+            <div class="text-[9px] sm:text-[10px] text-slate-500 mt-0.5 sm:mt-1 font-mono truncate">Total: <span id="stat-traffic-total" class="text-slate-300 font-bold">0 MB</span></div>
+          </div>
+
+        </div>
+
+        <!-- Middle Section: Real-time Telemetry Graph & Upstream Resolvers -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          
+          <!-- Chart Column (2/3 width) -->
+          <div class="glass-panel p-5 sm:p-6 lg:col-span-2">
+            <div class="flex items-center justify-between mb-4">
+              <div>
+                <h3 class="text-xs sm:text-sm font-bold uppercase tracking-wider text-white flex items-center gap-2 font-heading">
+                  <i data-feather="trending-up" class="w-4 h-4 text-cyan-400"></i> Live QPS & Telemetry
+                </h3>
+                <p class="text-[11px] text-slate-400">Rolling real-time DNS query load</p>
+              </div>
+              <span class="text-[10px] font-mono text-cyan-400 px-2.5 py-0.5 rounded-full bg-cyan-500/10 border border-cyan-500/30 flex items-center gap-1.5">
+                <span class="pulse-dot"></span> LIVE ENGINE
+              </span>
+            </div>
+            <div class="h-48 sm:h-56 w-full relative">
+              <canvas id="qpsChart"></canvas>
+            </div>
+          </div>
+
+          <!-- Upstreams Health & Custom Upstream Manager Column (1/3 width) -->
+          <div class="glass-panel p-5 sm:p-6 flex flex-col justify-between">
+            <div>
+              <div class="flex items-center justify-between mb-3">
+                <h3 class="text-xs sm:text-sm font-bold uppercase tracking-wider text-white flex items-center gap-2 font-heading">
+                  <i data-feather="radio" class="w-4 h-4 text-emerald-400"></i> Upstream Racers
+                </h3>
+                <button id="run-benchmark-btn" class="text-[10px] sm:text-[11px] font-bold text-cyan-400 hover:text-cyan-300 flex items-center gap-1 px-2.5 py-1 rounded bg-cyan-500/10 border border-cyan-500/30 transition">
+                  <i data-feather="play" class="w-3 h-3"></i> Benchmark
+                </button>
+              </div>
+              <p class="text-[11px] text-slate-400 mb-3">Parallel DNS queries across fastest global upstreams</p>
+              
+              <!-- Add Custom Upstream Input -->
+              <div class="flex gap-1.5 mb-3">
+                <input type="text" id="new-upstream-input" placeholder="e.g. 94.140.14.14:53"
+                  class="flex-1 px-2.5 py-1 rounded-lg bg-slate-950 border border-slate-700 text-xs font-mono text-white focus:outline-none focus:border-cyan-400">
+                <button id="add-upstream-btn" class="px-3 py-1 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold rounded-lg text-xs font-heading transition">Add</button>
+              </div>
+
+              <!-- Upstreams List Container -->
+              <div id="upstreams-list" class="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+                <!-- Dynamically populated -->
+              </div>
+            </div>
+
+            <div class="mt-3 pt-3 border-t border-slate-800 text-[11px] text-slate-400 flex items-center justify-between">
+              <span>Racing Policy: <strong class="text-cyan-400">Fastest Wins</strong></span>
+              <span class="text-emerald-400">● Validated</span>
+            </div>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- ============================================== -->
+      <!-- TAB: CLIENTS & IP WHITELIST (Shelter & Shecan Mode) -->
+      <!-- ============================================== -->
+      <section id="tab-clients" class="tab-content space-y-6 hidden">
+        
+        <!-- Access Control Mode Banner -->
+        <div class="glass-panel p-5 sm:p-6 border border-cyan-500/30">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div class="flex items-start gap-3">
+              <div class="p-2.5 rounded-xl bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 flex-shrink-0 mt-0.5">
+                <i data-feather="shield" class="w-5 h-5"></i>
+              </div>
+              <div>
+                <div class="flex items-center gap-2">
+                  <h3 class="text-sm sm:text-base font-bold text-white font-heading">Client Access Whitelist Mode</h3>
+                  <span id="access-mode-badge" class="badge badge-direct">PUBLIC ACCESS</span>
+                </div>
+                <p class="text-xs text-slate-300 mt-1 leading-relaxed max-w-2xl">
+                  <strong>When Enabled (Shelter / Shecan Style):</strong> Only whitelisted client IP addresses can resolve DNS and access gaming routes. Unregistered IPs are refused access.
+                </p>
+              </div>
+            </div>
+
+            <div class="flex items-center gap-3 self-end sm:self-center">
+              <span class="text-xs font-mono text-slate-400 font-semibold" id="access-mode-status-text">Public Mode</span>
+              <label class="switch">
+                <input type="checkbox" id="access-mode-switch">
+                <span class="slider"></span>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <!-- Clients Header & Action Bar -->
+        <div class="flex flex-col sm:flex-row items-center justify-between gap-3">
+          <div class="flex items-center gap-3 w-full sm:w-auto">
+            <div class="relative w-full sm:w-72">
+              <input type="text" id="client-search-input" placeholder="Search client name, ID, or IP..." 
+                class="w-full pl-8 pr-3 py-2 rounded-lg bg-slate-950 border border-slate-700 text-xs text-white focus:outline-none focus:border-cyan-400 font-mono">
+              <i data-feather="search" class="w-3.5 h-3.5 text-slate-500 absolute left-2.5 top-2.5"></i>
+            </div>
+          </div>
+
+          <button id="open-add-client-btn" class="w-full sm:w-auto px-4 py-2.5 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-bold rounded-lg text-xs font-heading flex items-center justify-center gap-2 transition shadow-lg shadow-cyan-500/20 whitespace-nowrap">
+            <i data-feather="user-plus" class="w-4 h-4"></i>
+            <span>Add New Client</span>
+          </button>
+        </div>
+
+        <!-- Clients Cards Container -->
+        <div id="clients-list" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <!-- Dynamically populated -->
+        </div>
+
+      </section>
+
+      <!-- ============================================== -->
+      <!-- TAB 2: CATEGORIZED POLICIES -->
+      <!-- ============================================== -->
+      <section id="tab-policy" class="tab-content space-y-6 hidden">
+        
+        <!-- Quick Action Profiles -->
+        <div class="glass-panel p-5 border border-cyan-500/30">
+          <div class="mb-3">
+            <h3 class="text-xs sm:text-sm font-bold text-white uppercase tracking-wider font-heading flex items-center gap-1.5">
+              <i data-feather="command" class="text-cyan-400 w-4 h-4"></i> Quick Policy Profiles
+            </h3>
+            <p class="text-[11px] text-slate-400">1-Click activate targeted optimization bundles</p>
+          </div>
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
+            <button id="profile-gaming-btn" class="quick-mode-btn p-3 rounded-xl bg-gradient-to-r from-red-500/20 to-orange-500/20 border border-red-500/40 text-left hover:border-red-400">
+              <div class="flex items-center gap-1.5 mb-0.5">
+                <span>🎯</span>
+                <span class="text-xs font-bold text-white font-heading">Pro Gamer</span>
+              </div>
+              <p class="text-[10px] text-slate-400 leading-tight">All 13 game routes</p>
+            </button>
+
+            <button id="profile-streamer-btn" class="quick-mode-btn p-3 rounded-xl bg-gradient-to-r from-purple-500/20 to-blue-500/20 border border-purple-500/40 text-left hover:border-purple-400">
+              <div class="flex items-center gap-1.5 mb-0.5">
+                <span>🎬</span>
+                <span class="text-xs font-bold text-white font-heading">Streamer</span>
+              </div>
+              <p class="text-[10px] text-slate-400 leading-tight">Discord, Twitch, Kick</p>
+            </button>
+
+            <button id="profile-dev-btn" class="quick-mode-btn p-3 rounded-xl bg-gradient-to-r from-cyan-500/20 to-emerald-500/20 border border-cyan-500/40 text-left hover:border-cyan-400">
+              <div class="flex items-center gap-1.5 mb-0.5">
+                <span>💻</span>
+                <span class="text-xs font-bold text-white font-heading">Dev 403</span>
+              </div>
+              <p class="text-[10px] text-slate-400 leading-tight">Docker, AI, npm</p>
+            </button>
+
+            <button id="profile-privacy-btn" class="quick-mode-btn p-3 rounded-xl bg-gradient-to-r from-emerald-500/20 to-teal-500/20 border border-emerald-500/40 text-left hover:border-emerald-400">
+              <div class="flex items-center gap-1.5 mb-0.5">
+                <span>🛡️</span>
+                <span class="text-xs font-bold text-emerald-300 font-heading">Safe DNS</span>
+              </div>
+              <p class="text-[10px] text-slate-400 leading-tight">AdBlock & Family</p>
+            </button>
+          </div>
+        </div>
+
+        <!-- SECTION 1: GAMING POLICIES -->
+        <div class="space-y-4">
+          <div class="flex items-center gap-2 border-b border-slate-800/80 pb-3">
+            <span class="text-xl">🎮</span>
+            <div>
+              <h3 class="text-sm sm:text-base font-bold text-white tracking-wide font-heading">Gaming Policies</h3>
+              <p class="text-[11px] text-slate-400">Anti-sanction & low-latency routing for competitive PC, Console & Mobile games</p>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            
+            <!-- Policy: Riot Games -->
+            <div class="glass-panel p-4 card-valorant flex flex-col justify-between">
+              <div>
+                <div class="flex items-center justify-between mb-1.5">
+                  <div class="flex items-center gap-2">
+                    <span class="text-2xl">🎯</span>
+                    <div>
+                      <h4 class="text-xs sm:text-sm font-bold text-white font-heading">Riot Games</h4>
+                      <span class="text-[9px] sm:text-[10px] text-slate-400 font-mono">Valorant · LoL · Vanguard</span>
+                    </div>
+                  </div>
+                  <label class="switch">
+                    <input type="checkbox" id="preset-riot" checked>
+                    <span class="slider"></span>
+                  </label>
+                </div>
+                <p class="text-[11px] text-slate-400 leading-relaxed">
+                  Bypasses 403 errors and optimizes Vanguard matchmaking route.
+                </p>
+              </div>
+            </div>
+
+            <!-- Policy: Epic Games -->
+            <div class="glass-panel p-4 card-epic flex flex-col justify-between">
+              <div>
+                <div class="flex items-center justify-between mb-1.5">
+                  <div class="flex items-center gap-2">
+                    <span class="text-2xl">🚀</span>
+                    <div>
+                      <h4 class="text-xs sm:text-sm font-bold text-white font-heading">Epic Games</h4>
+                      <span class="text-[9px] sm:text-[10px] text-slate-400 font-mono">Store · Fortnite · EAC</span>
+                    </div>
+                  </div>
+                  <label class="switch">
+                    <input type="checkbox" id="preset-epic" checked>
+                    <span class="slider"></span>
+                  </label>
+                </div>
+                <p class="text-[11px] text-slate-400 leading-relaxed">
+                  Unblocks Store, Unreal Engine, and Easy Anti-Cheat handshake servers.
+                </p>
+              </div>
+            </div>
+
+            <!-- Policy: Steam & Valve -->
+            <div class="glass-panel p-4 card-steam flex flex-col justify-between">
+              <div>
+                <div class="flex items-center justify-between mb-1.5">
+                  <div class="flex items-center gap-2">
+                    <span class="text-2xl">🎮</span>
+                    <div>
+                      <h4 class="text-xs sm:text-sm font-bold text-white font-heading">Steam & Valve</h4>
+                      <span class="text-[9px] sm:text-[10px] text-slate-400 font-mono">Community · CS2 · Dota 2</span>
+                    </div>
+                  </div>
+                  <label class="switch">
+                    <input type="checkbox" id="preset-steam" checked>
+                    <span class="slider"></span>
+                  </label>
+                </div>
+                <p class="text-[11px] text-slate-400 leading-relaxed">
+                  Fixes Steam Community marketplace, friends chat, and Valve servers.
+                </p>
+              </div>
+            </div>
+
+            <!-- Policy: PUBG Mobile & PC -->
+            <div class="glass-panel p-4 card-valorant flex flex-col justify-between">
+              <div>
+                <div class="flex items-center justify-between mb-1.5">
+                  <div class="flex items-center gap-2">
+                    <span class="text-2xl">🍗</span>
+                    <div>
+                      <h4 class="text-xs sm:text-sm font-bold text-amber-400 font-heading">PUBG Mobile & PC</h4>
+                      <span class="text-[9px] sm:text-[10px] text-slate-400 font-mono">Krafton · Level Infinite</span>
+                    </div>
+                  </div>
+                  <label class="switch">
+                    <input type="checkbox" id="preset-pubg" checked>
+                    <span class="slider"></span>
+                  </label>
+                </div>
+                <p class="text-[11px] text-slate-400 leading-relaxed">
+                  Fixes loading/handshake errors, optimizes matchmaking, and unblocks in-game events.
+                </p>
+              </div>
+            </div>
+
+            <!-- Policy: Call of Duty Mobile & Warzone -->
+            <div class="glass-panel p-4 card-rockstar flex flex-col justify-between">
+              <div>
+                <div class="flex items-center justify-between mb-1.5">
+                  <div class="flex items-center gap-2">
+                    <span class="text-2xl">🎖️</span>
+                    <div>
+                      <h4 class="text-xs sm:text-sm font-bold text-emerald-400 font-heading">Call of Duty Mobile</h4>
+                      <span class="text-[9px] sm:text-[10px] text-slate-400 font-mono">CODM · Warzone Mobile</span>
+                    </div>
+                  </div>
+                  <label class="switch">
+                    <input type="checkbox" id="preset-cod" checked>
+                    <span class="slider"></span>
+                  </label>
+                </div>
+                <p class="text-[11px] text-slate-400 leading-relaxed">
+                  Unblocks Activision login, Demonware matchmaking, and token validation.
+                </p>
+              </div>
+            </div>
+
+            <!-- Policy: Supercell Games -->
+            <div class="glass-panel p-4 card-epic flex flex-col justify-between">
+              <div>
+                <div class="flex items-center justify-between mb-1.5">
+                  <div class="flex items-center gap-2">
+                    <span class="text-2xl">⭐</span>
+                    <div>
+                      <h4 class="text-xs sm:text-sm font-bold text-cyan-400 font-heading">Supercell Games</h4>
+                      <span class="text-[9px] sm:text-[10px] text-slate-400 font-mono">Brawl Stars · Clash Royale</span>
+                    </div>
+                  </div>
+                  <label class="switch">
+                    <input type="checkbox" id="preset-supercell" checked>
+                    <span class="slider"></span>
+                  </label>
+                </div>
+                <p class="text-[11px] text-slate-400 leading-relaxed">
+                  Fixes Brawl Stars, Clash of Clans, and Squad Busters connection lock.
+                </p>
+              </div>
+            </div>
+
+            <!-- Policy: Electronic Arts -->
+            <div class="glass-panel p-4 flex flex-col justify-between">
+              <div>
+                <div class="flex items-center justify-between mb-1.5">
+                  <div class="flex items-center gap-2">
+                    <span class="text-2xl">⚡</span>
+                    <div>
+                      <h4 class="text-xs sm:text-sm font-bold text-white font-heading">EA & Origin</h4>
+                      <span class="text-[9px] sm:text-[10px] text-slate-400 font-mono">EA App · Apex Legends</span>
+                    </div>
+                  </div>
+                  <label class="switch">
+                    <input type="checkbox" id="preset-ea" checked>
+                    <span class="slider"></span>
+                  </label>
+                </div>
+                <p class="text-[11px] text-slate-400 leading-relaxed">
+                  Fixes EA App authentication and Apex Legends token refresh.
+                </p>
+              </div>
+            </div>
+
+            <!-- Policy: Blizzard -->
+            <div class="glass-panel p-4 flex flex-col justify-between">
+              <div>
+                <div class="flex items-center justify-between mb-1.5">
+                  <div class="flex items-center gap-2">
+                    <span class="text-2xl">❄️</span>
+                    <div>
+                      <h4 class="text-xs sm:text-sm font-bold text-white font-heading">Battle.net</h4>
+                      <span class="text-[9px] sm:text-[10px] text-slate-400 font-mono">Blizzard · Overwatch · WoW</span>
+                    </div>
+                  </div>
+                  <label class="switch">
+                    <input type="checkbox" id="preset-blizzard" checked>
+                    <span class="slider"></span>
+                  </label>
+                </div>
+                <p class="text-[11px] text-slate-400 leading-relaxed">
+                  Ensures Battle.net launcher connectivity and Blizzard game servers access.
+                </p>
+              </div>
+            </div>
+
+            <!-- Policy: Ubisoft -->
+            <div class="glass-panel p-4 flex flex-col justify-between">
+              <div>
+                <div class="flex items-center justify-between mb-1.5">
+                  <div class="flex items-center gap-2">
+                    <span class="text-2xl">🛡️</span>
+                    <div>
+                      <h4 class="text-xs sm:text-sm font-bold text-white font-heading">Ubisoft Connect</h4>
+                      <span class="text-[9px] sm:text-[10px] text-slate-400 font-mono">Rainbow Six · AC</span>
+                    </div>
+                  </div>
+                  <label class="switch">
+                    <input type="checkbox" id="preset-ubisoft" checked>
+                    <span class="slider"></span>
+                  </label>
+                </div>
+                <p class="text-[11px] text-slate-400 leading-relaxed">
+                  Bypasses Ubisoft Connect login issues and sync errors.
+                </p>
+              </div>
+            </div>
+
+            <!-- Policy: Rockstar Games -->
+            <div class="glass-panel p-4 card-rockstar flex flex-col justify-between">
+              <div>
+                <div class="flex items-center justify-between mb-1.5">
+                  <div class="flex items-center gap-2">
+                    <span class="text-2xl">🚗</span>
+                    <div>
+                      <h4 class="text-xs sm:text-sm font-bold text-white font-heading">Rockstar Games</h4>
+                      <span class="text-[9px] sm:text-[10px] text-slate-400 font-mono">GTA Online · RDR2</span>
+                    </div>
+                  </div>
+                  <label class="switch">
+                    <input type="checkbox" id="preset-rockstar" checked>
+                    <span class="slider"></span>
+                  </label>
+                </div>
+                <p class="text-[11px] text-slate-400 leading-relaxed">
+                  Fixes Social Club offline mode and GTA Online cloud save sync.
+                </p>
+              </div>
+            </div>
+
+            <!-- Policy: Xbox & Microsoft -->
+            <div class="glass-panel p-4 card-xbox flex flex-col justify-between">
+              <div>
+                <div class="flex items-center justify-between mb-1.5">
+                  <div class="flex items-center gap-2">
+                    <span class="text-2xl">🟢</span>
+                    <div>
+                      <h4 class="text-xs sm:text-sm font-bold text-white font-heading">Xbox & Microsoft</h4>
+                      <span class="text-[9px] sm:text-[10px] text-slate-400 font-mono">Xbox Live · Minecraft</span>
+                    </div>
+                  </div>
+                  <label class="switch">
+                    <input type="checkbox" id="preset-xbox" checked>
+                    <span class="slider"></span>
+                  </label>
+                </div>
+                <p class="text-[11px] text-slate-400 leading-relaxed">
+                  Optimizes Xbox Live party chat and Microsoft gaming authentication.
+                </p>
+              </div>
+            </div>
+
+            <!-- Policy: PlayStation -->
+            <div class="glass-panel p-4 card-playstation flex flex-col justify-between">
+              <div>
+                <div class="flex items-center justify-between mb-1.5">
+                  <div class="flex items-center gap-2">
+                    <span class="text-2xl">🔵</span>
+                    <div>
+                      <h4 class="text-xs sm:text-sm font-bold text-white font-heading">PlayStation Network</h4>
+                      <span class="text-[9px] sm:text-[10px] text-slate-400 font-mono">PSN · PS5 / PS4 Store</span>
+                    </div>
+                  </div>
+                  <label class="switch">
+                    <input type="checkbox" id="preset-playstation" checked>
+                    <span class="slider"></span>
+                  </label>
+                </div>
+                <p class="text-[11px] text-slate-400 leading-relaxed">
+                  Unblocks PlayStation Network login and store connection.
+                </p>
+              </div>
+            </div>
+
+            <!-- Policy: Roblox -->
+            <div class="glass-panel p-4 flex flex-col justify-between">
+              <div>
+                <div class="flex items-center justify-between mb-1.5">
+                  <div class="flex items-center gap-2">
+                    <span class="text-2xl">🧱</span>
+                    <div>
+                      <h4 class="text-xs sm:text-sm font-bold text-white font-heading">Roblox</h4>
+                      <span class="text-[9px] sm:text-[10px] text-slate-400 font-mono">Client · Assets CDN</span>
+                    </div>
+                  </div>
+                  <label class="switch">
+                    <input type="checkbox" id="preset-roblox" checked>
+                    <span class="slider"></span>
+                  </label>
+                </div>
+                <p class="text-[11px] text-slate-400 leading-relaxed">
+                  Bypasses Roblox client connection blocks and asset download errors.
+                </p>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- SECTION 2: STREAMING & MEDIA POLICIES -->
+        <div class="space-y-4">
+          <div class="flex items-center gap-2 border-b border-slate-800/80 pb-3">
+            <span class="text-xl">🎬</span>
+            <div>
+              <h3 class="text-sm sm:text-base font-bold text-white tracking-wide font-heading">Streaming & Media Policies</h3>
+              <p class="text-[11px] text-slate-400">Bypass restrictions on live streaming, voice channels, and music</p>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            
+            <!-- Policy: Discord -->
+            <div class="glass-panel p-4 card-discord flex flex-col justify-between">
+              <div>
+                <div class="flex items-center justify-between mb-1.5">
+                  <div class="flex items-center gap-2">
+                    <span class="text-2xl">🎧</span>
+                    <div>
+                      <h4 class="text-xs sm:text-sm font-bold text-white font-heading">Discord</h4>
+                      <span class="text-[9px] sm:text-[10px] text-slate-400 font-mono">Updates · RTC Voice</span>
+                    </div>
+                  </div>
+                  <label class="switch">
+                    <input type="checkbox" id="preset-discord" checked>
+                    <span class="slider"></span>
+                  </label>
+                </div>
+                <p class="text-[11px] text-slate-400 leading-relaxed">
+                  Fixes updater downloading loop and RTC connecting voice lock.
+                </p>
+              </div>
+            </div>
+
+            <!-- Policy: Twitch -->
+            <div class="glass-panel p-4 flex flex-col justify-between">
+              <div>
+                <div class="flex items-center justify-between mb-1.5">
+                  <div class="flex items-center gap-2">
+                    <span class="text-2xl">💜</span>
+                    <div>
+                      <h4 class="text-xs sm:text-sm font-bold text-purple-400 font-heading">Twitch</h4>
+                      <span class="text-[9px] sm:text-[10px] text-slate-400 font-mono">Live Streams & Chat</span>
+                    </div>
+                  </div>
+                  <label class="switch">
+                    <input type="checkbox" id="preset-twitch" checked>
+                    <span class="slider"></span>
+                  </label>
+                </div>
+                <p class="text-[11px] text-slate-400 leading-relaxed">
+                  Ensures high-speed Twitch streaming and websocket chat connectivity.
+                </p>
+              </div>
+            </div>
+
+            <!-- Policy: Kick -->
+            <div class="glass-panel p-4 flex flex-col justify-between">
+              <div>
+                <div class="flex items-center justify-between mb-1.5">
+                  <div class="flex items-center gap-2">
+                    <span class="text-2xl">🟢</span>
+                    <div>
+                      <h4 class="text-xs sm:text-sm font-bold text-emerald-400 font-heading">Kick.com</h4>
+                      <span class="text-[9px] sm:text-[10px] text-slate-400 font-mono">Live Streaming</span>
+                    </div>
+                  </div>
+                  <label class="switch">
+                    <input type="checkbox" id="preset-kick" checked>
+                    <span class="slider"></span>
+                  </label>
+                </div>
+                <p class="text-[11px] text-slate-400 leading-relaxed">
+                  Bypasses Kick live stream playback blocks and chat websocket blocks.
+                </p>
+              </div>
+            </div>
+
+            <!-- Policy: Spotify -->
+            <div class="glass-panel p-4 card-spotify flex flex-col justify-between">
+              <div>
+                <div class="flex items-center justify-between mb-1.5">
+                  <div class="flex items-center gap-2">
+                    <span class="text-2xl">🎵</span>
+                    <div>
+                      <h4 class="text-xs sm:text-sm font-bold text-white font-heading">Spotify</h4>
+                      <span class="text-[9px] sm:text-[10px] text-slate-400 font-mono">Music Streaming</span>
+                    </div>
+                  </div>
+                  <label class="switch">
+                    <input type="checkbox" id="preset-spotify" checked>
+                    <span class="slider"></span>
+                  </label>
+                </div>
+                <p class="text-[11px] text-slate-400 leading-relaxed">
+                  Bypasses 403 sanction on Spotify music playback and login.
+                </p>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- SECTION 3: DEVELOPER & SECURITY POLICIES -->
+        <div class="space-y-4">
+          <div class="flex items-center gap-2 border-b border-slate-800/80 pb-3">
+            <span class="text-xl">🛡️</span>
+            <div>
+              <h3 class="text-sm sm:text-base font-bold text-white tracking-wide font-heading">Developer & Security Policies</h3>
+              <p class="text-[11px] text-slate-400">Developer 403 bypass, ad-blocking sinkhole, and parental controls</p>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+            
+            <!-- Policy: Developer 403 -->
+            <div class="glass-panel p-4 flex flex-col justify-between">
+              <div>
+                <div class="flex items-center justify-between mb-1.5">
+                  <div class="flex items-center gap-2">
+                    <span class="text-2xl">💻</span>
+                    <div>
+                      <h4 class="text-xs sm:text-sm font-bold text-white font-heading">Developer 403 Suite</h4>
+                      <span class="text-[9px] sm:text-[10px] text-slate-400 font-mono">Docker · OpenAI · Claude · npm</span>
+                    </div>
+                  </div>
+                  <label class="switch">
+                    <input type="checkbox" id="preset-dev403" checked>
+                    <span class="slider"></span>
+                  </label>
+                </div>
+                <p class="text-[11px] text-slate-400 leading-relaxed">
+                  Bypasses 403 blocks on Docker, Android SDK, OpenAI, Claude, npm, and Gradle.
+                </p>
+              </div>
+            </div>
+
+            <!-- Policy: AdBlock & Privacy Sinkhole -->
+            <div class="glass-panel p-4 flex flex-col justify-between">
+              <div>
+                <div class="flex items-center justify-between mb-1.5">
+                  <div class="flex items-center gap-2">
+                    <span class="text-2xl">🛡️</span>
+                    <div>
+                      <h4 class="text-xs sm:text-sm font-bold text-emerald-400 font-heading">AdBlock & Trackers</h4>
+                      <span class="text-[9px] sm:text-[10px] text-slate-400 font-mono">Sinkhole · 0.0.0.0</span>
+                    </div>
+                  </div>
+                  <label class="switch">
+                    <input type="checkbox" id="preset-adblock">
+                    <span class="slider"></span>
+                  </label>
+                </div>
+                <p class="text-[11px] text-slate-400 leading-relaxed">
+                  Pi-hole/AdGuard style blocking of telemetry, in-app trackers, and banner ads.
+                </p>
+              </div>
+            </div>
+
+            <!-- Policy: Family Safe Protection -->
+            <div class="glass-panel p-4 flex flex-col justify-between col-span-1 sm:col-span-2 md:col-span-1">
+              <div>
+                <div class="flex items-center justify-between mb-1.5">
+                  <div class="flex items-center gap-2">
+                    <span class="text-2xl">🔞</span>
+                    <div>
+                      <h4 class="text-xs sm:text-sm font-bold text-red-400 font-heading">Family Safe Filter</h4>
+                      <span class="text-[9px] sm:text-[10px] text-slate-400 font-mono">Adult Content Filter</span>
+                    </div>
+                  </div>
+                  <label class="switch">
+                    <input type="checkbox" id="preset-familysafe">
+                    <span class="slider"></span>
+                  </label>
+                </div>
+                <p class="text-[11px] text-slate-400 leading-relaxed">
+                  Sinkholes adult and pornographic domains for safe household browsing.
+                </p>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+      </section>
+
+      <!-- ============================================== -->
+      <!-- TAB 3: LIVE QUERY STREAM CONSOLE -->
+      <!-- ============================================== -->
+      <section id="tab-stream" class="tab-content space-y-4 hidden">
+        <div class="glass-panel p-4 sm:p-5">
+          
+          <!-- Stream Controls Bar -->
+          <div class="flex flex-col sm:flex-row items-center justify-between gap-2.5 sm:gap-3 pb-3 sm:pb-4 border-b border-slate-800">
+            <div class="flex items-center gap-2 sm:gap-3 w-full sm:w-auto">
+              <div class="relative w-full sm:w-64">
+                <input type="text" id="stream-search" placeholder="Search domain or IP..." 
+                  class="w-full pl-8 pr-3 py-1.5 rounded-lg bg-slate-950 border border-slate-700 text-xs text-white focus:outline-none focus:border-cyan-400 font-mono">
+                <i data-feather="search" class="w-3.5 h-3.5 text-slate-500 absolute left-2.5 top-2.5"></i>
+              </div>
+
+              <!-- Filter Selector -->
+              <select id="stream-filter" class="bg-slate-950 border border-slate-700 text-xs text-slate-300 rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-cyan-400 font-mono">
+                <option value="ALL">All Actions</option>
+                <option value="PROXY">PROXY</option>
+                <option value="DIRECT">DIRECT</option>
+                <option value="BLOCK">BLOCK</option>
+                <option value="CACHED">CACHED</option>
+              </select>
+            </div>
+
+            <div class="flex items-center gap-2 w-full sm:w-auto justify-end">
+              <button id="stream-pause-btn" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-300 border border-slate-700 flex items-center gap-1.5 transition">
+                <i data-feather="pause" class="w-3.5 h-3.5"></i> <span>Pause</span>
+              </button>
+              <button id="stream-clear-btn" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-300 border border-slate-700 flex items-center gap-1.5 transition">
+                <i data-feather="trash-2" class="w-3.5 h-3.5"></i> <span>Clear</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Live Log Stream Table -->
+          <div class="overflow-x-auto mt-3 max-h-[500px] overflow-y-auto">
+            <table class="w-full text-left border-collapse text-xs font-mono min-w-[600px]">
+              <thead class="bg-slate-950/80 sticky top-0 text-slate-400 border-b border-slate-800 z-10">
+                <tr>
+                  <th class="py-2.5 px-3">TIME</th>
+                  <th class="py-2.5 px-3">CLIENT</th>
+                  <th class="py-2.5 px-3">PROTO</th>
+                  <th class="py-2.5 px-3">QUERY DOMAIN</th>
+                  <th class="py-2.5 px-3">RULE MATCHED</th>
+                  <th class="py-2.5 px-3">ACTION</th>
+                  <th class="py-2.5 px-3 text-right">LATENCY</th>
+                </tr>
+              </thead>
+              <tbody id="stream-tbody" class="divide-y divide-slate-800/50 text-slate-300">
+                <!-- Dynamically populated via SSE -->
+                <tr>
+                  <td colspan="7" class="py-12 text-center text-slate-500">
+                    <div class="flex flex-col items-center gap-2">
+                      <div class="pulse-dot"></div>
+                      <span>Listening for live DNS queries...</span>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- ============================================== -->
+      <!-- TAB 4: CUSTOM RULES, SSL & ACCESS CONTROL -->
+      <!-- ============================================== -->
+      <section id="tab-rules" class="tab-content space-y-6 hidden">
+        
+        <!-- Automated SSL Certificate Setup (Let's Encrypt / ACME) -->
+        <div class="glass-panel p-5 sm:p-6 border border-cyan-500/30">
+          <div class="flex items-center gap-3 mb-3">
+            <div class="p-2 rounded-xl bg-cyan-500/20 text-cyan-400">
+              <i data-feather="lock" class="w-5 h-5"></i>
+            </div>
+            <div>
+              <h3 class="text-xs sm:text-sm font-bold text-white font-heading">Automated Let's Encrypt SSL / TLS Manager</h3>
+              <p class="text-[11px] text-slate-400">Issue trusted certificates for clean DoH, DoT (Android Private DNS), and HTTPS</p>
+            </div>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <input type="text" id="ssl-domain-input" placeholder="Domain name (e.g. dns.mygame.ir)"
+              class="px-3 py-2 rounded-lg bg-slate-950 border border-slate-700 text-xs font-mono text-white focus:outline-none focus:border-cyan-400">
+            <input type="email" id="ssl-email-input" placeholder="Admin Email (optional)"
+              class="px-3 py-2 rounded-lg bg-slate-950 border border-slate-700 text-xs font-mono text-white focus:outline-none focus:border-cyan-400">
+            <button id="issue-ssl-btn" class="px-4 py-2 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-bold rounded-lg text-xs font-heading transition">
+              Issue SSL Certificate
+            </button>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          
+          <!-- Custom Proxied Domains (SmartDNS Spoof) -->
+          <div class="glass-panel p-5 sm:p-6 space-y-4">
+            <div>
+              <h3 class="text-xs sm:text-sm font-bold uppercase text-white flex items-center gap-2 font-heading">
+                <i data-feather="shield" class="w-4 h-4 text-cyan-400"></i> Custom Proxied Domains
+              </h3>
+              <p class="text-[11px] text-slate-400 mt-0.5">Domains that will be spoofed to this server's SNI Proxy</p>
+            </div>
+
+            <div class="flex gap-2">
+              <input type="text" id="new-proxied-input" placeholder="e.g. *.newgame.com or api.target.com"
+                class="flex-1 px-3 py-2 rounded-lg bg-slate-950 border border-slate-700 text-xs font-mono text-white focus:outline-none focus:border-cyan-400">
+              <button id="add-proxied-btn" class="px-4 py-2 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold rounded-lg text-xs transition font-heading">Add</button>
+            </div>
+
+            <div id="custom-proxied-list" class="max-h-48 overflow-y-auto space-y-1.5 pr-1"></div>
+          </div>
+
+          <!-- Custom Blocklist (Sinkhole / Adblock) -->
+          <div class="glass-panel p-5 sm:p-6 space-y-4">
+            <div>
+              <h3 class="text-xs sm:text-sm font-bold uppercase text-white flex items-center gap-2 font-heading">
+                <i data-feather="slash" class="w-4 h-4 text-red-400"></i> Custom Blocklist (Sinkhole)
+              </h3>
+              <p class="text-[11px] text-slate-400 mt-0.5">Domains that will be blocked (returning 0.0.0.0)</p>
+            </div>
+
+            <div class="flex gap-2">
+              <input type="text" id="new-blocked-input" placeholder="e.g. *.telemetry.com or ads.tracker.net"
+                class="flex-1 px-3 py-2 rounded-lg bg-slate-950 border border-slate-700 text-xs font-mono text-white focus:outline-none focus:border-red-400">
+              <button id="add-blocked-btn" class="px-4 py-2 bg-red-500 hover:bg-red-400 text-white font-bold rounded-lg text-xs transition font-heading">Block</button>
+            </div>
+
+            <div id="custom-blocked-list" class="max-h-48 overflow-y-auto space-y-1.5 pr-1"></div>
+          </div>
+
+          <!-- Access Control: DoH Tokens -->
+          <div class="glass-panel p-5 sm:p-6 space-y-4">
+            <div>
+              <h3 class="text-xs sm:text-sm font-bold uppercase text-white flex items-center gap-2 font-heading">
+                <i data-feather="key" class="w-4 h-4 text-purple-400"></i> DoH Secret Tokens
+              </h3>
+              <p class="text-[11px] text-slate-400 mt-0.5">If enabled, clients must pass <code>?token=XYZ</code> to use DoH</p>
+            </div>
+
+            <div class="flex gap-2">
+              <input type="text" id="new-token-input" placeholder="Enter secure token (e.g. mysecretkey)"
+                class="flex-1 px-3 py-2 rounded-lg bg-slate-950 border border-slate-700 text-xs font-mono text-white focus:outline-none focus:border-purple-400">
+              <button id="add-token-btn" class="px-4 py-2 bg-purple-500 hover:bg-purple-400 text-white font-bold rounded-lg text-xs transition font-heading">Add Token</button>
+            </div>
+
+            <div id="tokens-list" class="max-h-48 overflow-y-auto space-y-1.5 pr-1"></div>
+          </div>
+
+          <!-- Custom DNS A/AAAA Records -->
+          <div class="glass-panel p-5 sm:p-6 space-y-4">
+            <div>
+              <h3 class="text-xs sm:text-sm font-bold uppercase text-white flex items-center gap-2 font-heading">
+                <i data-feather="map-pin" class="w-4 h-4 text-emerald-400"></i> Custom Static Records
+              </h3>
+              <p class="text-[11px] text-slate-400 mt-0.5">Map any hostname directly to a custom IP address</p>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <input type="text" id="custom-record-domain" placeholder="hostname.com"
+                class="px-3 py-2 rounded-lg bg-slate-950 border border-slate-700 text-xs font-mono text-white focus:outline-none focus:border-emerald-400">
+              <div class="flex gap-2">
+                <input type="text" id="custom-record-ip" placeholder="1.2.3.4"
+                  class="flex-1 px-3 py-2 rounded-lg bg-slate-950 border border-slate-700 text-xs font-mono text-white focus:outline-none focus:border-emerald-400">
+                <button id="add-custom-record-btn" class="px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold rounded-lg text-xs transition font-heading">Save</button>
+              </div>
+            </div>
+
+            <div id="custom-records-list" class="max-h-48 overflow-y-auto space-y-1.5 pr-1"></div>
+          </div>
+
+        </div>
+
+      </section>
+
+      <!-- ============================================== -->
+      <!-- TAB 5: CLIENT SETUP & CONNECT GUIDE -->
+      <!-- ============================================== -->
+      <section id="tab-connect" class="tab-content space-y-6 hidden">
+        <div class="glass-panel p-5 sm:p-6">
+          <div class="max-w-3xl mb-6">
+            <h2 class="text-base sm:text-lg font-bold text-white flex items-center gap-2 font-heading">
+              <i data-feather="wifi" class="w-5 h-5 text-cyan-400"></i> How to Connect Client Devices
+            </h2>
+            <p class="text-[11px] sm:text-xs text-slate-400 mt-1">
+              Connect your Gaming PC, PlayStation, Xbox, Android, iOS, or Router in seconds without installing any client software.
+            </p>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            
+            <!-- Guide 1: Windows 10/11 -->
+            <div class="p-5 rounded-xl bg-slate-950/70 border border-slate-800 space-y-3">
+              <div class="flex items-center gap-2.5">
+                <i data-feather="monitor" class="text-cyan-400 w-5 h-5"></i>
+                <h4 class="text-xs sm:text-sm font-bold text-white font-heading">Windows 10 / 11 (Gaming PC)</h4>
+              </div>
+              <ol class="text-[11px] sm:text-xs text-slate-300 space-y-1.5 list-decimal list-inside leading-relaxed">
+                <li>Open <strong>Settings</strong> &gt; <strong>Network & Internet</strong> &gt; <strong>Wi-Fi / Ethernet</strong>.</li>
+                <li>Click <strong>Edit DNS assignment</strong> &gt; Select <strong>Manual</strong>.</li>
+                <li>Turn on <strong>IPv4</strong> and enter your Server IP:</li>
+              </ol>
+              <div class="code-box cursor-pointer" onclick="copyText(document.getElementById('guide-win-ip').innerText, this)">
+                <span id="guide-win-ip">Loading IP...</span>
+                <i data-feather="copy" class="w-3.5 h-3.5 text-slate-400 hover:text-cyan-400 flex-shrink-0 ml-2"></i>
+              </div>
+            </div>
+
+            <!-- Guide 2: PS5 / Xbox Console -->
+            <div class="p-5 rounded-xl bg-slate-950/70 border border-slate-800 space-y-3">
+              <div class="flex items-center gap-2.5">
+                <i data-feather="tv" class="text-purple-400 w-5 h-5"></i>
+                <h4 class="text-xs sm:text-sm font-bold text-white font-heading">PlayStation 5 / Xbox</h4>
+              </div>
+              <ol class="text-[11px] sm:text-xs text-slate-300 space-y-1.5 list-decimal list-inside leading-relaxed">
+                <li>Go to <strong>Settings</strong> &gt; <strong>Network</strong> &gt; <strong>Set Up Internet Connection</strong>.</li>
+                <li>Select Wi-Fi/LAN &gt; <strong>Advanced Settings</strong> &gt; <strong>DNS</strong>: Manual.</li>
+                <li>Set <strong>Primary DNS</strong> to your Server IP:</li>
+              </ol>
+              <div class="code-box cursor-pointer" onclick="copyText(document.getElementById('guide-console-ip').innerText, this)">
+                <span id="guide-console-ip">Loading IP...</span>
+                <i data-feather="copy" class="w-3.5 h-3.5 text-slate-400 hover:text-cyan-400 flex-shrink-0 ml-2"></i>
+              </div>
+            </div>
+
+            <!-- Guide 3: Android Private DNS (DoT) -->
+            <div class="p-5 rounded-xl bg-slate-950/70 border border-slate-800 space-y-3">
+              <div class="flex items-center gap-2.5">
+                <i data-feather="smartphone" class="text-emerald-400 w-5 h-5"></i>
+                <h4 class="text-xs sm:text-sm font-bold text-white font-heading">Android Private DNS (DoT)</h4>
+              </div>
+              <ol class="text-[11px] sm:text-xs text-slate-300 space-y-1.5 list-decimal list-inside leading-relaxed">
+                <li>Go to <strong>Settings</strong> &gt; <strong>Network & Internet</strong> &gt; <strong>Private DNS</strong>.</li>
+                <li>Select <strong>Private DNS provider hostname</strong> and enter:</li>
+              </ol>
+              <div class="code-box cursor-pointer" onclick="copyText(document.getElementById('guide-dot-hostname').innerText, this)">
+                <span id="guide-dot-hostname">dns.yourdomain.com</span>
+                <i data-feather="copy" class="w-3.5 h-3.5 text-slate-400 hover:text-cyan-400 flex-shrink-0 ml-2"></i>
+              </div>
+            </div>
+
+            <!-- Guide 4: Browser DoH (Chrome/Brave/Firefox) -->
+            <div class="p-5 rounded-xl bg-slate-950/70 border border-slate-800 space-y-3">
+              <div class="flex items-center gap-2.5">
+                <i data-feather="globe" class="text-blue-400 w-5 h-5"></i>
+                <h4 class="text-xs sm:text-sm font-bold text-white font-heading">Browser Secure DNS (DoH)</h4>
+              </div>
+              <ol class="text-[11px] sm:text-xs text-slate-300 space-y-1.5 list-decimal list-inside leading-relaxed">
+                <li>In Browser: <strong>Settings</strong> &gt; <strong>Privacy & Security</strong> &gt; <strong>Use secure DNS</strong>.</li>
+                <li>Choose <strong>Custom</strong> and paste your DoH URL:</li>
+              </ol>
+              <div class="code-box cursor-pointer" onclick="copyText(document.getElementById('guide-doh-url').innerText, this)">
+                <span id="guide-doh-url">https://your-server-ip:8443/dns-query</span>
+                <i data-feather="copy" class="w-3.5 h-3.5 text-slate-400 hover:text-cyan-400 flex-shrink-0 ml-2"></i>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </section>
+
+    </main>
+
+    <!-- MOBILE STICKY BOTTOM NAVIGATION BAR -->
+    <nav class="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-slate-950/95 backdrop-blur-xl border-t border-slate-800 px-2 py-2 flex items-center justify-around">
+      <button class="mobile-nav-item active flex flex-col items-center gap-1 text-[10px] font-semibold text-cyan-400 transition" data-tab="dashboard">
+        <i data-feather="activity" class="w-4 h-4"></i>
+        <span>Dash</span>
+      </button>
+      <button class="mobile-nav-item flex flex-col items-center gap-1 text-[10px] font-semibold text-slate-400 hover:text-white transition" data-tab="clients">
+        <i data-feather="users" class="w-4 h-4"></i>
+        <span>Clients</span>
+      </button>
+      <button class="mobile-nav-item flex flex-col items-center gap-1 text-[10px] font-semibold text-slate-400 hover:text-white transition" data-tab="policy">
+        <i data-feather="layers" class="w-4 h-4"></i>
+        <span>Policy</span>
+      </button>
+      <button class="mobile-nav-item flex flex-col items-center gap-1 text-[10px] font-semibold text-slate-400 hover:text-white transition" data-tab="stream">
+        <i data-feather="terminal" class="w-4 h-4"></i>
+        <span>Logs</span>
+      </button>
+      <button class="mobile-nav-item flex flex-col items-center gap-1 text-[10px] font-semibold text-slate-400 hover:text-white transition" data-tab="rules">
+        <i data-feather="sliders" class="w-4 h-4"></i>
+        <span>Rules</span>
+      </button>
+      <button class="mobile-nav-item flex flex-col items-center gap-1 text-[10px] font-semibold text-slate-400 hover:text-white transition" data-tab="connect">
+        <i data-feather="wifi" class="w-4 h-4"></i>
+        <span>Guide</span>
+      </button>
+    </nav>
+
+    <!-- FOOTER (Clean desktop footer) -->
+    <footer class="hidden md:block border-t border-slate-800/60 bg-slate-950/40 py-4 text-center text-xs text-slate-500 font-mono">
+      <span>HyperDNS Smart Controller — High-Performance Zero-Loss Engine · beta 1.1.0</span>
+    </footer>
+
+  </div>
+
+  <!-- Custom JavaScript -->
+  <script src="/js/app.js"></script>
+</body>
+</html>

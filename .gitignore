@@ -1,0 +1,94 @@
+﻿# ==============================================================================
+# HyperDNS — Comprehensive Security & Privacy .gitignore
+# Prevents accidental leaking of secrets, certificates, credentials, and local data
+# ==============================================================================
+
+# 1. TLS Certificates, Keys & Cryptographic Secrets
+certs/
+*.pem
+*.key
+*.crt
+*.csr
+*.cer
+*.der
+*.p12
+*.pfx
+*.jks
+*.keystore
+
+# 2. SSH Keys & Putty Credentials
+*.ppk
+id_rsa
+id_rsa.pub
+id_ed25519
+id_ed25519.pub
+id_ecdsa
+id_ecdsa.pub
+id_dsa
+id_dsa.pub
+known_hosts
+authorized_keys
+
+# 3. Environment & Local Configuration Files
+.env
+.env.*
+*.env
+config.local.json
+config.dev.json
+config.prod.json
+
+# 4. Compiled Binaries & Executables
+hyperdns
+hyperdns.exe
+hyperdns-linux
+hyperdns-*
+*.exe
+*.dll
+*.so
+*.dylib
+*.bin
+*.out
+/offline-bundle/hyperdns
+
+# 5. Compressed Archives & Release Bundles
+*.tar.gz
+*.zip
+*.7z
+*.rar
+*.gz
+*.tar
+*.iso
+
+# 6. Runtime Logs, Telemetry & Databases
+*.log
+logs/
+*.sqlite
+*.sqlite3
+*.db
+*.pid
+tmp/
+temp/
+
+# 7. IDE, Editor & OS Specific Files
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+*.swp
+*.swo
+*~
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+[Dd]esktop.ini
+
+# 8. Agent, Assistant & AI System Folders
+.agents/
+.gemini/
+.system_generated/
+.antigravity/
+fastfetch/
