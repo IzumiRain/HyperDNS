@@ -261,26 +261,51 @@ echo -e "${YELLOW}└───────────────────�
 USER_DOMAIN=""
 IS_HTTPS=false
 
-read -p " Configure custom domain with SSL now? [y/N]: " RESP_SSL
+RESP_SSL="n"
+if [ -e /dev/tty ]; then
+    read -rp " Configure custom domain with SSL now? [y/N]: " RESP_SSL < /dev/tty 2>/dev/null || RESP_SSL="n"
+fi
+
 if [[ "$RESP_SSL" =~ ^([yY][eE][sS]|[yY])$ ]]; then
-    read -p " Enter your domain name (e.g. dns.example.com): " USER_DOMAIN
-    read -p " Enter admin email for Let's Encrypt (optional): " USER_EMAIL
+    if [ -e /dev/tty ]; then
+        read -rp " Enter your domain name (e.g. dns.example.com): " USER_DOMAIN < /dev/tty 2>/dev/null || USER_DOMAIN=""
+        read -rp " Enter admin email for Let's Encrypt (optional): " USER_EMAIL < /dev/tty 2>/dev/null || USER_EMAIL=""
+    fi
     
     if [ -n "$USER_DOMAIN" ]; then
-        echo -e "${CYAN}Issuing Let's Encrypt SSL certificate for ${USER_DOMAIN}...${NC}"
-        if [ -f "${INSTALL_DIR}/scripts/ssl_issue.sh" ]; then
-            bash "${INSTALL_DIR}/scripts/ssl_issue.sh" "$USER_DOMAIN" "$USER_EMAIL" || true
+        echo -e "  ${CYAN}Issuing Let's Encrypt SSL certificate for ${USER_DOMAIN}...${NC}"
+        
+        # Try certbot standalone issuance
+        if command -v certbot >/dev/null 2>&1 || (apt-get update -y >/dev/null 2>&1 && apt-get install -y certbot >/dev/null 2>&1); then
+            certbot certonly --standalone --non-interactive --agree-tos --register-unsafely-without-email -d "${USER_DOMAIN}" >/dev/null 2>&1 || true
+            if [ -f "/etc/letsencrypt/live/${USER_DOMAIN}/fullchain.pem" ]; then
+                cp -f "/etc/letsencrypt/live/${USER_DOMAIN}/fullchain.pem" "${INSTALL_DIR}/certs/cert.pem"
+                cp -f "/etc/letsencrypt/live/${USER_DOMAIN}/privkey.pem" "${INSTALL_DIR}/certs/key.pem"
+                chmod 644 "${INSTALL_DIR}/certs/cert.pem"
+                chmod 600 "${INSTALL_DIR}/certs/key.pem"
+            fi
+        elif [ -f "${INSTALL_DIR}/scripts/ssl_issue.sh" ]; then
+            bash "${INSTALL_DIR}/scripts/ssl_issue.sh" "$USER_DOMAIN" "$USER_EMAIL" >/dev/null 2>&1 || true
         fi
         
-        # Update config.json with Domain
-        if command -v jq >/dev/null 2>&1; then
-            jq ".tls.domain = \"${USER_DOMAIN}\" | .tls.email = \"${USER_EMAIL}\"" "${INSTALL_DIR}/config.json" > "${INSTALL_DIR}/config.tmp" && mv "${INSTALL_DIR}/config.tmp" "${INSTALL_DIR}/config.json"
-        else
+        # Update config.json safely with sed
+        if [ -f "${INSTALL_DIR}/config.json" ]; then
             sed -i "s/\"domain\": .*/\"domain\": \"${USER_DOMAIN}\",/" "${INSTALL_DIR}/config.json"
+            if [ -n "$USER_EMAIL" ]; then
+                sed -i "s/\"email\": .*/\"email\": \"${USER_EMAIL}\",/" "${INSTALL_DIR}/config.json"
+            fi
+            sed -i 's/"auto_cert": .*/"auto_cert": true,/' "${INSTALL_DIR}/config.json"
         fi
         IS_HTTPS=true
         echo -e "  ${GREEN}✓ Domain & SSL configured for ${USER_DOMAIN}!${NC}"
     fi
+else
+    echo ""
+    echo -e "${YELLOW}${BOLD}⚠️  [SECURITY WARNING / هشدار امنیتی]${NC}"
+    echo -e "${YELLOW}No domain was added. The Web UI will run on standard HTTP (unencrypted).${NC}"
+    echo -e "${YELLOW}For maximum production security, you can bind a domain and issue SSL anytime${NC}"
+    echo -e "${YELLOW}from the Web Dashboard or via 'hdns'.${NC}"
+    echo ""
 fi
 
 # ==============================================================================
