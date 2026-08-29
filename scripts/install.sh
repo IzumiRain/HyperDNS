@@ -16,7 +16,7 @@ BOLD='\033[1m'
 NC='\033[0m'
 
 # Clear screen & display Cyberpunk ASCII Banner
-clear
+clear 2>/dev/null || true
 echo -e "${CYAN}${BOLD}"
 echo "  ██╗  ██╗██╗   ██╗██████╗ ███████╗██████╗ ██████╗ ███╗   ██╗███████╗"
 echo "  ██║  ██║╚██╗ ██╔╝██╔══██╗██╔════╝██╔══██╗██╔══██╗████╗  ██║██╔════╝"
@@ -140,7 +140,7 @@ if [ "$INSTALLED" = false ]; then
     fi
     TMP_BUILD=$(mktemp -d)
     if git clone --depth 1 https://github.com/IzumiRain/HyperDNS.git "$TMP_BUILD" >/dev/null 2>&1; then
-        (cd "$TMP_BUILD" && go build -ldflags="-s -w" -o "${INSTALL_DIR}/hyperdns" ./cmd/hyperdns >/dev/null 2>&1)
+        (cd "$TMP_BUILD" && go build -o "${INSTALL_DIR}/hyperdns" ./cmd/hyperdns >/dev/null 2>&1)
         if [ -s "${INSTALL_DIR}/hyperdns" ]; then
             INSTALLED=true
             echo -e "  ${GREEN}✓ Successfully built HyperDNS from source!${NC}"

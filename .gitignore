@@ -1,4 +1,4 @@
-﻿# ==============================================================================
+# ==============================================================================
 # HyperDNS — Comprehensive Security & Privacy .gitignore
 # Prevents accidental leaking of secrets, certificates, credentials, and local data
 # ==============================================================================
@@ -38,10 +38,10 @@ config.dev.json
 config.prod.json
 
 # 4. Compiled Binaries & Executables
-hyperdns
-hyperdns.exe
-hyperdns-linux
-hyperdns-*
+/hyperdns
+/hyperdns.exe
+/hyperdns-linux
+/hyperdns-*
 *.exe
 *.dll
 *.so
