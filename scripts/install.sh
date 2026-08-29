@@ -106,13 +106,52 @@ fi
 # STEP 4: BINARY & SCRIPT INSTALLATION
 # ==============================================================================
 echo -e "${CYAN}${BOLD}[4/6] Installing HyperDNS Core Engine & TUI Utility...${NC}"
+mkdir -p "${INSTALL_DIR}/certs"
+mkdir -p "${INSTALL_DIR}/scripts"
+
+INSTALLED=false
+
+# 1. Local copy if running inside extracted repository
 if [ -f "./hyperdns" ]; then
     cp ./hyperdns "${INSTALL_DIR}/hyperdns"
+    INSTALLED=true
 elif [ -f "./hyperdns-linux" ]; then
     cp ./hyperdns-linux "${INSTALL_DIR}/hyperdns"
-else
-    echo -e "  ${YELLOW}Downloading prebuilt release binary...${NC}"
-    # curl -fsSL "https://github.com/IzumiRain/HyperDNS/releases/latest/download/hyperdns-linux-${BIN_ARCH}" -o "${INSTALL_DIR}/hyperdns"
+    INSTALLED=true
+fi
+
+# 2. Try downloading prebuilt binary from GitHub Releases
+if [ "$INSTALLED" = false ]; then
+    echo -e "  ${YELLOW}Attempting to download prebuilt binary from GitHub Releases...${NC}"
+    if curl -fL --connect-timeout 5 --retry 2 "https://github.com/IzumiRain/HyperDNS/releases/latest/download/hyperdns-linux-${BIN_ARCH}" -o "${INSTALL_DIR}/hyperdns" 2>/dev/null; then
+        if [ -s "${INSTALL_DIR}/hyperdns" ]; then
+            INSTALLED=true
+            echo -e "  ${GREEN}✓ Downloaded prebuilt release binary.${NC}"
+        fi
+    fi
+fi
+
+# 3. Fallback: Compile from GitHub source in seconds
+if [ "$INSTALLED" = false ]; then
+    echo -e "  ${YELLOW}Compiling HyperDNS binary directly from source code...${NC}"
+    if ! command -v go &>/dev/null; then
+        echo -e "  ${CYAN}Installing Go compiler & Git...${NC}"
+        apt-get update -y >/dev/null 2>&1 && apt-get install -y golang-go git >/dev/null 2>&1 || yum install -y golang git >/dev/null 2>&1 || true
+    fi
+    TMP_BUILD=$(mktemp -d)
+    if git clone --depth 1 https://github.com/IzumiRain/HyperDNS.git "$TMP_BUILD" >/dev/null 2>&1; then
+        (cd "$TMP_BUILD" && go build -ldflags="-s -w" -o "${INSTALL_DIR}/hyperdns" ./cmd/hyperdns >/dev/null 2>&1)
+        if [ -s "${INSTALL_DIR}/hyperdns" ]; then
+            INSTALLED=true
+            echo -e "  ${GREEN}✓ Successfully built HyperDNS from source!${NC}"
+        fi
+        rm -rf "$TMP_BUILD"
+    fi
+fi
+
+if [ ! -f "${INSTALL_DIR}/hyperdns" ] || [ ! -s "${INSTALL_DIR}/hyperdns" ]; then
+    echo -e "  ${RED}Error: Failed to obtain HyperDNS binary. Please ensure internet access or use the offline bundle.${NC}"
+    exit 1
 fi
 
 if [ -f "./scripts/ssl_issue.sh" ]; then
@@ -122,13 +161,10 @@ fi
 
 chmod +x "${INSTALL_DIR}/hyperdns"
 
-# Global TUI Command 'hdns'
-cat << 'EOF' > /usr/local/bin/hdns
-#!/usr/bin/env bash
-/opt/hyperdns/hyperdns -tui
-EOF
+# Global CLI/TUI Command 'hdns'
+ln -sf "${INSTALL_DIR}/hyperdns" /usr/local/bin/hdns
 chmod +x /usr/local/bin/hdns
-echo -e "  ${GREEN}✓ HyperDNS core binary & 'hdns' command installed.${NC}"
+echo -e "  ${GREEN}✓ HyperDNS core binary & 'hdns' global command installed.${NC}"
 
 # Auto-detect Public IP
 PUBLIC_IP=$(curl -s -m 3 https://api.ipify.org || curl -s -m 3 https://ifconfig.me || echo "127.0.0.1")
