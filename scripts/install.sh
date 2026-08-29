@@ -262,14 +262,19 @@ USER_DOMAIN=""
 IS_HTTPS=false
 
 RESP_SSL="n"
-if [ -e /dev/tty ]; then
-    read -rp " Configure custom domain with SSL now? [y/N]: " RESP_SSL < /dev/tty 2>/dev/null || RESP_SSL="n"
+if [ -t 0 ]; then
+    read -rp " Configure custom domain with SSL now? [y/N]: " RESP_SSL 2>/dev/null || RESP_SSL="n"
+elif [ -c /dev/tty ] && { : </dev/tty; } 2>/dev/null; then
+    read -rp " Configure custom domain with SSL now? [y/N]: " RESP_SSL </dev/tty 2>/dev/null || RESP_SSL="n"
 fi
 
 if [[ "$RESP_SSL" =~ ^([yY][eE][sS]|[yY])$ ]]; then
-    if [ -e /dev/tty ]; then
-        read -rp " Enter your domain name (e.g. dns.example.com): " USER_DOMAIN < /dev/tty 2>/dev/null || USER_DOMAIN=""
-        read -rp " Enter admin email for Let's Encrypt (optional): " USER_EMAIL < /dev/tty 2>/dev/null || USER_EMAIL=""
+    if [ -t 0 ]; then
+        read -rp " Enter your domain name (e.g. dns.example.com): " USER_DOMAIN 2>/dev/null || USER_DOMAIN=""
+        read -rp " Enter admin email for Let's Encrypt (optional): " USER_EMAIL 2>/dev/null || USER_EMAIL=""
+    elif [ -c /dev/tty ] && { : </dev/tty; } 2>/dev/null; then
+        read -rp " Enter your domain name (e.g. dns.example.com): " USER_DOMAIN </dev/tty 2>/dev/null || USER_DOMAIN=""
+        read -rp " Enter admin email for Let's Encrypt (optional): " USER_EMAIL </dev/tty 2>/dev/null || USER_EMAIL=""
     fi
     
     if [ -n "$USER_DOMAIN" ]; then
