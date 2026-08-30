@@ -1185,9 +1185,9 @@ function renderClientsView(data) {
         <!-- Whitelisted IPs Row -->
         <div class="space-y-1.5 mb-3">
           <div class="flex items-center justify-between text-[11px]">
-            <span class="text-slate-400 font-semibold">Registered IPs:</span>
+            <span class="text-slate-400 font-semibold">Registered IP (Max 1):</span>
             <button class="add-ip-prompt-btn text-cyan-400 hover:text-cyan-300 text-[10px] font-mono flex items-center gap-0.5" data-id="${c.id}">
-              + Add IP Manually
+              + Set IP Manually
             </button>
           </div>
           <div class="flex flex-wrap gap-1.5">

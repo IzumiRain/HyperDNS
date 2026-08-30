@@ -3,6 +3,7 @@ package config
 import (
 	"encoding/json"
 	"io"
+	"log"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -323,7 +324,36 @@ func (c *Config) IncrementClientQuery(ip string) {
 	}
 }
 
-// RegisterClientIP adds or updates a client's IP via auto registration token
+// GetValidClientByIP returns client if the IP is registered, account is enabled, and not expired
+func (c *Config) GetValidClientByIP(ip string) (*Client, bool) {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+
+	cleanIP := strings.TrimSpace(ip)
+	if cleanIP == "" {
+		return nil, false
+	}
+
+	now := time.Now()
+	for i := range c.Access.Clients {
+		cl := &c.Access.Clients[i]
+		if !cl.Enabled {
+			continue
+		}
+		if !cl.ExpiresAt.IsZero() && now.After(cl.ExpiresAt) {
+			continue
+		}
+		for _, clientIP := range cl.AllowedIPs {
+			if strings.TrimSpace(clientIP) == cleanIP {
+				clientCopy := *cl
+				return &clientCopy, true
+			}
+		}
+	}
+	return nil, false
+}
+
+// RegisterClientIP registers or replaces the single allowed IP for a client
 func (c *Config) RegisterClientIP(token, ip string) (*Client, bool, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -337,22 +367,20 @@ func (c *Config) RegisterClientIP(token, ip string) (*Client, bool, error) {
 	now := time.Now()
 	for i := range c.Access.Clients {
 		if c.Access.Clients[i].Token == cleanToken {
+			// Check expiration / accounting date
 			if !c.Access.Clients[i].ExpiresAt.IsZero() && now.After(c.Access.Clients[i].ExpiresAt) {
+				// Deactivate expired account and clear active IPs
+				c.Access.Clients[i].Enabled = false
+				c.Access.Clients[i].AllowedIPs = nil
 				return &c.Access.Clients[i], false, os.ErrDeadlineExceeded
 			}
 
-			// Add IP if not already present
-			alreadyPresent := false
-			for _, existingIP := range c.Access.Clients[i].AllowedIPs {
-				if strings.TrimSpace(existingIP) == cleanIP {
-					alreadyPresent = true
-					break
-				}
-			}
+			// Check if this exact IP was already the registered single IP
+			alreadyPresent := len(c.Access.Clients[i].AllowedIPs) == 1 && strings.TrimSpace(c.Access.Clients[i].AllowedIPs[0]) == cleanIP
 
-			if !alreadyPresent {
-				c.Access.Clients[i].AllowedIPs = append(c.Access.Clients[i].AllowedIPs, cleanIP)
-			}
+			// Strictly enforce 1 IP limit: replace any old IP with the new IP
+			c.Access.Clients[i].AllowedIPs = []string{cleanIP}
+			c.Access.Clients[i].Enabled = true
 			c.Access.Clients[i].LastSeen = now
 			return &c.Access.Clients[i], alreadyPresent, nil
 		}
@@ -409,7 +437,7 @@ func (c *Config) ToggleClient(id string, enabled bool) bool {
 	return false
 }
 
-// AddClientIP adds an IP manually to a client
+// AddClientIP sets/replaces the single allowed IP for a client (strictly 1 IP)
 func (c *Config) AddClientIP(id, ip string) bool {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -421,12 +449,7 @@ func (c *Config) AddClientIP(id, ip string) bool {
 
 	for i := range c.Access.Clients {
 		if c.Access.Clients[i].ID == id {
-			for _, existingIP := range c.Access.Clients[i].AllowedIPs {
-				if strings.TrimSpace(existingIP) == cleanIP {
-					return true
-				}
-			}
-			c.Access.Clients[i].AllowedIPs = append(c.Access.Clients[i].AllowedIPs, cleanIP)
+			c.Access.Clients[i].AllowedIPs = []string{cleanIP}
 			return true
 		}
 	}
@@ -470,8 +493,56 @@ func (c *Config) RenewClient(id string, extendDays int) bool {
 				}
 				c.Access.Clients[i].ExpiresAt = baseTime.Add(time.Duration(extendDays) * 24 * time.Hour)
 			}
+			c.Access.Clients[i].Enabled = true
 			return true
 		}
 	}
 	return false
+}
+
+// CheckAndDeactivateExpiredClients scans all clients and deactivates any that have expired
+func (c *Config) CheckAndDeactivateExpiredClients() (deactivatedCount int) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	now := time.Now()
+	for i := range c.Access.Clients {
+		cl := &c.Access.Clients[i]
+		if cl.Enabled && !cl.ExpiresAt.IsZero() && now.After(cl.ExpiresAt) {
+			cl.Enabled = false
+			cl.AllowedIPs = nil
+			deactivatedCount++
+			log.Printf("[Accounting] Client '%s' (ID: %s) expired at %s. Account deactivated and IP disconnected.",
+				cl.Name, cl.ID, cl.ExpiresAt.Format("2006-01-02 15:04:05"))
+		}
+	}
+	return deactivatedCount
+}
+
+// StartExpirationWatcher starts a periodic background ticker (every 1 min) to deactivate expired clients
+func (c *Config) StartExpirationWatcher(interval time.Duration, configPath string) (stop func()) {
+	if interval <= 0 {
+		interval = 1 * time.Minute
+	}
+	ticker := time.NewTicker(interval)
+	stopChan := make(chan struct{})
+
+	go func() {
+		for {
+			select {
+			case <-ticker.C:
+				deactivated := c.CheckAndDeactivateExpiredClients()
+				if deactivated > 0 && configPath != "" {
+					_ = c.Save(configPath)
+				}
+			case <-stopChan:
+				ticker.Stop()
+				return
+			}
+		}
+	}()
+
+	return func() {
+		close(stopChan)
+	}
 }

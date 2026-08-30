@@ -87,7 +87,28 @@ func (h *Handler) ProcessQuery(r *dns.Msg, clientIP, protocol string) *dns.Msg {
 	rawDomain := q.Name
 	cleanDomain := strings.ToLower(strings.TrimSuffix(rawDomain, "."))
 
-	// 1. Access Control Check (Whitelisting / Blacklisting)
+	// 1. Special Domain: example.com Connectivity & Registration Diagnostic
+	if cleanDomain == "example.com" || cleanDomain == "www.example.com" {
+		if _, ok := h.cfg.GetValidClientByIP(clientIP); ok {
+			// Registered and valid accounting date -> Return DNS Server Public IP
+			publicIP := h.cfg.Server.PublicIP
+			if publicIP == "" {
+				publicIP = "127.0.0.1"
+			}
+			resp := h.handleProxySpoof(r, q, publicIP)
+			lat := time.Since(start)
+			h.pushLog(clientIP, protocol, cleanDomain, dns.TypeToString[q.Qtype], "PROXY", fmt.Sprintf("%s (HyperDNS Connected - Client Active)", publicIP), lat, false, "Connectivity Test")
+			h.cfg.IncrementClientQuery(clientIP)
+			return resp
+		}
+		// Unregistered, disabled, or expired client -> Resolve to REAL IP from upstream (Cloudflare)
+		resp := h.resolveDirect(r, q)
+		lat := time.Since(start)
+		h.pushLog(clientIP, protocol, cleanDomain, dns.TypeToString[q.Qtype], "DIRECT", fmt.Sprintf("%s (Real Upstream IP - Client Inactive/Unregistered)", extractAnswers(resp)), lat, false, "Connectivity Test")
+		return resp
+	}
+
+	// 2. Access Control Check (Whitelisting / Blacklisting)
 	if !h.cfg.IsIPAllowed(clientIP) {
 		m := new(dns.Msg)
 		m.SetRcode(r, dns.RcodeRefused)
@@ -96,7 +117,7 @@ func (h *Handler) ProcessQuery(r *dns.Msg, clientIP, protocol string) *dns.Msg {
 	}
 	h.cfg.IncrementClientQuery(clientIP)
 
-	// 2. Evaluate Smart Routing Rules
+	// 3. Evaluate Smart Routing Rules
 	ruleResult := h.matcher.Match(cleanDomain)
 
 	var resp *dns.Msg
@@ -122,33 +143,32 @@ func (h *Handler) ProcessQuery(r *dns.Msg, clientIP, protocol string) *dns.Msg {
 		answerSummary = fmt.Sprintf("%s (SNI Proxy)", publicIP)
 
 	case rules.ActionDirect:
-		// 3. Check Cache
-		if cachedMsg := h.cache.Get(q); cachedMsg != nil {
-			cachedMsg.Id = r.Id
-			resp = cachedMsg
-			cached = true
-			atomic.AddUint64(&h.totalCache, 1)
-			answerSummary = extractAnswers(resp)
-		} else {
-			// 4. Query Upstream Resolvers (Racing Mode)
-			upResp, _, _, err := h.upstreams.Exchange(r)
-			if err != nil || upResp == nil {
-				resp = new(dns.Msg)
-				resp.SetRcode(r, dns.RcodeServerFailure)
-				answerSummary = "SERVFAIL"
-			} else {
-				resp = upResp
-				resp.Id = r.Id
-				h.cache.Put(q, resp)
-				answerSummary = extractAnswers(resp)
-			}
-		}
+		// Check Cache or Query Upstream Resolvers
+		resp = h.resolveDirect(r, q)
+		answerSummary = extractAnswers(resp)
 	}
 
 	lat := time.Since(start)
 	h.pushLog(clientIP, protocol, cleanDomain, dns.TypeToString[q.Qtype], ruleResult.Action.String(), answerSummary, lat, cached, ruleResult.MatchedBy)
 
 	return resp
+}
+
+func (h *Handler) resolveDirect(r *dns.Msg, q dns.Question) *dns.Msg {
+	if cachedMsg := h.cache.Get(q); cachedMsg != nil {
+		cachedMsg.Id = r.Id
+		atomic.AddUint64(&h.totalCache, 1)
+		return cachedMsg
+	}
+	upResp, _, _, err := h.upstreams.Exchange(r)
+	if err != nil || upResp == nil {
+		m := new(dns.Msg)
+		m.SetRcode(r, dns.RcodeServerFailure)
+		return m
+	}
+	upResp.Id = r.Id
+	h.cache.Put(q, upResp)
+	return upResp
 }
 
 func (h *Handler) handleBlock(r *dns.Msg, q dns.Question) *dns.Msg {

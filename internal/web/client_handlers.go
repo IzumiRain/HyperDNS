@@ -278,7 +278,8 @@ func (ws *WebServer) handleAutoRegisterIP(w http.ResponseWriter, r *http.Request
 
 	if err != nil {
 		if err == os.ErrDeadlineExceeded {
-			renderIPResultPage(w, false, "اعتبار اشتراک شما به پایان رسیده است", "Your subscription plan has expired. Please contact support to renew.", clientIP, "", "", "")
+			_ = ws.cfg.Save(ws.configPath)
+			renderIPResultPage(w, false, "اعتبار اشتراک شما به پایان رسیده است — اکانت غیرفعال شد", "Your subscription plan has expired and your account has been deactivated. Please contact support to renew.", clientIP, "", "", "")
 			return
 		}
 		renderIPResultPage(w, false, "لینک ثبت آی‌پی نامعتبر است", "Invalid or unknown registration token.", clientIP, "", "", "")
@@ -305,9 +306,9 @@ func (ws *WebServer) handleAutoRegisterIP(w http.ResponseWriter, r *http.Request
 		pubIP = "127.0.0.1"
 	}
 
-	statusMsg := "آی‌پی شما با موفقیت ثبت و فعال شد!"
+	statusMsg := "آی‌پی جدید شما با موفقیت ثبت و جایگزین شد!"
 	if alreadyPresent {
-		statusMsg = "آی‌پی شما قبلاً در سیستم ثبت شده و فعال است."
+		statusMsg = "آی‌پی شما تأیید شد و در سیستم فعال است."
 	}
 
 	renderIPResultPage(w, true, statusMsg, "Your IP has been successfully registered on HyperDNS!", clientIP, client.Name, client.ID, expStr, pubIP)

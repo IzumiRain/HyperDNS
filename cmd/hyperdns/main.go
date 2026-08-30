@@ -8,6 +8,7 @@ import (
 	"os/signal"
 	"strings"
 	"syscall"
+	"time"
 
 	"hyperdns/internal/cert"
 	"hyperdns/internal/config"
@@ -185,6 +186,10 @@ func main() {
 	if err := webServer.Start(); err != nil {
 		log.Fatalf("[Main] Failed to start Web Server: %v", err)
 	}
+
+	// 10. Start 1-Minute Periodic Expiration Watcher for Client Accounts
+	stopWatcher := cfg.StartExpirationWatcher(1*time.Minute, cPath)
+	defer stopWatcher()
 
 	if !*enableTUI {
 		log.Println("================================================================")
