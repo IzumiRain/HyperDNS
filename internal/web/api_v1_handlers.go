@@ -202,7 +202,7 @@ func (ws *WebServer) handleAPIv1Clients(w http.ResponseWriter, r *http.Request) 
 
 		now := time.Now()
 		var expiresAt time.Time
-		if req.ExpiresDays > 0 {
+		if req.ExpiresDays != 0 {
 			expiresAt = now.Add(time.Duration(req.ExpiresDays) * 24 * time.Hour)
 		}
 
