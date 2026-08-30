@@ -197,6 +197,9 @@ function renderConfig(cfg) {
     const guideDotEl = document.getElementById('guide-dot-hostname');
     if (guideDotEl) guideDotEl.innerText = cfg.tls.domain;
     const sslDomInput = document.getElementById('ssl-domain-input');
+    if (sslDomInput) sslDomInput.value = cfg.tls.domain;
+  }
+
   // Render API Key
   const apiKeyDisp = document.getElementById('api-key-display');
   if (apiKeyDisp && cfg.server && cfg.server.api_key) {
