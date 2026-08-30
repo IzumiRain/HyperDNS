@@ -55,11 +55,16 @@ It transforms any single Linux or Windows server into a private **Anti-Sanction 
 
 ## 🌟 Features
 
-### 🎮 1. Categorized Smart Policies
-- **Gaming:** PUBG Mobile & PC (Krafton), Call of Duty (Mobile / Warzone / Activision), Supercell (Brawl Stars / Clash of Clans / Clash Royale), Riot Games (Valorant / LoL / Vanguard), Epic Games (Fortnite / Store / EAC), Steam & Valve (CS2 / Dota 2), Electronic Arts (EA App / Apex Legends), Blizzard (Battle.net), Ubisoft Connect, Rockstar Games (GTA V / GTA Online / Social Club), Xbox Live & Minecraft, PlayStation Network (PSN), Roblox.
-- **Streaming & Media:** Discord (Full Suite + RTC Voice + Updates), Twitch (Streams & Chat), Kick.com, Spotify (Music playback 403 bypass).
-- **Developer 403 Suite:** Docker Hub, OpenAI / ChatGPT, Claude / Anthropic, npm, Gradle, Android SDK, PyPI, HuggingFace, Supabase, Vercel, MongoDB, Oracle.
-- **Security & Privacy (AdGuard-Style):** AdBlock & Telemetry Sinkhole (`0.0.0.0`), Family Safe Adult Content Protection.
+### 🎮 1. Categorized Smart Policies (171+ Games & Services)
+- **Gaming & Tactical Shooters:** Valorant, CS2, Call of Duty (Warzone / Mobile / BO6), The Finals, Tarkov, Delta Force, HellDivers 2, PUBG, Apex Legends, Rainbow Six Siege, Rust, Squad, DayZ, ArmA, Dead by Daylight.
+- **Anime, Gacha & MMORPGs:** Genshin Impact, Honkai: Star Rail, Zenless Zone Zero, Wuthering Waves, Arknights, Lost Ark, Throne & Liberty, Path of Exile 1 & 2, Warframe, Elden Ring, Black Desert.
+- **Sports, Fighting & Racing:** EA Sports FC 25, eFootball, Street Fighter 6, Mortal Kombat 1, Tekken 8, Assetto Corsa, Euro Truck Simulator 2, 2XKO.
+- **Publishers & Ecosystems:** Riot Games, Steam/Valve, Epic Games, Blizzard, EA, Ubisoft, Rockstar, Xbox Live, PlayStation Network, Roblox, Supercell.
+- **Streaming & Media:** Discord (Full Suite + RTC Voice + Updates), Spotify & SoundCloud, Twitch, Kick.com.
+- **Developer 403 Suite:** Docker Hub, OpenAI / ChatGPT, Claude / Anthropic, npm, Gradle, Android SDK, PyPI, HuggingFace, Supabase, Vercel.
+- **Security & Privacy:** AdBlock & Telemetry Sinkhole (`0.0.0.0`), Family Safe Adult Content Protection.
+
+👉 **[View Full Supported Games & Platforms Directory (171+ Titles)](SUPPORTED_GAMES.md)**
 
 ### ⚡ 2. Microsecond In-Memory Cache & Racing Resolvers
 - **RAM Cache:** Repeated queries resolve in **<0.5ms** with automatic TTL decay.
