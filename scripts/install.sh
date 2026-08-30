@@ -258,26 +258,37 @@ echo -e "${YELLOW}│ • YES: Enables HTTPS on Web UI & valid certificate for D
 echo -e "${YELLOW}│ • NO : Web UI will run on plain HTTP (Warning: unencrypted credentials)│${NC}"
 echo -e "${YELLOW}└────────────────────────────────────────────────────────────────────────┘${NC}"
 
+# Helper for reading user input cleanly in piped or interactive bash
+ask_user() {
+    local prompt_msg="$1"
+    local default_val="$2"
+    local user_var=""
+
+    printf "%b" "${prompt_msg}" >&2
+    if [ -t 0 ]; then
+        read -r user_var || user_var=""
+    elif [ -c /dev/tty ]; then
+        read -r user_var </dev/tty 2>/dev/null || user_var=""
+    fi
+    
+    if [ -z "${user_var}" ]; then
+        echo "${default_val}"
+    else
+        echo "${user_var}"
+    fi
+}
+
 USER_DOMAIN=""
 IS_HTTPS=false
 
-RESP_SSL="n"
-if [ -t 0 ]; then
-    read -rp " Configure custom domain with SSL now? [y/N]: " RESP_SSL 2>/dev/null || RESP_SSL="n"
-elif [ -c /dev/tty ] && { : </dev/tty; } 2>/dev/null; then
-    read -rp " Configure custom domain with SSL now? [y/N]: " RESP_SSL </dev/tty 2>/dev/null || RESP_SSL="n"
-fi
+RESP_SSL=$(ask_user " ${BOLD}${YELLOW}▶ Configure custom domain with Let's Encrypt SSL now? [y/N]: ${NC}" "n")
 
 if [[ "$RESP_SSL" =~ ^([yY][eE][sS]|[yY])$ ]]; then
-    if [ -t 0 ]; then
-        read -rp " Enter your domain name (e.g. dns.example.com): " USER_DOMAIN 2>/dev/null || USER_DOMAIN=""
-        read -rp " Enter admin email for Let's Encrypt (optional): " USER_EMAIL 2>/dev/null || USER_EMAIL=""
-    elif [ -c /dev/tty ] && { : </dev/tty; } 2>/dev/null; then
-        read -rp " Enter your domain name (e.g. dns.example.com): " USER_DOMAIN </dev/tty 2>/dev/null || USER_DOMAIN=""
-        read -rp " Enter admin email for Let's Encrypt (optional): " USER_EMAIL </dev/tty 2>/dev/null || USER_EMAIL=""
-    fi
+    USER_DOMAIN=$(ask_user " ${BOLD}${CYAN}▶ Enter your domain name (e.g. dns.example.com): ${NC}" "")
+    USER_EMAIL=$(ask_user " ${BOLD}${CYAN}▶ Enter admin email for Let's Encrypt (optional, press Enter to skip): ${NC}" "")
     
     if [ -n "$USER_DOMAIN" ]; then
+        echo ""
         echo -e "  ${CYAN}Issuing Let's Encrypt SSL certificate for ${USER_DOMAIN}...${NC}"
         
         # Try certbot standalone issuance

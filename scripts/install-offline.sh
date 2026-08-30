@@ -134,18 +134,34 @@ echo -e "${YELLOW}│ • YES: Enables HTTPS for Web UI and Let's Encrypt for Do
 echo -e "${YELLOW}│ • NO : Web UI will run on HTTP (Warning: unencrypted credentials)      │${NC}"
 echo -e "${YELLOW}└────────────────────────────────────────────────────────────────────────┘${NC}"
 
+# Helper for reading user input cleanly in piped or interactive bash
+ask_user() {
+    local prompt_msg="$1"
+    local default_val="$2"
+    local user_var=""
+
+    printf "%b" "${prompt_msg}" >&2
+    if [ -t 0 ]; then
+        read -r user_var || user_var=""
+    elif [ -c /dev/tty ]; then
+        read -r user_var </dev/tty 2>/dev/null || user_var=""
+    fi
+    
+    if [ -z "${user_var}" ]; then
+        echo "${default_val}"
+    else
+        echo "${user_var}"
+    fi
+}
+
 USER_DOMAIN=""
 IS_HTTPS=false
 
-if [ -t 0 ]; then
-    read -rp "$(echo -e " ${BOLD}Configure custom domain with SSL now? [y/N]: ${NC}")" RESP_SSL
-else
-    RESP_SSL="n"
-fi
+RESP_SSL=$(ask_user " ${BOLD}${YELLOW}▶ Configure custom domain with Let's Encrypt SSL now? [y/N]: ${NC}" "n")
 
 if [[ "$RESP_SSL" =~ ^([yY][eE][sS]|[yY])$ ]]; then
-    read -rp "$(echo -e " ${CYAN}Enter your domain name (e.g. dns.example.com): ${NC}")" USER_DOMAIN
-    read -rp "$(echo -e " ${CYAN}Enter admin email for Let's Encrypt SSL (optional): ${NC}")" USER_EMAIL
+    USER_DOMAIN=$(ask_user " ${BOLD}${CYAN}▶ Enter your domain name (e.g. dns.example.com): ${NC}" "")
+    USER_EMAIL=$(ask_user " ${BOLD}${CYAN}▶ Enter admin email for Let's Encrypt (optional, press Enter to skip): ${NC}" "")
     
     if [ -n "$USER_DOMAIN" ]; then
         if [ -f "${INSTALL_DIR}/config.json" ]; then
