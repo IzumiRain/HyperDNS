@@ -267,7 +267,7 @@ ask_user() {
     printf "%b" "${prompt_msg}" >&2
     if [ -t 0 ]; then
         read -r user_var || user_var=""
-    elif [ -c /dev/tty ]; then
+    elif (exec </dev/tty) 2>/dev/null; then
         read -r user_var </dev/tty 2>/dev/null || user_var=""
     fi
     
