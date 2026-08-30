@@ -51,6 +51,12 @@ func (a *AuthManager) ValidateToken(token string) bool {
 		return false
 	}
 
+	// 1. Direct API Key Validation (Constant-time comparison)
+	if a.cfg.Server.APIKey != "" && subtle.ConstantTimeCompare([]byte(token), []byte(a.cfg.Server.APIKey)) == 1 {
+		return true
+	}
+
+	// 2. Web Session Token Validation
 	a.mu.RLock()
 	exp, ok := a.sessions[token]
 	a.mu.RUnlock()
@@ -65,10 +71,19 @@ func (a *AuthManager) RequireAuth(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		token := ""
 
-		// Check Authorization Header
-		authHeader := r.Header.Get("Authorization")
-		if strings.HasPrefix(authHeader, "Bearer ") {
-			token = strings.TrimPrefix(authHeader, "Bearer ")
+		// Check X-API-Key Header
+		if apiKey := r.Header.Get("X-API-Key"); apiKey != "" {
+			token = apiKey
+		}
+
+		// Check Authorization Header (Bearer token or Bearer API key)
+		if token == "" {
+			authHeader := r.Header.Get("Authorization")
+			if strings.HasPrefix(authHeader, "Bearer ") {
+				token = strings.TrimPrefix(authHeader, "Bearer ")
+			} else if strings.HasPrefix(authHeader, "ApiKey ") {
+				token = strings.TrimPrefix(authHeader, "ApiKey ")
+			}
 		}
 
 		// Check Cookie
@@ -78,13 +93,19 @@ func (a *AuthManager) RequireAuth(next http.HandlerFunc) http.HandlerFunc {
 			}
 		}
 
-		// Check Query Parameter
+		// Check Query Parameter (?api_key=... or ?auth_token=...)
 		if token == "" {
-			token = r.URL.Query().Get("auth_token")
+			if qKey := r.URL.Query().Get("api_key"); qKey != "" {
+				token = qKey
+			} else {
+				token = r.URL.Query().Get("auth_token")
+			}
 		}
 
 		if !a.ValidateToken(token) {
-			http.Error(w, `{"error":"unauthorized"}`, http.StatusUnauthorized)
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusUnauthorized)
+			_, _ = w.Write([]byte(`{"success":false,"error":"Unauthorized: Invalid or missing API Key / Session Token"}`))
 			return
 		}
 

@@ -1,6 +1,8 @@
 package config
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"io"
 	"log"
@@ -30,6 +32,7 @@ type ServerConfig struct {
 	AdminUsername string `json:"admin_username"`
 	AdminPassword string `json:"admin_password"`
 	JWTSecret     string `json:"jwt_secret"`
+	APIKey        string `json:"api_key"`
 }
 
 type DNSConfig struct {
@@ -121,6 +124,7 @@ func DefaultConfig() *Config {
 			AdminUsername: "admin",
 			AdminPassword: "admin", // Default is admin / admin
 			JWTSecret:     "hyperdns-super-secret-key-change-me",
+			APIKey:        GenerateSecureAPIKey(),
 		},
 		DNS: DNSConfig{
 			Enabled:       true,
@@ -207,7 +211,26 @@ func LoadConfig(filePath string) (*Config, error) {
 		_ = cfg.AutoDetectPublicIP()
 	}
 
+	if cfg.Server.APIKey == "" {
+		cfg.Server.APIKey = GenerateSecureAPIKey()
+	}
+
 	return cfg, nil
+}
+
+// GenerateSecureAPIKey creates a cryptographically random API Key
+func GenerateSecureAPIKey() string {
+	b := make([]byte, 20)
+	_, _ = rand.Read(b)
+	return "hdns_live_" + hex.EncodeToString(b)
+}
+
+// RegenerateAPIKey generates and sets a new random API key
+func (c *Config) RegenerateAPIKey() string {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.Server.APIKey = GenerateSecureAPIKey()
+	return c.Server.APIKey
 }
 
 func (c *Config) Save(filePath string) error {

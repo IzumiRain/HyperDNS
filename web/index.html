@@ -1219,6 +1219,36 @@
             <div id="custom-records-list" class="max-h-48 overflow-y-auto space-y-1.5 pr-1"></div>
           </div>
 
+          <!-- Developer & Bot REST API (v1) Gateway Card -->
+          <div class="glass-panel p-5 sm:p-6 space-y-4 border border-cyan-500/30 col-span-1 md:col-span-2">
+            <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+              <div>
+                <h3 class="text-xs sm:text-sm font-bold uppercase text-white flex items-center gap-2 font-heading">
+                  <i data-feather="code" class="w-4 h-4 text-cyan-400"></i> Developer & Bot REST API (v1)
+                </h3>
+                <p class="text-[11px] text-slate-400 mt-0.5">Programmatic API gateway for Telegram bots, accounting billing systems & webhooks</p>
+              </div>
+              <div class="flex items-center gap-2">
+                <a href="/api/v1/docs" target="_blank" class="px-3 py-1.5 rounded-lg bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 text-xs font-bold font-heading flex items-center gap-1.5 transition">
+                  <i data-feather="book-open" class="w-3.5 h-3.5"></i>
+                  <span>API Docs</span>
+                </a>
+                <button id="regen-api-key-btn" class="px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-amber-500/20 text-slate-300 hover:text-amber-300 border border-slate-700 text-xs font-bold font-heading flex items-center gap-1.5 transition">
+                  <i data-feather="refresh-cw" class="w-3.5 h-3.5"></i>
+                  <span>Regenerate Key</span>
+                </button>
+              </div>
+            </div>
+
+            <div class="space-y-1.5">
+              <div class="text-[11px] text-slate-400 font-semibold">Master API Key:</div>
+              <div class="code-box cursor-pointer flex items-center justify-between" onclick="copyText(document.getElementById('api-key-display').innerText, this)">
+                <span id="api-key-display" class="text-amber-300 font-bold select-all">Loading API Key...</span>
+                <i data-feather="copy" class="w-3.5 h-3.5 text-slate-400 hover:text-cyan-400 flex-shrink-0 ml-2"></i>
+              </div>
+            </div>
+          </div>
+
         </div>
 
       </section>

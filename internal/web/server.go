@@ -96,6 +96,35 @@ func (ws *WebServer) BuildHandler() http.Handler {
 	mux.HandleFunc("/api/clients/renew", ws.requireAuth(ws.handleRenewClient))
 	mux.HandleFunc("/api/access/mode", ws.requireAuth(ws.handleToggleAccessMode))
 
+	// =========================================================================
+	// Comprehensive REST API v1 (Developer, Bot & Billing Gateway)
+	// =========================================================================
+	mux.HandleFunc("/api/v1/status", ws.requireAuth(ws.handleAPIv1Status))
+	mux.HandleFunc("/api/v1/diagnostics", ws.requireAuth(ws.handleAPIv1Diagnostics))
+	mux.HandleFunc("/api/v1/cache/flush", ws.requireAuth(ws.handleAPIv1CacheFlush))
+	mux.HandleFunc("/api/v1/system/restart", ws.requireAuth(ws.handleAPIv1Restart))
+	mux.HandleFunc("/api/v1/clients", ws.requireAuth(ws.handleAPIv1Clients))
+	mux.HandleFunc("/api/v1/clients/", ws.requireAuth(func(w http.ResponseWriter, r *http.Request) {
+		path := r.URL.Path
+		if strings.HasSuffix(path, "/ip") {
+			ws.handleAPIv1ClientIP(w, r)
+		} else if strings.HasSuffix(path, "/renew") {
+			ws.handleAPIv1ClientRenew(w, r)
+		} else if strings.HasSuffix(path, "/toggle") {
+			ws.handleAPIv1ClientToggle(w, r)
+		} else if strings.HasPrefix(path, "/api/v1/clients/lookup") {
+			ws.handleAPIv1ClientLookup(w, r)
+		} else {
+			ws.handleAPIv1ClientByID(w, r)
+		}
+	}))
+	mux.HandleFunc("/api/v1/rules", ws.requireAuth(ws.handleAPIv1Rules))
+	mux.HandleFunc("/api/v1/upstreams", ws.requireAuth(ws.handleAPIv1Upstreams))
+	mux.HandleFunc("/api/v1/access", ws.requireAuth(ws.handleAPIv1Access))
+	mux.HandleFunc("/api/v1/api-key", ws.requireAuth(ws.handleAPIv1APIKey))
+	mux.HandleFunc("/api/v1/docs", ws.handleAPIv1Docs)
+	mux.HandleFunc("/docs", ws.handleAPIv1Docs)
+
 	// Dedicated Handlers
 	mux.HandleFunc("/ip/", ws.handleAutoRegisterIP)
 	mux.HandleFunc("/matrix", ws.handleMatrix)

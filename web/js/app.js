@@ -197,7 +197,10 @@ function renderConfig(cfg) {
     const guideDotEl = document.getElementById('guide-dot-hostname');
     if (guideDotEl) guideDotEl.innerText = cfg.tls.domain;
     const sslDomInput = document.getElementById('ssl-domain-input');
-    if (sslDomInput) sslDomInput.value = cfg.tls.domain;
+  // Render API Key
+  const apiKeyDisp = document.getElementById('api-key-display');
+  if (apiKeyDisp && cfg.server && cfg.server.api_key) {
+    apiKeyDisp.innerText = cfg.server.api_key;
   }
 
   // Preset Switches
@@ -737,6 +740,28 @@ function initEventListeners() {
         }
       } catch (e) {
         showToast('Failed to add upstream', 'error');
+      }
+    };
+  }
+
+  // Regenerate Master API Key
+  const regenKeyBtn = document.getElementById('regen-api-key-btn');
+  if (regenKeyBtn) {
+    regenKeyBtn.onclick = async () => {
+      if (!confirm('Are you sure you want to regenerate your API Key? All connected Telegram bots and billing integrations will need to be updated with the new key.')) return;
+      try {
+        const res = await fetch('/api/v1/api-key', {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${authToken}` }
+        });
+        const data = await res.json();
+        if (data.success && data.data && data.data.api_key) {
+          const disp = document.getElementById('api-key-display');
+          if (disp) disp.innerText = data.data.api_key;
+          showToast('✓ Master API Key regenerated successfully!', 'success');
+        }
+      } catch (e) {
+        showToast('Failed to regenerate API Key', 'error');
       }
     };
   }

@@ -1,0 +1,79 @@
+{
+  "server": {
+    "public_ip": "1.2.3.4",
+    "bind_host": "0.0.0.0",
+    "web_port": 8080,
+    "admin_username": "admin",
+    "admin_password": "admin",
+    "jwt_secret": "hyperdns-super-secret-key-change-me",
+    "api_key": "hdns_live_testkey1234567890"
+  },
+  "dns": {
+    "enabled": true,
+    "port": 53,
+    "dot_port": 853,
+    "doh_port": 8443,
+    "upstreams": [
+      "1.1.1.1:53",
+      "8.8.8.8:53",
+      "9.9.9.9:53",
+      "1.0.0.1:53"
+    ],
+    "cache_size": 20000,
+    "cache_min_ttl": 60,
+    "cache_max_ttl": 86400,
+    "query_timeout": 2500000000,
+    "fastest_racing": true,
+    "ecs_client_ip": ""
+  },
+  "sniproxy": {
+    "enabled": true,
+    "http_port": 80,
+    "https_port": 443,
+    "timeout": 120000000000,
+    "enable_fragmentation": false,
+    "fragment_size": 2,
+    "fragment_delay_ms": 5
+  },
+  "rules": {
+    "enable_riot": true,
+    "enable_epic": true,
+    "enable_steam": true,
+    "enable_pubg": true,
+    "enable_call_of_duty": true,
+    "enable_supercell": true,
+    "enable_discord": true,
+    "enable_ea": true,
+    "enable_blizzard": true,
+    "enable_ubisoft": true,
+    "enable_rockstar": true,
+    "enable_xbox": true,
+    "enable_playstation": true,
+    "enable_roblox": true,
+    "enable_spotify": true,
+    "enable_twitch": true,
+    "enable_kick": true,
+    "enable_dev403": true,
+    "enable_adblock": false,
+    "enable_familysafe": false,
+    "custom_proxied": [],
+    "custom_blocked": [],
+    "custom_direct": [],
+    "custom_records": {}
+  },
+  "access": {
+    "allow_all": true,
+    "allowed_ips": [],
+    "blocked_ips": [],
+    "clients": [],
+    "doh_tokens": [],
+    "rate_limit_qps": 200
+  },
+  "tls": {
+    "auto_cert": false,
+    "domain": "",
+    "email": "",
+    "cert_file": "certs/cert.pem",
+    "key_file": "certs/key.pem"
+  }
+}
