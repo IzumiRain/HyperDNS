@@ -859,87 +859,6 @@
               </div>
             </div>
 
-          </div>
-        </div>
-
-        <!-- SECTION 2: STREAMING & MEDIA POLICIES -->
-        <div class="space-y-4">
-          <div class="flex items-center gap-2 border-b border-slate-800/80 pb-3">
-            <span class="text-xl">🎬</span>
-            <div>
-              <h3 class="text-sm sm:text-base font-bold text-white tracking-wide font-heading">Streaming & Media Policies</h3>
-              <p class="text-[11px] text-slate-400">Bypass restrictions on live streaming, voice channels, and music</p>
-            </div>
-          </div>
-
-          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            
-            <!-- Policy: Discord -->
-            <div class="glass-panel p-4 card-discord flex flex-col justify-between">
-              <div>
-                <div class="flex items-center justify-between mb-1.5">
-                  <div class="flex items-center gap-2">
-                    <span class="text-2xl">🎧</span>
-                    <div>
-                      <h4 class="text-xs sm:text-sm font-bold text-white font-heading">Discord</h4>
-                      <span class="text-[9px] sm:text-[10px] text-slate-400 font-mono">Updates · RTC Voice</span>
-                    </div>
-                  </div>
-                  <label class="switch">
-                    <input type="checkbox" id="preset-discord" checked>
-                    <span class="slider"></span>
-                  </label>
-                </div>
-                <p class="text-[11px] text-slate-400 leading-relaxed">
-                  Fixes updater downloading loop and RTC connecting voice lock.
-                </p>
-              </div>
-            </div>
-
-            <!-- Policy: Twitch -->
-            <div class="glass-panel p-4 flex flex-col justify-between">
-              <div>
-                <div class="flex items-center justify-between mb-1.5">
-                  <div class="flex items-center gap-2">
-                    <span class="text-2xl">💜</span>
-                    <div>
-                      <h4 class="text-xs sm:text-sm font-bold text-purple-400 font-heading">Twitch</h4>
-                      <span class="text-[9px] sm:text-[10px] text-slate-400 font-mono">Live Streams & Chat</span>
-                    </div>
-                  </div>
-                  <label class="switch">
-                    <input type="checkbox" id="preset-twitch" checked>
-                    <span class="slider"></span>
-                  </label>
-                </div>
-                <p class="text-[11px] text-slate-400 leading-relaxed">
-                  Ensures high-speed Twitch streaming and websocket chat connectivity.
-                </p>
-              </div>
-            </div>
-
-            <!-- Policy: Kick -->
-            <div class="glass-panel p-4 flex flex-col justify-between">
-              <div>
-                <div class="flex items-center justify-between mb-1.5">
-                  <div class="flex items-center gap-2">
-                    <span class="text-2xl">🟢</span>
-                    <div>
-                      <h4 class="text-xs sm:text-sm font-bold text-emerald-400 font-heading">Kick.com</h4>
-                      <span class="text-[9px] sm:text-[10px] text-slate-400 font-mono">Live Streaming</span>
-                    </div>
-                  </div>
-                  <label class="switch">
-                    <input type="checkbox" id="preset-kick" checked>
-                    <span class="slider"></span>
-                  </label>
-                </div>
-                <p class="text-[11px] text-slate-400 leading-relaxed">
-                  Bypasses Kick live stream playback blocks and chat websocket blocks.
-                </p>
-              </div>
-            </div>
-
             <!-- Policy: Tactical Shooters Extra (PacketRaft Expansion) -->
             <div class="glass-panel p-4 card-valorant flex flex-col justify-between">
               <div>
@@ -1050,7 +969,44 @@
               </div>
             </div>
 
-            <!-- Policy: Spotify -->
+          </div>
+        </div>
+
+        <!-- SECTION 2: STREAMING & MEDIA POLICIES -->
+        <div class="space-y-4">
+          <div class="flex items-center gap-2 border-b border-slate-800/80 pb-3">
+            <span class="text-xl">🎬</span>
+            <div>
+              <h3 class="text-sm sm:text-base font-bold text-white tracking-wide font-heading">Streaming & Media Policies</h3>
+              <p class="text-[11px] text-slate-400">Bypass restrictions on live streaming, voice channels, and music</p>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            
+            <!-- Policy: Discord -->
+            <div class="glass-panel p-4 card-discord flex flex-col justify-between">
+              <div>
+                <div class="flex items-center justify-between mb-1.5">
+                  <div class="flex items-center gap-2">
+                    <span class="text-2xl">🎧</span>
+                    <div>
+                      <h4 class="text-xs sm:text-sm font-bold text-white font-heading">Discord</h4>
+                      <span class="text-[9px] sm:text-[10px] text-slate-400 font-mono">Updates · RTC Voice</span>
+                    </div>
+                  </div>
+                  <label class="switch">
+                    <input type="checkbox" id="preset-discord" checked>
+                    <span class="slider"></span>
+                  </label>
+                </div>
+                <p class="text-[11px] text-slate-400 leading-relaxed">
+                  Fixes updater downloading loop and RTC connecting voice lock.
+                </p>
+              </div>
+            </div>
+
+            <!-- Policy: Spotify & SoundCloud -->
             <div class="glass-panel p-4 card-spotify flex flex-col justify-between">
               <div>
                 <div class="flex items-center justify-between mb-1.5">
@@ -1068,6 +1024,50 @@
                 </div>
                 <p class="text-[11px] text-slate-400 leading-relaxed">
                   Bypasses 403 sanctions on Spotify music playback, login, and SoundCloud CDN streams.
+                </p>
+              </div>
+            </div>
+
+            <!-- Policy: Twitch -->
+            <div class="glass-panel p-4 flex flex-col justify-between">
+              <div>
+                <div class="flex items-center justify-between mb-1.5">
+                  <div class="flex items-center gap-2">
+                    <span class="text-2xl">💜</span>
+                    <div>
+                      <h4 class="text-xs sm:text-sm font-bold text-purple-400 font-heading">Twitch</h4>
+                      <span class="text-[9px] sm:text-[10px] text-slate-400 font-mono">Live Streams & Chat</span>
+                    </div>
+                  </div>
+                  <label class="switch">
+                    <input type="checkbox" id="preset-twitch" checked>
+                    <span class="slider"></span>
+                  </label>
+                </div>
+                <p class="text-[11px] text-slate-400 leading-relaxed">
+                  Ensures high-speed Twitch streaming and websocket chat connectivity.
+                </p>
+              </div>
+            </div>
+
+            <!-- Policy: Kick -->
+            <div class="glass-panel p-4 flex flex-col justify-between">
+              <div>
+                <div class="flex items-center justify-between mb-1.5">
+                  <div class="flex items-center gap-2">
+                    <span class="text-2xl">🟢</span>
+                    <div>
+                      <h4 class="text-xs sm:text-sm font-bold text-emerald-400 font-heading">Kick.com</h4>
+                      <span class="text-[9px] sm:text-[10px] text-slate-400 font-mono">Live Streaming</span>
+                    </div>
+                  </div>
+                  <label class="switch">
+                    <input type="checkbox" id="preset-kick" checked>
+                    <span class="slider"></span>
+                  </label>
+                </div>
+                <p class="text-[11px] text-slate-400 leading-relaxed">
+                  Bypasses Kick live stream playback blocks and chat websocket blocks.
                 </p>
               </div>
             </div>
