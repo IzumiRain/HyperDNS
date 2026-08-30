@@ -16,6 +16,8 @@
 
 <p align="center">
   <a href="#-features">Features</a> •
+  <a href="SUPPORTED_GAMES.md">Supported Games (171+)</a> •
+  <a href="API.md">REST API v1</a> •
   <a href="#-quick-installation">Installation</a> •
   <a href="#-tui-terminal-controller-hdns">TUI Controller</a> •
   <a href="#-client-setup-guides">Client Setup</a> •
