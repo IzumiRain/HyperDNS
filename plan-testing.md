@@ -81,3 +81,22 @@
 - [ ] **تست صفحه مستندات تعاملی API:**
   - باز کردن آدرس `http://<IP>:8080/api/v1/docs` در مرورگر و بررسی نمونه کدهای پایتون و ربات تلگرام.
 
+---
+
+### ۷. تست سازگاری و روتینگ ۱۷۱ بازی و سرویس PacketRaft
+- [ ] **تست رزولوشن شوترهای تاکتیکال جدید:**
+  - `dig @<DNS_SERVER_IP> thefinals.com` ⬅️ نتیجه: آی‌پی SmartDNS سرور
+  - `dig @<DNS_SERVER_IP> escapefromtarkov.com` ⬅️ نتیجه: آی‌پی SmartDNS سرور
+  - `dig @<DNS_SERVER_IP> playdeltaforce.com` ⬅️ نتیجه: آی‌پی SmartDNS سرور
+  - `dig @<DNS_SERVER_IP> marvelrivals.com` ⬅️ نتیجه: آی‌پی SmartDNS سرور
+- [ ] **تست بازی‌های انیمه‌ای و MMO:**
+  - `dig @<DNS_SERVER_IP> genshin.hoyoverse.com` ⬅️ نتیجه: آی‌پی SmartDNS سرور
+  - `dig @<DNS_SERVER_IP> wutheringwaves.kurogames.com` ⬅️ نتیجه: آی‌پی SmartDNS سرور
+  - `dig @<DNS_SERVER_IP> pathofexile2.com` ⬅️ نتیجه: آی‌پی SmartDNS سرور
+- [ ] **تست گیم‌های ریسینگ و فایتینگ:**
+  - `dig @<DNS_SERVER_IP> assettocorsa.net` ⬅️ نتیجه: آی‌پی SmartDNS سرور
+  - `dig @<DNS_SERVER_IP> play2xko.com` ⬅️ نتیجه: آی‌پی SmartDNS سرور
+- [ ] **تست سرویس‌های کلاود گیمینگ و ابزارها:**
+  - `dig @<DNS_SERVER_IP> geforcenow.com` ⬅️ نتیجه: آی‌پی SmartDNS سرور
+  - `dig @<DNS_SERVER_IP> soundcloud.com` ⬅️ نتیجه: آی‌پی SmartDNS سرور
+

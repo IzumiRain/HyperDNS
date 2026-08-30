@@ -218,6 +218,11 @@ function renderConfig(cfg) {
   setSwitch('preset-xbox', cfg.rules.enable_xbox);
   setSwitch('preset-playstation', cfg.rules.enable_playstation);
   setSwitch('preset-roblox', cfg.rules.enable_roblox);
+  setSwitch('preset-shooters-extra', cfg.rules.enable_shooters_extra);
+  setSwitch('preset-anime-gacha', cfg.rules.enable_anime_gacha);
+  setSwitch('preset-sports-racing', cfg.rules.enable_sports_racing);
+  setSwitch('preset-coop-survival', cfg.rules.enable_coop_survival);
+  setSwitch('preset-platforms-extra', cfg.rules.enable_platforms_extra);
   setSwitch('preset-spotify', cfg.rules.enable_spotify);
   setSwitch('preset-twitch', cfg.rules.enable_twitch);
   setSwitch('preset-kick', cfg.rules.enable_kick);
@@ -307,6 +312,11 @@ async function saveRules() {
     enable_xbox: getSwitch('preset-xbox'),
     enable_playstation: getSwitch('preset-playstation'),
     enable_roblox: getSwitch('preset-roblox'),
+    enable_shooters_extra: getSwitch('preset-shooters-extra'),
+    enable_anime_gacha: getSwitch('preset-anime-gacha'),
+    enable_sports_racing: getSwitch('preset-sports-racing'),
+    enable_coop_survival: getSwitch('preset-coop-survival'),
+    enable_platforms_extra: getSwitch('preset-platforms-extra'),
     enable_spotify: getSwitch('preset-spotify'),
     enable_twitch: getSwitch('preset-twitch'),
     enable_kick: getSwitch('preset-kick'),
@@ -796,11 +806,12 @@ function initEventListeners() {
   // Quick Action Profiles
   document.getElementById('profile-gaming-btn')?.addEventListener('click', () => {
     ['preset-riot', 'preset-epic', 'preset-steam', 'preset-pubg', 'preset-cod', 'preset-supercell',
-     'preset-ea', 'preset-blizzard', 'preset-ubisoft', 'preset-rockstar', 'preset-xbox', 'preset-playstation', 'preset-roblox'].forEach(id => {
+     'preset-ea', 'preset-blizzard', 'preset-ubisoft', 'preset-rockstar', 'preset-xbox', 'preset-playstation', 'preset-roblox',
+     'preset-shooters-extra', 'preset-anime-gacha', 'preset-sports-racing', 'preset-coop-survival', 'preset-platforms-extra'].forEach(id => {
       setSwitch(id, true);
     });
     saveRules();
-    showToast('🎯 Pro Gamer Profile Activated!', 'success');
+    showToast('🎯 Pro Gamer Profile (All 171 Games) Activated!', 'success');
   });
 
   document.getElementById('profile-streamer-btn')?.addEventListener('click', () => {
@@ -828,8 +839,9 @@ function initEventListeners() {
   const switches = [
     'preset-riot', 'preset-epic', 'preset-steam', 'preset-pubg', 'preset-cod', 'preset-supercell',
     'preset-discord', 'preset-ea', 'preset-blizzard', 'preset-ubisoft', 'preset-rockstar', 
-    'preset-xbox', 'preset-playstation', 'preset-roblox', 'preset-spotify',
-    'preset-twitch', 'preset-kick', 
+    'preset-xbox', 'preset-playstation', 'preset-roblox',
+    'preset-shooters-extra', 'preset-anime-gacha', 'preset-sports-racing', 'preset-coop-survival', 'preset-platforms-extra',
+    'preset-spotify', 'preset-twitch', 'preset-kick', 
     'preset-dev403', 'preset-adblock', 'preset-familysafe'
   ];
   switches.forEach(id => {

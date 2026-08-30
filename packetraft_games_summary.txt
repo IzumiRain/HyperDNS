@@ -1,0 +1,171 @@
+﻿Rainbow6 [Program: false] -> Programs: rainbowsix.exe
+CS2 [Program: false] -> Programs: cs2.exe
+LAN [Program: false] -> Programs: none
+LanRoom [Program: false] -> Programs: none
+RocketLeague [Program: false] -> Programs: rocketleague.exe
+MarvelRivals [Program: false] -> Programs: marvel-win64-shipping.exe
+Discord [Program: true] -> Programs: discord.exe, discordptb.exe, discordcanary.exe
+Steam [Program: true] -> Programs: steam.exe, steamwebhelper.exe
+TheFinals [Program: false] -> Programs: discovery*.exe
+LeagueOfLegends [Program: false] -> Programs: league*.exe, vgc.exe, vgtray.exe
+BattleField [Program: false] -> Programs: bf6.exe, bfv.exe, bf4.exe, bf1.exe, bflauncher.exe, bf2.exe, bf2142.exe, bf3.exe, bf4_x86.exe, bf4x86webhelper.exe, bfbc2game.exe, bf2042.exe
+Spotify [Program: true] -> Programs: none
+ApexLegends [Program: false] -> Programs: r5apex.exe, r5apex_dx12.exe
+ArcRaiders [Program: false] -> Programs: pioneergame*.exe
+Faceit [Program: false] -> Programs: faceit.exe, faceitclient.exe, faceitservice.exe, update.exe, cs2.exe
+BattleNet [Program: true] -> Programs: battle.net.exe, battle.net-setup.exe, agent.exe
+Xbox [Program: true] -> Programs: xboxpcapp.exe, gamingservices.exe, gamingservicesui.exe
+EpicGames [Program: true] -> Programs: easyanticheat_eos.exe, epicgameslauncher.exe, epiconlineservicesuserhelper.exe, epicwebhelper.exe
+EA [Program: true] -> Programs: eadesktop.exe, link2ea.exe, eabackgroundservice.exe, eacefsubprocess.exe, ealocalhostsvc.exe
+WhereWindsMeet [Program: false] -> Programs: wwm.exe
+Dota2 [Program: false] -> Programs: dota2.exe
+SeaOfThieves [Program: false] -> Programs: sotgame.exe
+WarFrame [Program: false] -> Programs: warframe.x64.exe, warframe.exe
+ArenaBreakout [Program: false] -> Programs: arena_breakout_infinite_launcher.exe, gameloader.exe, service.exe, uagame.exe
+FC [Program: false] -> Programs: fc25.exe, fc25_trial.exe, fc26.exe, fc26_trial.exe, eaanticheat.gameservicelauncher.exe, eaanticheat.installer.exe
+Riot [Program: true] -> Programs: riotclientservices.exe, riotclientux.exe, riot client.exe, vgc.exe, vgtray.exe
+SoundCloud [Program: true] -> Programs: none
+GameRanger [Program: true] -> Programs: none
+Pubg [Program: false] -> Programs: tslgame.exe
+DeltaForce [Program: false] -> Programs: deltaforceclient-win64-shipping.exe, df_launcher.exe, service.exe
+GtaV [Program: false] -> Programs: gta5.exe, gta_sa.exe, gta5vn_b2189_svnb_gameprocess.exe, gta5_enhanced.exe, gtavlauncher.exe
+HellDivers2 [Program: false] -> Programs: helldivers2.exe
+FragPunk [Program: false] -> Programs: fragpunk.exe
+Rust [Program: false] -> Programs: rust.exe, rustclient.exe, gameoverlayui.exe
+AlbionOnline [Program: false] -> Programs: albion-online.exe
+StreetFighter6 [Program: false] -> Programs: streetfighter6.exe
+EFootBall [Program: false] -> Programs: efootball.exe, pesconsole-shipping_console_wgd_master.exe
+Division [Program: false] -> Programs: thedivision2.exe, thedivision.exe
+Tekken8 [Program: false] -> Programs: polaris-win64-shipping.exe
+CallOfDuty [Program: false] -> Programs: cod*.exe, mp*.exe, blackops*.exe, modernwarfare.exe, h1_mp64_ship.exe, hmw-mod.exe, iw4mp.exe, vanguard.exe, s2_mp64_ship.exe, iw3mp.exe, t6mp.exe, t6zm.exe, plutonium-bootstrapper-win32.exe, iw7_ship.exe, iw7-mod.exe, bootstrapper*.exe
+CallOfDutyWarzone [Program: false] -> Programs: cod*.exe, mp*.exe, blackops*.exe
+Valorant [Program: false] -> Programs: valorant-win64-shipping.exe
+Phasmophobia [Program: false] -> Programs: phasmophobia.exe
+Roblox [Program: false] -> Programs: robloxplayerbeta.exe, robloxstudiobeta.exe
+WorldOfWarcraft [Program: false] -> Programs: world of warcraft.exe, wow*.exe, felsong*.exe, firestorm*.exe, ascension*.exe, project-ascension-update.exe, mmgr64.exe
+Brawlhalla [Program: false] -> Programs: brawlhalla.exe, brawlhallagame.exe
+WarThunder [Program: false] -> Programs: aces.exe
+DeadByDaylight [Program: false] -> Programs: deadbydaylight.exe, deadbydaylight-win64-shipping.exe, deadbydaylight-grdk-shipping.exe, deadbydaylight-wingdk-shipping.exe, deadbydaylight-egs-shipping.exe, easyanticheat_eos
+FiveM [Program: false] -> Programs: fivem*.exe, gta5.exe, fivem_b*.exe, fivem_gtaprocess.exe
+RedDeadOnline [Program: false] -> Programs: rdr2.exe, *gtaprocess.exe
+NewWorld [Program: false] -> Programs: newworld.exe
+MineCraft [Program: false] -> Programs: javaw.exe, java.exe, minecraft.windows.exe, alphaantileak.exe, vimeworld.exe, minecraft.exe, badlion client.exe, streamcraft.exe, minecraftjava.exe, alpha 1.16.5.exe, az-launcher.exe, dungeons.exe, beta 1.16.5.exe, sidemc.exe, prismlauncher.exe, deltaloader.exe, labymodlauncher.exe, craftrise-x64.exe
+UbisoftConnect [Program: true] -> Programs: upc.exe
+RockstarGames [Program: true] -> Programs: launcher.exe, launcherpatcher.exe, socialclubhelper.exe
+StarWarsBattleFront [Program: false] -> Programs: starwarsbattlefrontii.exe, starwarsbattlefront.exe
+ForHonor [Program: false] -> Programs: forhonor.exe
+2XKO [Program: false] -> Programs: lion-win64-shipping.exe
+HuntShowdown [Program: false] -> Programs: huntgame.exe
+Destiny2 [Program: false] -> Programs: destiny2.exe, destiny2launcher.exe, miniticketdbg.exe, beservice_x64.exe
+Rematch [Program: false] -> Programs: runtimeclient-win64-shipping.exe, runtimeclient-wingdk-shipping.exe
+EuroTruckSimulator2 [Program: false] -> Programs: eurotrucks2.exe, amtrucks.exe
+StarCitizen [Program: false] -> Programs: starcitizen.exe
+ElderScrollsOnline [Program: false] -> Programs: eso.exe, eso64.exe, tes3mp.exe
+AmongUs [Program: false] -> Programs: among us.exe
+MortalKombat [Program: false] -> Programs: mk12.exe, mk11.exe
+DayZ [Program: false] -> Programs: dayz_x64.exe, dzsalauncher.exe, infectz.exe, config.exe
+BloodStrike [Program: false] -> Programs: bloodstrike.exe
+EscapeFromTarkov [Program: false] -> Programs: escapefromtarkov.exe, escapefromtarkovarena.exe, bsglauncher.exe
+Halo [Program: false] -> Programs: mcc-win64-shipping.exe, halo*.exe, mccwinstore-win64-shipping.exe
+PathOfExile [Program: false] -> Programs: pathofexile*.exe
+WorldOfTanks [Program: false] -> Programs: worldoftanks.exe, tanksblitz.exe, wotblitz.exe, tanki.exe, wgc.exe, engine_launcher.exe
+RedM [Program: false] -> Programs: redm.exe, redm_chromebrowser.exe, redm_roslauncher.exe, rdr2.exe, *gtaprocess.exe
+Skate [Program: false] -> Programs: skate.exe
+Fortnite [Program: false] -> Programs: fortniteclient-win64-shipping.exe, fortniteclient-win64-shipping_eac_eos.exe
+ThroneAndLiberty [Program: false] -> Programs: tl.exe, tl-win64-shipping.exe
+REPO [Program: false] -> Programs: repo.exe
+OutlastTrials [Program: false] -> Programs: totclient-win64-shipping.exe
+OnceHuman [Program: false] -> Programs: once_human.exe
+VRChat [Program: false] -> Programs: vrchat.exe
+Chivalry2 [Program: false] -> Programs: chivalry2-win64-shipping.exe, chivalry2-wingdk-shipping.exe
+GuildWars [Program: false] -> Programs: gw2.exe, gw2-64.exe, guild wars 2.exe, gw.exe, gw-64.exe, guild wars.exe
+WutheringWaves [Program: false] -> Programs: client-win64-shipping.exe
+HeartsOfIron4 [Program: false] -> Programs: hoi4.exe
+MyHeroUltraRumble [Program: false] -> Programs: mhur.exe
+Squad [Program: false] -> Programs: squadgame.exe, squadgame-win64-shipping.exe
+OverWatch2 [Program: false] -> Programs: overwatch.exe
+EldenRingNightreign [Program: false] -> Programs: eldenring.exe, nightreign.exe
+BrokenArrow [Program: false] -> Programs: brokenarrow.exe
+CompanyOfHeroes [Program: false] -> Programs: reliccoh3.exe, reliccoh2.exe
+NarakaBladepoint [Program: false] -> Programs: narakabladepoint.exe
+DDNet [Program: false] -> Programs: ddnet.exe
+AssettoCorsa [Program: false] -> Programs: acs.exe, ac2-win64-shipping.exe, assettocorsaevo.exe, content manager.exe
+GenshinImpact [Program: false] -> Programs: yuanshen.exe, genshinimpact.exe
+HearthStone [Program: false] -> Programs: hearthstone.exe, hearthstonedecktracker.exe
+HeroesOfTheStorm [Program: false] -> Programs: heroesofthestorm_x64.exe, heroesofthestorm.exe, heroesofthestorm_x86.exe
+NoMansSky [Program: false] -> Programs: nms.exe
+Nvidia [Program: true] -> Programs: geforcenow.exe, geforcenowcontainer.exe, nvidia*.exe, nvcontainer.exe, nvsphelper64.exe
+Paladins [Program: false] -> Programs: paladins.exe
+ProjectZomboid [Program: false] -> Programs: projectzomboid64.exe, java.exe
+RecRoom [Program: false] -> Programs: recroom.exe, recroom_release.exe
+BlackDesert [Program: false] -> Programs: blackdesert32.exe, blackdesert64.exe, play.exe, desert of moon launcher.exe, melissiagameslauncher.exe, darkdesert.exe, blackdesertlauncher.exe, black desert online launcher.exe, blackdesert_launcher.exe, pearl abyss launcher.exe
+BlueProtocolStarResonance [Program: false] -> Programs: star.exe, bpsr.exe, bpsr_steam.exe
+CombatMaster [Program: false] -> Programs: combatmaster.exe
+DeadLock [Program: false] -> Programs: deadlock.exe
+Devour [Program: false] -> Programs: devour.exe
+F1 [Program: false] -> Programs: f1_*.exe
+FallGuys [Program: false] -> Programs: fallguys_client.exe, fallguys_client_game.exe
+ForzaHorizon [Program: false] -> Programs: forzahorizon*.exe
+SCUM [Program: false] -> Programs: scum.exe
+StumbleGuys [Program: false] -> Programs: stumble guys.exe
+Terraria [Program: false] -> Programs: terraria.exe, dotnet.exe
+UFL [Program: false] -> Programs: ufl_game-win64-shipping.exe
+Umamusume [Program: false] -> Programs: umamusumeprettyderby.exe
+WarHammer40k [Program: false] -> Programs: darktide.exe, dow2.exe, gladius.exe, shootasbloodandteef.exe, warhammer 40000*.exe, wh40krt.exe, w40k.exe
+WarborneAboveAshes [Program: false] -> Programs: warborne.exe
+Arma [Program: false] -> Programs: arma*.exe
+Fallout76 [Program: false] -> Programs: fallout76.exe, project76_gamepass.exe, project76.exe
+NeedForSpeed [Program: false] -> Programs: nfs16.exe, needforspeedheat.exe, speedgame-win64-shipping.exe, needforspeedunbound.exe, needforspeedunboundtrial.exe, nfsw.exe
+PayDay [Program: false] -> Programs: payday2_win32_release.exe, payday3.exe, payday3client-wingdk-shipping.exe, payday3client-win64-shipping.exe
+DragonBall [Program: false] -> Programs: red-win64-shipping.exe, game.exe, dbog.exe, dboclient.exe, dbo.exe, dragon ball the breakers.exe, dbxv2.exe, start.exe, dbzforces.exe, sparkingzero-win64-shipping.exe
+RedLauncher [Program: true] -> Programs: redprelauncher.exe, redlauncher.exe
+ConquerorsBlade [Program: false] -> Programs: proven_ground_client.exe
+WildGate [Program: false] -> Programs: nebulaclient-win64-shipping.exe
+ArkNightsEndfield [Program: false] -> Programs: endfield.exe
+LostArk [Program: false] -> Programs: lostark.exe
+NevernessToEverness [Program: false] -> Programs: htgame.exe
+ZenlessZoneZero [Program: false] -> Programs: zenlesszonezero.exe
+AgeOfEmpires [Program: false] -> Programs: aoe*.exe, age3y.exe, reliccardinal.exe, spartan.exe
+HellLetLoose [Program: false] -> Programs: hll-win64-shipping.exe, hllepicgamesstore-win64-shipping.exe
+Diablo [Program: false] -> Programs: game.exe, diablo*.exe, d2r.exe
+ReadyOrNot [Program: false] -> Programs: readyornot-win64-shipping.exe, readyornotsteam-win64-shipping.exe
+ArkSurvival [Program: false] -> Programs: arkascended.exe, shootergame.exe
+SoulFrame [Program: false] -> Programs: soulframe.x64.exe
+DarkAndDarker [Program: false] -> Programs: dungeoncrawler.exe, tavern.exe, tavernworker.exe
+Enlisted [Program: false] -> Programs: enlisted.exe
+Strinova [Program: false] -> Programs: strinova-win64-shipping.exe
+ReAnimal [Program: false] -> Programs: reanimal.exe
+TheCrewMotorFest [Program: false] -> Programs: thecrewmotorfest.exe, thecrew2.exe
+LostLight [Program: false] -> Programs: game_x64r.exe
+HeroesOfNewerth [Program: false] -> Programs: hon.exe, hon_x64.exe
+SandRaidersOfSophie [Program: false] -> Programs: sand.exe, sand_be.exe
+GearsOfWar [Program: false] -> Programs: gowde-steam.exe, gowde-wingdk.exe, gears5.exe, wargameue.exe, geargame.exe, start_protected_game.exe, goweday.exe, goweday-steam.exe
+BackroomsEscapeTogether [Program: false] -> Programs: betgame-win64-shipping.exe
+WorldWarZ [Program: false] -> Programs: wwzretail.exe, wwzretailegs.exe
+MechaBreak [Program: false] -> Programs: mechabreak.exe
+BattlEye [Program: true] -> Programs: *be.exe, beservice*.exe, belauncher.exe
+MistFallHunter [Program: false] -> Programs: mistfallhunter-win64-shipping.exe
+MarvelContestOfChampions [Program: false] -> Programs: champions.exe
+PalWorld [Program: false] -> Programs: palworld-win64-shipping.exe, palworld-wingdk-shipping.exe
+MarvelSnap [Program: false] -> Programs: snap.exe
+ConanExiles [Program: false] -> Programs: conansandbox*.exe
+Arkheron [Program: false] -> Programs: arkheron.exe
+AMDAdrenaline [Program: true] -> Programs: radeonsoftware.exe, amdinstallmanager.exe, atieclxx.exe, amdamd.exe
+GameLoop [Program: false] -> Programs: androidemulator.exe, androidemulatoren.exe, androidemulatorex.exe, com_tencent_toaa.exe
+Generals [Program: false] -> Programs: clientg.exe, game2.exe, game.exe, generals*.exe
+Dune [Program: false] -> Programs: dunesandbox-win64-shipping.exe, funcomlauncher.exe, d4x.exe, duneimperium.exe, cncnet5.exe
+BigWalk [Program: false] -> Programs: big walk.exe
+RogueCompany [Program: false] -> Programs: roguecompany.exe, roguecompany-win64-shipping.exe
+DeadFrontier [Program: false] -> Programs: deadfrontier2.exe, deadfrontier.exe
+MetalStorm [Program: false] -> Programs: metalstorm.exe
+AFKJourney [Program: false] -> Programs: afk journey.exe
+ShiftAtMidnight [Program: false] -> Programs: shiftatmidnight.exe
+BorderLands [Program: false] -> Programs: borderlands*.exe, launcher.exe, oakgame-win64-shipping.exe, tinytina.exe, wonderlands.exe
+MecchaChameleon [Program: false] -> Programs: penguinhotel.exe, penguinhotel-win64-shipping.exe
+GuiltyGear [Program: false] -> Programs: ggst-win64-shipping.exe, ggst.exe, ggsx.exe, ggxxacpr_win.exe, guiltygearxrd.exe, red-wingdk-shipping.exe
+GhostRecon [Program: false] -> Programs: grb.exe, grb_upp.exe, grb_upp_vulkan.exe, grw.exe
+OSU [Program: false] -> Programs: osu!.exe
+GOALS [Program: false] -> Programs: goals.exe, goals-win64-shipping.exe
+GrayZoneWarfare [Program: false] -> Programs: gzwclientsteam-win64-shipping.exe, gzwclienteac.exe, gzwclient.exe
+Insurgency [Program: false] -> Programs: insurgencyclient-win64-shipping.exe, insurgency-wingdk-shipping.exe, insurgency.exe, insurgency_x64.exe, dayofinfamy_x64.exe
+Other [Program: false] -> Programs: notmatters.exe

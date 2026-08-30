@@ -60,30 +60,36 @@ type SNIProxyConfig struct {
 }
 
 type RulesConfig struct {
-	EnableRiot        bool              `json:"enable_riot"`
-	EnableEpic        bool              `json:"enable_epic"`
-	EnableSteam       bool              `json:"enable_steam"`
-	EnablePUBG        bool              `json:"enable_pubg"`
-	EnableCallOfDuty  bool              `json:"enable_call_of_duty"`
-	EnableSupercell   bool              `json:"enable_supercell"`
-	EnableDiscord     bool              `json:"enable_discord"`
-	EnableEA          bool              `json:"enable_ea"`
-	EnableBlizzard    bool              `json:"enable_blizzard"`
-	EnableUbisoft     bool              `json:"enable_ubisoft"`
-	EnableRockstar    bool              `json:"enable_rockstar"`
-	EnableXbox        bool              `json:"enable_xbox"`
-	EnablePlayStation bool              `json:"enable_playstation"`
-	EnableRoblox      bool              `json:"enable_roblox"`
-	EnableSpotify     bool              `json:"enable_spotify"`
-	EnableTwitch      bool              `json:"enable_twitch"`
-	EnableKick        bool              `json:"enable_kick"`
-	EnableDev403      bool              `json:"enable_dev403"`
-	EnableAdBlock     bool              `json:"enable_adblock"`
-	EnableFamilySafe  bool              `json:"enable_familysafe"`
-	CustomProxied     []string          `json:"custom_proxied"`
-	CustomBlocked     []string          `json:"custom_blocked"`
-	CustomDirect      []string          `json:"custom_direct"`
-	CustomRecords     map[string]string `json:"custom_records"`
+	EnableRiot                 bool              `json:"enable_riot"`
+	EnableEpic                 bool              `json:"enable_epic"`
+	EnableSteam                bool              `json:"enable_steam"`
+	EnablePUBG                 bool              `json:"enable_pubg"`
+	EnableCallOfDuty           bool              `json:"enable_call_of_duty"`
+	EnableSupercell            bool              `json:"enable_supercell"`
+	EnableDiscord              bool              `json:"enable_discord"`
+	EnableEA                   bool              `json:"enable_ea"`
+	EnableBlizzard             bool              `json:"enable_blizzard"`
+	EnableUbisoft              bool              `json:"enable_ubisoft"`
+	EnableRockstar             bool              `json:"enable_rockstar"`
+	EnableXbox                 bool              `json:"enable_xbox"`
+	EnablePlayStation          bool              `json:"enable_playstation"`
+	EnableRoblox               bool              `json:"enable_roblox"`
+	EnableShootersExtra        bool              `json:"enable_shooters_extra"`
+	EnableAnimeGacha           bool              `json:"enable_anime_gacha"`
+	EnableSportsRacing         bool              `json:"enable_sports_racing"`
+	EnableCoopSurvival         bool              `json:"enable_coop_survival"`
+	EnablePlatformsExtra       bool              `json:"enable_platforms_extra"`
+	EnableSpotify              bool              `json:"enable_spotify"`
+	EnableSoundCloud           bool              `json:"enable_soundcloud"`
+	EnableTwitch               bool              `json:"enable_twitch"`
+	EnableKick                 bool              `json:"enable_kick"`
+	EnableDev403               bool              `json:"enable_dev403"`
+	EnableAdBlock              bool              `json:"enable_adblock"`
+	EnableFamilySafe           bool              `json:"enable_familysafe"`
+	CustomProxied              []string          `json:"custom_proxied"`
+	CustomBlocked              []string          `json:"custom_blocked"`
+	CustomDirect               []string          `json:"custom_direct"`
+	CustomRecords              map[string]string `json:"custom_records"`
 }
 
 type Client struct {
@@ -148,30 +154,36 @@ func DefaultConfig() *Config {
 			FragmentDelayMs:     5,
 		},
 		Rules: RulesConfig{
-			EnableRiot:        true,
-			EnableEpic:        true,
-			EnableSteam:       true,
-			EnablePUBG:        true,
-			EnableCallOfDuty:  true,
-			EnableSupercell:   true,
-			EnableDiscord:     true,
-			EnableEA:          true,
-			EnableBlizzard:    true,
-			EnableUbisoft:     true,
-			EnableRockstar:    true,
-			EnableXbox:        true,
-			EnablePlayStation: true,
-			EnableRoblox:      true,
-			EnableSpotify:     true,
-			EnableTwitch:      true,
-			EnableKick:        true,
-			EnableDev403:      true,
-			EnableAdBlock:     false,
-			EnableFamilySafe:  false,
-			CustomProxied:     []string{},
-			CustomBlocked:     []string{},
-			CustomDirect:      []string{},
-			CustomRecords:     make(map[string]string),
+			EnableRiot:           true,
+			EnableEpic:           true,
+			EnableSteam:          true,
+			EnablePUBG:           true,
+			EnableCallOfDuty:     true,
+			EnableSupercell:      true,
+			EnableDiscord:        true,
+			EnableEA:             true,
+			EnableBlizzard:       true,
+			EnableUbisoft:        true,
+			EnableRockstar:       true,
+			EnableXbox:           true,
+			EnablePlayStation:    true,
+			EnableRoblox:         true,
+			EnableShootersExtra:  true,
+			EnableAnimeGacha:     true,
+			EnableSportsRacing:   true,
+			EnableCoopSurvival:   true,
+			EnablePlatformsExtra: true,
+			EnableSpotify:        true,
+			EnableSoundCloud:     true,
+			EnableTwitch:         true,
+			EnableKick:           true,
+			EnableDev403:         true,
+			EnableAdBlock:        false,
+			EnableFamilySafe:     false,
+			CustomProxied:        []string{},
+			CustomBlocked:        []string{},
+			CustomDirect:         []string{},
+			CustomRecords:        make(map[string]string),
 		},
 		Access: AccessConfig{
 			AllowAll:     true,

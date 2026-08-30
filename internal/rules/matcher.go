@@ -155,8 +155,26 @@ func (m *Matcher) Rebuild(cfg *config.Config) {
 	if cfg.Rules.EnableRoblox {
 		addProxyRules(PresetRoblox, "Roblox")
 	}
+	if cfg.Rules.EnableShootersExtra {
+		addProxyRules(PresetShootersExtra, "Tactical Shooters & Battle Royales")
+	}
+	if cfg.Rules.EnableAnimeGacha {
+		addProxyRules(PresetAnimeGachaMMO, "Anime & MMO RPGs")
+	}
+	if cfg.Rules.EnableSportsRacing {
+		addProxyRules(PresetSportsFightingRacing, "Sports, Fighting & Racing")
+	}
+	if cfg.Rules.EnableCoopSurvival {
+		addProxyRules(PresetCoopSurvival, "Co-Op, Survival & Classics")
+	}
+	if cfg.Rules.EnablePlatformsExtra {
+		addProxyRules(PresetPlatformsExtra, "Platforms & Hardware Tools")
+	}
 	if cfg.Rules.EnableSpotify {
 		addProxyRules(PresetSpotify, "Spotify")
+	}
+	if cfg.Rules.EnableSoundCloud {
+		addProxyRules(PresetSoundCloud, "SoundCloud")
 	}
 	if cfg.Rules.EnableTwitch {
 		addProxyRules(PresetTwitch, "Twitch")

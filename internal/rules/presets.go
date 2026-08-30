@@ -614,4 +614,405 @@ var (
 		"onlyfans.com",
 		"*.onlyfans.com",
 	}
+
+	// --- ADDITIONAL 171 GAMES & PACKETRAFT INTEGRATION POLICIES ---
+
+	// Tactical Shooters & Battle Royales Extra
+	PresetShootersExtra = []string{
+		// Rainbow Six Siege
+		"rainbow6.com",
+		"*.rainbow6.com",
+		"r6.ubi.com",
+		"*.r6.ubi.com",
+		// The Finals & Arc Raiders (Embark Studios)
+		"embark.games",
+		"*.embark.games",
+		"thefinals.com",
+		"*.thefinals.com",
+		"arcraiders.com",
+		"*.arcraiders.com",
+		// Escape From Tarkov & Arena (Battlestate Games)
+		"escapefromtarkov.com",
+		"*.escapefromtarkov.com",
+		"battlestategames.com",
+		"*.battlestategames.com",
+		"tarkovarena.com",
+		"*.tarkovarena.com",
+		"eft-api.com",
+		"*.eft-api.com",
+		// HellDivers 2 (Arrowhead / PlayStation PC)
+		"helldivers2.com",
+		"*.helldivers2.com",
+		"arrowheadgamestudios.com",
+		"*.arrowheadgamestudios.com",
+		// FragPunk & Marvel Rivals (NetEase / Bad Guitar)
+		"fragpunk.com",
+		"*.fragpunk.com",
+		"marvelrivals.com",
+		"*.marvelrivals.com",
+		"badguitarstudio.com",
+		"*.badguitarstudio.com",
+		// Delta Force: Hawk Ops & Arena Breakout: Infinite
+		"playdeltaforce.com",
+		"*.playdeltaforce.com",
+		"df.qq.com",
+		"*.df.qq.com",
+		"arenabreakoutinfinite.com",
+		"*.arenabreakoutinfinite.com",
+		"arenabreakout.com",
+		"*.arenabreakout.com",
+		// Rust & Facepunch
+		"facepunch.com",
+		"*.facepunch.com",
+		"rustafied.com",
+		"*.rustafied.com",
+		// Hell Let Loose & Team17
+		"team17.com",
+		"*.team17.com",
+		"hellletloose.com",
+		"*.hellletloose.com",
+		// Ready Or Not & Void Interactive
+		"voidinteractive.net",
+		"*.voidinteractive.net",
+		// Squad, Insurgency Sandstorm & Gray Zone Warfare
+		"joinsquad.com",
+		"*.joinsquad.com",
+		"offworldindustries.com",
+		"*.offworldindustries.com",
+		"newworldinteractive.com",
+		"*.newworldinteractive.com",
+		"grayzonewarfare.com",
+		"*.grayzonewarfare.com",
+		"madfingergames.com",
+		"*.madfingergames.com",
+		// Hunt: Showdown (Crytek)
+		"huntshowdown.com",
+		"*.huntshowdown.com",
+		"crytek.com",
+		"*.crytek.com",
+		// BloodStrike & Lost Light
+		"bloodstrike.com",
+		"*.bloodstrike.com",
+		"lostlight.game",
+		"*.lostlight.game",
+		// DayZ & ArmA (Bohemia Interactive)
+		"dayz.com",
+		"*.dayz.com",
+		"bohemia.net",
+		"*.bohemia.net",
+		"bistudio.com",
+		"*.bistudio.com",
+		"arma3.com",
+		"*.arma3.com",
+		// Dead by Daylight (Behaviour Interactive)
+		"deadbydaylight.com",
+		"*.deadbydaylight.com",
+		"bhvr.com",
+		"*.bhvr.com",
+		// Paladins & Rogue Company (Hi-Rez Studios)
+		"paladins.com",
+		"*.paladins.com",
+		"roguecompany.com",
+		"*.roguecompany.com",
+		"hirezstudios.com",
+		"*.hirezstudios.com",
+	}
+
+	// Anime, Gacha & Modern MMORPGs
+	PresetAnimeGachaMMO = []string{
+		// HoYoverse: Genshin Impact, Honkai: Star Rail, Zenless Zone Zero (ZZZ), Honkai Impact 3rd
+		"hoyoverse.com",
+		"*.hoyoverse.com",
+		"mihoyo.com",
+		"*.mihoyo.com",
+		"hoyolab.com",
+		"*.hoyolab.com",
+		"yuanshen.com",
+		"*.yuanshen.com",
+		"zenlesszonezero.com",
+		"*.zenlesszonezero.com",
+		"honkaistarrail.com",
+		"*.honkaistarrail.com",
+		"honkaiimpact3.com",
+		"*.honkaiimpact3.com",
+		"bhsr.com",
+		"*.bhsr.com",
+		// Kuro Games: Wuthering Waves, Punishing Gray Raven
+		"kurogames.com",
+		"*.kurogames.com",
+		"wutheringwaves.kurogames.com",
+		"*.wutheringwaves.kurogames.com",
+		"kurogame.com",
+		"*.kurogame.com",
+		// Hypergryph / Gryphline: Arknights, Arknights: Endfield
+		"hypergryph.com",
+		"*.hypergryph.com",
+		"gryphline.com",
+		"*.gryphline.com",
+		"endfield.hypergryph.com",
+		"*.endfield.hypergryph.com",
+		// Hotta Studio / Perfect World: Neverness to Everness, Tower of Fantasy
+		"pwrd.com",
+		"*.pwrd.com",
+		"perfectworld.com",
+		"*.perfectworld.com",
+		"toweroffantasy-global.com",
+		"*.toweroffantasy-global.com",
+		// NetEase Games: Once Human, Strinova, Naraka: Bladepoint
+		"oncehuman.game",
+		"*.oncehuman.game",
+		"strinova.com",
+		"*.strinova.com",
+		"narakabladepoint.com",
+		"*.narakabladepoint.com",
+		"netease.com",
+		"*.netease.com",
+		"163.com",
+		"*.163.com",
+		"easebar.com",
+		"*.easebar.com",
+		// Smilegate & Amazon Games: Lost Ark, Throne and Liberty, New World
+		"playlostark.com",
+		"*.playlostark.com",
+		"playthroneandliberty.com",
+		"*.playthroneandliberty.com",
+		"newworld.com",
+		"*.newworld.com",
+		"smilegate.com",
+		"*.smilegate.com",
+		"onstove.com",
+		"*.onstove.com",
+		// Pearl Abyss: Black Desert Online, Crimson Desert
+		"pearlabyss.com",
+		"*.pearlabyss.com",
+		"playblackdesert.com",
+		"*.playblackdesert.com",
+		"crimsondesert.com",
+		"*.crimsondesert.com",
+		// Grinding Gear Games: Path of Exile 1 & 2
+		"pathofexile.com",
+		"*.pathofexile.com",
+		"pathofexile2.com",
+		"*.pathofexile2.com",
+		"grindinggear.com",
+		"*.grindinggear.com",
+		// Albion Online (Sandbox Interactive)
+		"albiononline.com",
+		"*.albiononline.com",
+		// Warframe & Soulframe (Digital Extremes)
+		"warframe.com",
+		"*.warframe.com",
+		"soulframe.com",
+		"*.soulframe.com",
+		"digitalextremes.com",
+		"*.digitalextremes.com",
+		// FromSoftware & Bandai Namco: Elden Ring (Nightreign), Dark Souls, Tekken 8, Dragon Ball
+		"fromsoftware.jp",
+		"*.fromsoftware.jp",
+		"bandainamcoent.com",
+		"*.bandainamcoent.com",
+		"bandainamcoent.eu",
+		"*.bandainamcoent.eu",
+		"bandainamco.co.jp",
+		"*.bandainamco.co.jp",
+		// Cygames: Umamusume Pretty Derby, Granblue Fantasy
+		"cygames.co.jp",
+		"*.cygames.co.jp",
+		"umamusume.jp",
+		"*.umamusume.jp",
+	}
+
+	// Sports, Fighting & Racing Games
+	PresetSportsFightingRacing = []string{
+		// EA Sports FC, F1, Need for Speed
+		"ea.com",
+		"*.ea.com",
+		"eafc.com",
+		"*.eafc.com",
+		"fut.ea.com",
+		"*.fut.ea.com",
+		"eaassets-a.akamaihd.net",
+		"*.eaassets-a.akamaihd.net",
+		// Konami: eFootball (PES), Yu-Gi-Oh!
+		"konami.com",
+		"*.konami.com",
+		"konami.net",
+		"*.konami.net",
+		"efootball.com",
+		"*.efootball.com",
+		// Strikerz Inc: UFL
+		"uflgame.com",
+		"*.uflgame.com",
+		// Capcom: Street Fighter 6, Monster Hunter Wilds/World, Resident Evil
+		"capcom.com",
+		"*.capcom.com",
+		"capcom.co.jp",
+		"*.capcom.co.jp",
+		"capcom-games.com",
+		"*.capcom-games.com",
+		"streetfighter.com",
+		"*.streetfighter.com",
+		"monsterhunter.com",
+		"*.monsterhunter.com",
+		// NetherRealm & Warner Bros: Mortal Kombat 1 / 11, MultiVersus
+		"mortalkombat.com",
+		"*.mortalkombat.com",
+		"wbgames.com",
+		"*.wbgames.com",
+		"multiversus.com",
+		"*.multiversus.com",
+		// Kunos Simulazioni: Assetto Corsa, Assetto Corsa EVO
+		"assettocorsa.net",
+		"*.assettocorsa.net",
+		// SCS Software: Euro Truck Simulator 2, American Truck Simulator
+		"scssoft.com",
+		"*.scssoft.com",
+		"worldoftrucks.com",
+		"*.worldoftrucks.com",
+		"truckersmp.com",
+		"*.truckersmp.com",
+		// 2XKO & Brawlhalla
+		"play2xko.com",
+		"*.play2xko.com",
+		"brawlhalla.com",
+		"*.brawlhalla.com",
+		// Guilty Gear Strive (Arc System Works)
+		"arcsystemworks.com",
+		"*.arcsystemworks.com",
+		"guiltygear.com",
+		"*.guiltygear.com",
+	}
+
+	// Co-Op, Survival, Strategy & Classics
+	PresetCoopSurvival = []string{
+		// Palworld & Pocketpair
+		"pocketpair.jp",
+		"*.pocketpair.jp",
+		"palworldgame.com",
+		"*.palworldgame.com",
+		// Among Us & Innersloth
+		"innersloth.com",
+		"*.innersloth.com",
+		// Phasmophobia & Devour
+		"kineticgames.co.uk",
+		"*.kineticgames.co.uk",
+		"straightbackgames.com",
+		"*.straightbackgames.com",
+		// Stumble Guys
+		"stumbleguys.com",
+		"*.stumbleguys.com",
+		"scopely.com",
+		"*.scopely.com",
+		// Terraria (Re-Logic)
+		"terraria.org",
+		"*.terraria.org",
+		"re-logic.com",
+		"*.re-logic.com",
+		// VRChat & Rec Room
+		"vrchat.com",
+		"*.vrchat.com",
+		"vrchat.net",
+		"*.vrchat.net",
+		"recroom.com",
+		"*.recroom.com",
+		// Conan Exiles & Dune: Awakening (Funcom)
+		"funcom.com",
+		"*.funcom.com",
+		"conanexiles.com",
+		"*.conanexiles.com",
+		"dunegames.com",
+		"*.dunegames.com",
+		// ARK: Survival Ascended / Evolved (Studio Wildcard)
+		"survivetheark.com",
+		"*.survivetheark.com",
+		"studiowildcard.com",
+		"*.studiowildcard.com",
+		// Star Citizen (Cloud Imperium Games)
+		"robertsspaceindustries.com",
+		"*.robertsspaceindustries.com",
+		"cloudimperiumgames.com",
+		"*.cloudimperiumgames.com",
+		// Warhammer 40,000 (Darktide, Space Marine 2)
+		"fatsharkgames.com",
+		"*.fatsharkgames.com",
+		"playdarktide.com",
+		"*.playdarktide.com",
+		"focus-entmt.com",
+		"*.focus-entmt.com",
+		// Payday 2 & 3 (Starbreeze)
+		"paydaythegame.com",
+		"*.paydaythegame.com",
+		"starbreeze.com",
+		"*.starbreeze.com",
+		// War Thunder & Enlisted (Gaijin)
+		"warthunder.com",
+		"*.warthunder.com",
+		"gaijin.net",
+		"*.gaijin.net",
+		"enlisted.net",
+		"*.enlisted.net",
+		// World of Tanks & World of Warships (Wargaming)
+		"worldoftanks.com",
+		"*.worldoftanks.com",
+		"worldoftanks.eu",
+		"*.worldoftanks.eu",
+		"wargaming.net",
+		"*.wargaming.net",
+		"worldofwarships.com",
+		"*.worldofwarships.com",
+		// Bethesda / Zenimax: Fallout 76, ESO
+		"elderscrollsonline.com",
+		"*.elderscrollsonline.com",
+		"fallout.bethesda.net",
+		"zenimax.com",
+		"*.zenimax.com",
+		// Command & Conquer Generals, Age of Empires
+		"cncnet.org",
+		"*.cncnet.org",
+		"ageofempires.com",
+		"*.ageofempires.com",
+	}
+
+	// Gaming Platforms & Hardware Tools
+	PresetPlatformsExtra = []string{
+		// Nvidia GeForce Now & GeForce Experience
+		"nvidia.com",
+		"*.nvidia.com",
+		"nvidiagrid.net",
+		"*.nvidiagrid.net",
+		"geforcenow.com",
+		"*.geforcenow.com",
+		"gfn.am",
+		"*.gfn.am",
+		// AMD Adrenaline & Software
+		"amd.com",
+		"*.amd.com",
+		"radeon.com",
+		"*.radeon.com",
+		// GameLoop & Tencent Emulator
+		"gameloop.com",
+		"*.gameloop.com",
+		"tencentgames.com",
+		"*.tencentgames.com",
+		// GameRanger
+		"gameranger.com",
+		"*.gameranger.com",
+		// CD Projekt Red / GOG / REDlauncher
+		"gog.com",
+		"*.gog.com",
+		"cdprojektred.com",
+		"*.cdprojektred.com",
+		"cyberpunk.net",
+		"*.cyberpunk.net",
+		"thewitcher.com",
+		"*.thewitcher.com",
+	}
+
+	// SoundCloud: Music streaming
+	PresetSoundCloud = []string{
+		"soundcloud.com",
+		"*.soundcloud.com",
+		"sndcdn.com",
+		"*.sndcdn.com",
+	}
 )
