@@ -35,6 +35,7 @@ func PrintHelp() {
 	fmt.Println("  hdns flush               Flush the in-memory DNS cache")
 	fmt.Println("  hdns diag                Run latency benchmark & gaming diagnostics")
 	fmt.Println("  hdns clients             List registered clients & whitelist IPs")
+	fmt.Println("  hdns uninstall           Completely uninstall HyperDNS and remove all files")
 	fmt.Println()
 }
 
@@ -504,3 +505,48 @@ func interactiveAdminCredentials(reader *bufio.Reader, cfg *config.Config, cPath
 	}
 	time.Sleep(2 * time.Second)
 }
+
+// UninstallHyperDNS provides clean, interactive CLI and TUI uninstallation
+func UninstallHyperDNS(cPath string) {
+	reader := bufio.NewReader(os.Stdin)
+	fmt.Println(Red + Bold + "⚠️  DANGER: UNINSTALL HYPERDNS ⚠️" + Reset)
+	fmt.Println()
+	fmt.Println("This operation will:")
+	fmt.Println("  1. Stop and disable the background service ('hyperdns')")
+	fmt.Println("  2. Remove the systemd service file (/etc/systemd/system/hyperdns.service)")
+	fmt.Println("  3. Restore systemd-resolved port 53 resolver configuration")
+	fmt.Println("  4. Remove the global 'hdns' command (/usr/local/bin/hdns)")
+	fmt.Println("  5. Delete all configurations, certs, and binaries from /opt/hyperdns")
+	fmt.Println()
+	fmt.Print(Red + "Are you sure you want to completely uninstall HyperDNS? (Type 'yes' to confirm): " + Reset)
+
+	input, _ := reader.ReadString('\n')
+	input = strings.TrimSpace(strings.ToLower(input))
+
+	if input != "yes" && input != "y" {
+		fmt.Println(Yellow + "\nUninstall cancelled. Nothing was modified." + Reset)
+		return
+	}
+
+	fmt.Println(Yellow + "\n[1/5] Stopping and disabling systemd service..." + Reset)
+	_ = exec.Command("systemctl", "stop", "hyperdns").Run()
+	_ = exec.Command("systemctl", "disable", "hyperdns").Run()
+
+	fmt.Println(Yellow + "[2/5] Removing systemd unit..." + Reset)
+	_ = os.Remove("/etc/systemd/system/hyperdns.service")
+	_ = exec.Command("systemctl", "daemon-reload").Run()
+
+	fmt.Println(Yellow + "[3/5] Restoring system resolver settings..." + Reset)
+	_ = os.Remove("/etc/systemd/resolved.conf.d/hyperdns.conf")
+	_ = exec.Command("systemctl", "restart", "systemd-resolved").Run()
+
+	fmt.Println(Yellow + "[4/5] Removing global CLI command 'hdns'..." + Reset)
+	_ = os.Remove("/usr/local/bin/hdns")
+
+	fmt.Println(Yellow + "[5/5] Removing /opt/hyperdns installation folder..." + Reset)
+	_ = os.RemoveAll("/opt/hyperdns")
+
+	fmt.Println(Green + Bold + "\n✓ HyperDNS has been cleanly and completely uninstalled from your server." + Reset)
+	fmt.Println(Dim + "Thank you for using HyperDNS! 👋\n" + Reset)
+}
+

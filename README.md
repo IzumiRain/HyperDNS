@@ -118,6 +118,19 @@ hdns
 - **`[8]`** Regenerate TLS Certificates
 - **`[9]`** Complete Clean Uninstall
 
+### Standalone CLI Commands:
+| Command | Description |
+|:---|:---|
+| `hdns` | Open Interactive Management TUI Console |
+| `hdns status` | Display live service health, ports & active stats |
+| `hdns restart` | Restart the background service |
+| `hdns stop` / `hdns start` | Stop / Start the background service |
+| `hdns logs` | Stream live query & system logs |
+| `hdns flush` | Flush the in-memory DNS cache |
+| `hdns diag` | Run latency benchmark & gaming diagnostics |
+| `hdns clients` | List registered clients & whitelist IPs |
+| `hdns uninstall` | Completely uninstall HyperDNS and remove all files |
+
 ---
 
 ## 🎮 Client Setup Guides

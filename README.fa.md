@@ -178,6 +178,25 @@ hdns
 
 </div>
 
+<div dir="ltr">
+
+### دستورات مستقیم خط فرمان (CLI Commands):
+| Command | Description |
+|:---|:---|
+| `hdns` | باز کردن کنسول مدیریتی تعاملی TUI |
+| `hdns status` | نمایش وضعیت زنده سرویس، پورت‌ها و آمار |
+| `hdns restart` | ریستارت سرویس پس‌زمینه |
+| `hdns stop` / `hdns start` | توقف / استارت سرویس پس‌زمینه |
+| `hdns logs` | مشاهده زنده لاگ‌های سیستم و کوئری‌ها |
+| `hdns flush` | خالی کردن فوری کش رم DNS |
+| `hdns diag` | اجرای بنچ‌مارک پینگ و دایاگنوستیک بازی‌ها |
+| `hdns clients` | نمایش لیست کلاینت‌ها و آی‌پی‌های وایت‌لیست |
+| `hdns uninstall` | حذف کامل و تمیز HyperDNS از روی سرور |
+
+</div>
+
+<div dir="rtl">
+
 ---
 
 <div dir="rtl">

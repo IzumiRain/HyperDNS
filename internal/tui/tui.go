@@ -490,9 +490,12 @@ func (t *TUI) confirmUninstall(reader *bufio.Reader) bool {
 		_ = exec.Command("systemctl", "disable", "hyperdns").Run()
 		_ = os.Remove("/etc/systemd/system/hyperdns.service")
 		_ = exec.Command("systemctl", "daemon-reload").Run()
-		_ = os.RemoveAll("/opt/hyperdns")
+		_ = os.Remove("/etc/systemd/resolved.conf.d/hyperdns.conf")
+		_ = exec.Command("systemctl", "restart", "systemd-resolved").Run()
 		_ = os.Remove("/usr/local/bin/hdns")
-		fmt.Println(Green + "✓ HyperDNS has been cleanly uninstalled from your server." + Reset)
+		_ = os.RemoveAll("/opt/hyperdns")
+		fmt.Println(Green + Bold + "\n✓ HyperDNS has been cleanly uninstalled from your server." + Reset)
+		fmt.Println(Dim + "Thank you for using HyperDNS! 👋\n" + Reset)
 		return true
 	}
 

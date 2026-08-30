@@ -83,6 +83,9 @@ func main() {
 		case "clients":
 			tui.ListClients(cPath)
 			return
+		case "uninstall", "remove":
+			tui.UninstallHyperDNS(cPath)
+			return
 		case "help", "-h", "--help":
 			tui.PrintHelp()
 			return
