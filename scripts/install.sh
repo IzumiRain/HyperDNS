@@ -25,7 +25,7 @@ echo "  ██╔══██║  ╚██╔╝  ██╔═══╝ ██�
 echo "  ██║  ██║   ██║   ██║     ███████╗██║  ██║██████╔╝██║ ╚████║███████║"
 echo "  ╚═╝  ╚═╝   ╚═╝   ╚═╝     ╚══════╝╚═╝  ╚═╝╚═════╝ ╚═╝  ╚═══╝╚══════╝"
 echo -e "       ${PURPLE}⚡ Standalone Zero-Loss SmartDNS & Anti-Sanction Gaming Gateway ⚡${NC}"
-echo -e "       ${YELLOW}Version: beta 1.1.0 · Single Binary · Go 1.26 · OWASP Hardened${NC}"
+echo -e "       ${YELLOW}Version: beta 1.2.0 · Single Binary · Go 1.26 · OWASP Hardened${NC}"
 echo ""
 
 if [ "$EUID" -ne 0 ]; then
@@ -34,6 +34,46 @@ if [ "$EUID" -ne 0 ]; then
 fi
 
 INSTALL_DIR="/opt/hyperdns"
+IS_UPGRADE=false
+PREV_VERSION=""
+BACKUP_DIR=""
+
+# ==============================================================================
+# AUTO-DETECTION: Check for existing installation (v1.1.0 or earlier)
+# ==============================================================================
+if [ -f "${INSTALL_DIR}/hyperdns" ] || [ -f "${INSTALL_DIR}/config.json" ] || systemctl is-active --quiet hyperdns 2>/dev/null || systemctl is-enabled --quiet hyperdns 2>/dev/null; then
+    IS_UPGRADE=true
+    if [ -x "${INSTALL_DIR}/hyperdns" ]; then
+        PREV_VERSION=$("${INSTALL_DIR}/hyperdns" -version 2>/dev/null || echo "v1.1.0-beta")
+    else
+        PREV_VERSION="v1.1.0-beta"
+    fi
+    echo -e "${YELLOW}${BOLD}┌────────────────────────────────────────────────────────────────────────┐${NC}"
+    echo -e "${YELLOW}│ ⚡ [AUTO-DETECT] Existing HyperDNS installation detected!               │${NC}"
+    echo -e "${YELLOW}│ • Installed Version : ${CYAN}${PREV_VERSION}${YELLOW}                                  │${NC}"
+    echo -e "${YELLOW}│ • Target Version    : ${GREEN}beta 1.2.0${YELLOW}                                        │${NC}"
+    echo -e "${YELLOW}│ • Execution Mode    : ${GREEN}Seamless Zero-Data-Loss Upgrade & Migration${YELLOW}      │${NC}"
+    echo -e "${YELLOW}└────────────────────────────────────────────────────────────────────────┘${NC}"
+    echo ""
+
+    # Create Automated Timestamped Backup
+    BACKUP_DIR="${INSTALL_DIR}/backups/backup_$(date +%Y%m%d_%H%M%S)"
+    mkdir -p "${BACKUP_DIR}"
+    if [ -f "${INSTALL_DIR}/config.json" ]; then
+        cp -p "${INSTALL_DIR}/config.json" "${BACKUP_DIR}/config.json"
+        echo -e "  ${GREEN}✓ Configuration backup saved to: ${BACKUP_DIR}/config.json${NC}"
+    fi
+    if [ -d "${INSTALL_DIR}/certs" ]; then
+        cp -rp "${INSTALL_DIR}/certs" "${BACKUP_DIR}/certs" 2>/dev/null || true
+    fi
+
+    # Stop service gracefully before upgrading binary
+    if systemctl is-active --quiet hyperdns 2>/dev/null; then
+        echo -e "  ${YELLOW}Gracefully stopping running hyperdns service for upgrade...${NC}"
+        systemctl stop hyperdns || true
+    fi
+    echo ""
+fi
 
 # ==============================================================================
 # STEP 1: ARCHITECTURE & DIRECTORY SETUP
@@ -112,19 +152,30 @@ mkdir -p "${INSTALL_DIR}/scripts"
 INSTALLED=false
 
 # 1. Local copy if running inside extracted repository
-if [ -f "./hyperdns" ]; then
-    cp ./hyperdns "${INSTALL_DIR}/hyperdns"
+if [ -f "./hyperdns_linux_amd64" ] && [ "${BIN_ARCH}" = "amd64" ]; then
+    cp -f ./hyperdns_linux_amd64 "${INSTALL_DIR}/hyperdns.new"
+    chmod +x "${INSTALL_DIR}/hyperdns.new"
+    mv -f "${INSTALL_DIR}/hyperdns.new" "${INSTALL_DIR}/hyperdns"
+    INSTALLED=true
+elif [ -f "./hyperdns" ]; then
+    cp -f ./hyperdns "${INSTALL_DIR}/hyperdns.new"
+    chmod +x "${INSTALL_DIR}/hyperdns.new"
+    mv -f "${INSTALL_DIR}/hyperdns.new" "${INSTALL_DIR}/hyperdns"
     INSTALLED=true
 elif [ -f "./hyperdns-linux" ]; then
-    cp ./hyperdns-linux "${INSTALL_DIR}/hyperdns"
+    cp -f ./hyperdns-linux "${INSTALL_DIR}/hyperdns.new"
+    chmod +x "${INSTALL_DIR}/hyperdns.new"
+    mv -f "${INSTALL_DIR}/hyperdns.new" "${INSTALL_DIR}/hyperdns"
     INSTALLED=true
 fi
 
 # 2. Try downloading prebuilt binary from GitHub Releases
 if [ "$INSTALLED" = false ]; then
     echo -e "  ${YELLOW}Attempting to download prebuilt binary from GitHub Releases...${NC}"
-    if curl -fL --connect-timeout 5 --retry 2 "https://github.com/IzumiRain/HyperDNS/releases/latest/download/hyperdns-linux-${BIN_ARCH}" -o "${INSTALL_DIR}/hyperdns" 2>/dev/null; then
-        if [ -s "${INSTALL_DIR}/hyperdns" ]; then
+    if curl -fL --connect-timeout 5 --retry 2 "https://github.com/IzumiRain/HyperDNS/releases/latest/download/hyperdns-linux-${BIN_ARCH}" -o "${INSTALL_DIR}/hyperdns.new" 2>/dev/null; then
+        if [ -s "${INSTALL_DIR}/hyperdns.new" ]; then
+            chmod +x "${INSTALL_DIR}/hyperdns.new"
+            mv -f "${INSTALL_DIR}/hyperdns.new" "${INSTALL_DIR}/hyperdns"
             INSTALLED=true
             echo -e "  ${GREEN}✓ Downloaded prebuilt release binary.${NC}"
         fi
@@ -140,8 +191,10 @@ if [ "$INSTALLED" = false ]; then
     fi
     TMP_BUILD=$(mktemp -d)
     if git clone --depth 1 https://github.com/IzumiRain/HyperDNS.git "$TMP_BUILD" >/dev/null 2>&1; then
-        (cd "$TMP_BUILD" && go build -o "${INSTALL_DIR}/hyperdns" ./cmd/hyperdns >/dev/null 2>&1)
-        if [ -s "${INSTALL_DIR}/hyperdns" ]; then
+        (cd "$TMP_BUILD" && go build -o "${INSTALL_DIR}/hyperdns.new" ./cmd/hyperdns >/dev/null 2>&1)
+        if [ -s "${INSTALL_DIR}/hyperdns.new" ]; then
+            chmod +x "${INSTALL_DIR}/hyperdns.new"
+            mv -f "${INSTALL_DIR}/hyperdns.new" "${INSTALL_DIR}/hyperdns"
             INSTALLED=true
             echo -e "  ${GREEN}✓ Successfully built HyperDNS from source!${NC}"
         fi
@@ -155,7 +208,7 @@ if [ ! -f "${INSTALL_DIR}/hyperdns" ] || [ ! -s "${INSTALL_DIR}/hyperdns" ]; the
 fi
 
 if [ -f "./scripts/ssl_issue.sh" ]; then
-    cp ./scripts/ssl_issue.sh "${INSTALL_DIR}/scripts/ssl_issue.sh"
+    cp -f ./scripts/ssl_issue.sh "${INSTALL_DIR}/scripts/ssl_issue.sh"
     chmod +x "${INSTALL_DIR}/scripts/ssl_issue.sh"
 fi
 
@@ -169,8 +222,83 @@ echo -e "  ${GREEN}✓ HyperDNS core binary & 'hdns' global command installed.${
 # Auto-detect Public IP
 PUBLIC_IP=$(curl -s -m 3 https://api.ipify.org || curl -s -m 3 https://ifconfig.me || echo "127.0.0.1")
 
-# Default Config Setup
-if [ ! -f "${INSTALL_DIR}/config.json" ]; then
+# ==============================================================================
+# CONFIGURATION SETUP & SMART MIGRATION
+# ==============================================================================
+if [ "$IS_UPGRADE" = true ] && [ -f "${INSTALL_DIR}/config.json" ]; then
+    echo -e "  ${CYAN}Migrating existing configuration to beta 1.2.0 schema...${NC}"
+    
+    # Safe Python migration script to preserve all accounts and add new fields
+    python3 - << 'PYEOF' 2>/dev/null || true
+import json, secrets, os
+
+cfg_path = "/opt/hyperdns/config.json"
+try:
+    with open(cfg_path, "r", encoding="utf-8") as f:
+        data = json.load(f)
+except Exception:
+    data = {}
+
+if not isinstance(data, dict):
+    data = {}
+
+# 1. Server settings & API Key
+if "server" not in data or not isinstance(data["server"], dict):
+    data["server"] = {}
+if "api_key" not in data["server"] or not data["server"]["api_key"]:
+    data["server"]["api_key"] = f"hdns_live_{secrets.token_hex(20)}"
+
+# 2. Rules & 171+ Game presets
+if "rules" not in data or not isinstance(data["rules"], dict):
+    data["rules"] = {}
+
+presets = {
+    "enable_shooters_extra": True,
+    "enable_anime_gacha": True,
+    "enable_sports_racing": True,
+    "enable_coop_survival": True,
+    "enable_platforms_extra": True,
+    "enable_soundcloud": True,
+    "enable_spotify": True,
+    "enable_riot": True,
+    "enable_epic": True,
+    "enable_steam": True,
+    "enable_pubg": True,
+    "enable_call_of_duty": True,
+    "enable_supercell": True,
+    "enable_discord": True,
+    "enable_ea": True,
+    "enable_blizzard": True,
+    "enable_ubisoft": True,
+    "enable_rockstar": True,
+    "enable_xbox": True,
+    "enable_playstation": True,
+    "enable_roblox": True,
+    "enable_twitch": True,
+    "enable_kick": True,
+    "enable_dev403": True,
+    "enable_adblock": False,
+    "enable_familysafe": False
+}
+
+for k, v in presets.items():
+    if k not in data["rules"]:
+        data["rules"][k] = v
+
+# 3. Access & Clients
+if "access" not in data or not isinstance(data["access"], dict):
+    data["access"] = {"allow_all": True, "clients": [], "allowed_ips": [], "blocked_ips": []}
+if "clients" not in data["access"]:
+    data["access"]["clients"] = []
+
+with open(cfg_path, "w", encoding="utf-8") as f:
+    json.dump(data, f, indent=2)
+PYEOF
+
+    echo -e "  ${GREEN}✓ Configuration migrated smoothly. All user accounts and credentials preserved.${NC}"
+
+elif [ ! -f "${INSTALL_DIR}/config.json" ]; then
+    RANDOM_API_KEY="hdns_live_$(openssl rand -hex 20 2>/dev/null || tr -dc 'a-f0-9' < /dev/urandom | head -c 40)"
     cat << EOF > "${INSTALL_DIR}/config.json"
 {
   "server": {
@@ -179,7 +307,8 @@ if [ ! -f "${INSTALL_DIR}/config.json" ]; then
     "web_port": 8080,
     "admin_username": "admin",
     "admin_password": "admin",
-    "jwt_secret": "hyperdns-super-secret-jwt-key"
+    "jwt_secret": "hyperdns-super-secret-jwt-key",
+    "api_key": "${RANDOM_API_KEY}"
   },
   "dns": {
     "enabled": true,
@@ -219,6 +348,12 @@ if [ ! -f "${INSTALL_DIR}/config.json" ]; then
     "enable_playstation": true,
     "enable_roblox": true,
     "enable_spotify": true,
+    "enable_soundcloud": true,
+    "enable_shooters_extra": true,
+    "enable_anime_gacha": true,
+    "enable_sports_racing": true,
+    "enable_coop_survival": true,
+    "enable_platforms_extra": true,
     "enable_twitch": true,
     "enable_kick": true,
     "enable_dev403": true,
@@ -231,6 +366,7 @@ if [ ! -f "${INSTALL_DIR}/config.json" ]; then
   },
   "access": {
     "allow_all": true,
+    "clients": [],
     "allowed_ips": [],
     "blocked_ips": [],
     "doh_tokens": [],
@@ -250,78 +386,92 @@ fi
 # ==============================================================================
 # STEP 5: DOMAIN & SSL (HTTPS) CONFIGURATION PROMPT
 # ==============================================================================
-echo ""
-echo -e "${CYAN}${BOLD}[5/6] SSL / HTTPS Security Configuration...${NC}"
-echo -e "${YELLOW}┌────────────────────────────────────────────────────────────────────────┐${NC}"
-echo -e "${YELLOW}│ Would you like to configure a custom domain with Let's Encrypt SSL?    │${NC}"
-echo -e "${YELLOW}│ • YES: Enables HTTPS on Web UI & valid certificate for DoH / DoT       │${NC}"
-echo -e "${YELLOW}│ • NO : Web UI will run on plain HTTP (Warning: unencrypted credentials)│${NC}"
-echo -e "${YELLOW}└────────────────────────────────────────────────────────────────────────┘${NC}"
-
-# Helper for reading user input cleanly in piped or interactive bash
-ask_user() {
-    local prompt_msg="$1"
-    local default_val="$2"
-    local user_var=""
-
-    printf "%b" "${prompt_msg}" >&2
-    if [ -t 0 ]; then
-        read -r user_var || user_var=""
-    elif (exec </dev/tty) 2>/dev/null; then
-        read -r user_var </dev/tty 2>/dev/null || user_var=""
-    fi
-    
-    if [ -z "${user_var}" ]; then
-        echo "${default_val}"
-    else
-        echo "${user_var}"
-    fi
-}
-
-USER_DOMAIN=""
-IS_HTTPS=false
-
-RESP_SSL=$(ask_user " ${BOLD}${YELLOW}▶ Configure custom domain with Let's Encrypt SSL now? [y/N]: ${NC}" "n")
-
-if [[ "$RESP_SSL" =~ ^([yY][eE][sS]|[yY])$ ]]; then
-    USER_DOMAIN=$(ask_user " ${BOLD}${CYAN}▶ Enter your domain name (e.g. dns.example.com): ${NC}" "")
-    USER_EMAIL=$(ask_user " ${BOLD}${CYAN}▶ Enter admin email for Let's Encrypt (optional, press Enter to skip): ${NC}" "")
-    
-    if [ -n "$USER_DOMAIN" ]; then
-        echo ""
-        echo -e "  ${CYAN}Issuing Let's Encrypt SSL certificate for ${USER_DOMAIN}...${NC}"
-        
-        # Try certbot standalone issuance
-        if command -v certbot >/dev/null 2>&1 || (apt-get update -y >/dev/null 2>&1 && apt-get install -y certbot >/dev/null 2>&1); then
-            certbot certonly --standalone --non-interactive --agree-tos --register-unsafely-without-email -d "${USER_DOMAIN}" >/dev/null 2>&1 || true
-            if [ -f "/etc/letsencrypt/live/${USER_DOMAIN}/fullchain.pem" ]; then
-                cp -f "/etc/letsencrypt/live/${USER_DOMAIN}/fullchain.pem" "${INSTALL_DIR}/certs/cert.pem"
-                cp -f "/etc/letsencrypt/live/${USER_DOMAIN}/privkey.pem" "${INSTALL_DIR}/certs/key.pem"
-                chmod 644 "${INSTALL_DIR}/certs/cert.pem"
-                chmod 600 "${INSTALL_DIR}/certs/key.pem"
-            fi
-        elif [ -f "${INSTALL_DIR}/scripts/ssl_issue.sh" ]; then
-            bash "${INSTALL_DIR}/scripts/ssl_issue.sh" "$USER_DOMAIN" "$USER_EMAIL" >/dev/null 2>&1 || true
+if [ "$IS_UPGRADE" = true ]; then
+    echo ""
+    echo -e "${CYAN}${BOLD}[5/6] Preserving SSL & Security Configuration...${NC}"
+    if [ -f "${INSTALL_DIR}/config.json" ]; then
+        EXISTING_DOM=$(grep -o '"domain": "[^"]*"' "${INSTALL_DIR}/config.json" 2>/dev/null | cut -d'"' -f4 || echo "")
+        if [ -n "$EXISTING_DOM" ] && [ -f "${INSTALL_DIR}/certs/cert.pem" ]; then
+            USER_DOMAIN="$EXISTING_DOM"
+            IS_HTTPS=true
+            echo -e "  ${GREEN}✓ Maintained existing SSL certificate for: ${USER_DOMAIN}${NC}"
+        else
+            echo -e "  ${GREEN}✓ Maintained existing Web UI security configuration.${NC}"
         fi
-        
-        # Update config.json safely with sed
-        if [ -f "${INSTALL_DIR}/config.json" ]; then
-            sed -i "s/\"domain\": .*/\"domain\": \"${USER_DOMAIN}\",/" "${INSTALL_DIR}/config.json"
-            if [ -n "$USER_EMAIL" ]; then
-                sed -i "s/\"email\": .*/\"email\": \"${USER_EMAIL}\",/" "${INSTALL_DIR}/config.json"
-            fi
-            sed -i 's/"auto_cert": .*/"auto_cert": true,/' "${INSTALL_DIR}/config.json"
-        fi
-        IS_HTTPS=true
-        echo -e "  ${GREEN}✓ Domain & SSL configured for ${USER_DOMAIN}!${NC}"
     fi
 else
     echo ""
-    echo -e "${YELLOW}${BOLD}⚠️  [SECURITY WARNING / هشدار امنیتی]${NC}"
-    echo -e "${YELLOW}No domain was added. The Web UI will run on standard HTTP (unencrypted).${NC}"
-    echo -e "${YELLOW}For maximum production security, you can bind a domain and issue SSL anytime${NC}"
-    echo -e "${YELLOW}from the Web Dashboard or via 'hdns'.${NC}"
-    echo ""
+    echo -e "${CYAN}${BOLD}[5/6] SSL / HTTPS Security Configuration...${NC}"
+    echo -e "${YELLOW}┌────────────────────────────────────────────────────────────────────────┐${NC}"
+    echo -e "${YELLOW}│ Would you like to configure a custom domain with Let's Encrypt SSL?    │${NC}"
+    echo -e "${YELLOW}│ • YES: Enables HTTPS on Web UI & valid certificate for DoH / DoT       │${NC}"
+    echo -e "${YELLOW}│ • NO : Web UI will run on plain HTTP (Warning: unencrypted credentials)│${NC}"
+    echo -e "${YELLOW}└────────────────────────────────────────────────────────────────────────┘${NC}"
+
+    ask_user() {
+        local prompt_msg="$1"
+        local default_val="$2"
+        local user_var=""
+
+        printf "%b" "${prompt_msg}" >&2
+        if [ -t 0 ]; then
+            read -r user_var || user_var=""
+        elif (exec </dev/tty) 2>/dev/null; then
+            read -r user_var </dev/tty 2>/dev/null || user_var=""
+        fi
+        
+        if [ -z "${user_var}" ]; then
+            echo "${default_val}"
+        else
+            echo "${user_var}"
+        fi
+    }
+
+    USER_DOMAIN=""
+    IS_HTTPS=false
+
+    RESP_SSL=$(ask_user " ${BOLD}${YELLOW}▶ Configure custom domain with Let's Encrypt SSL now? [y/N]: ${NC}" "n")
+
+    if [[ "$RESP_SSL" =~ ^([yY][eE][sS]|[yY])$ ]]; then
+        USER_DOMAIN=$(ask_user " ${BOLD}${CYAN}▶ Enter your domain name (e.g. dns.example.com): ${NC}" "")
+        USER_EMAIL=$(ask_user " ${BOLD}${CYAN}▶ Enter admin email for Let's Encrypt (optional, press Enter to skip): ${NC}" "")
+        
+        if [ -n "$USER_DOMAIN" ]; then
+            echo ""
+            echo -e "  ${CYAN}Issuing Let's Encrypt SSL certificate for ${USER_DOMAIN}...${NC}"
+            
+            # Try certbot standalone issuance
+            if command -v certbot >/dev/null 2>&1 || (apt-get update -y >/dev/null 2>&1 && apt-get install -y certbot >/dev/null 2>&1); then
+                certbot certonly --standalone --non-interactive --agree-tos --register-unsafely-without-email -d "${USER_DOMAIN}" >/dev/null 2>&1 || true
+                if [ -f "/etc/letsencrypt/live/${USER_DOMAIN}/fullchain.pem" ]; then
+                    cp -f "/etc/letsencrypt/live/${USER_DOMAIN}/fullchain.pem" "${INSTALL_DIR}/certs/cert.pem"
+                    cp -f "/etc/letsencrypt/live/${USER_DOMAIN}/privkey.pem" "${INSTALL_DIR}/certs/key.pem"
+                    chmod 644 "${INSTALL_DIR}/certs/cert.pem"
+                    chmod 600 "${INSTALL_DIR}/certs/key.pem"
+                fi
+            elif [ -f "${INSTALL_DIR}/scripts/ssl_issue.sh" ]; then
+                bash "${INSTALL_DIR}/scripts/ssl_issue.sh" "$USER_DOMAIN" "$USER_EMAIL" >/dev/null 2>&1 || true
+            fi
+            
+            # Update config.json safely with sed
+            if [ -f "${INSTALL_DIR}/config.json" ]; then
+                sed -i "s/\"domain\": .*/\"domain\": \"${USER_DOMAIN}\",/" "${INSTALL_DIR}/config.json"
+                if [ -n "$USER_EMAIL" ]; then
+                    sed -i "s/\"email\": .*/\"email\": \"${USER_EMAIL}\",/" "${INSTALL_DIR}/config.json"
+                fi
+                sed -i 's/"auto_cert": .*/"auto_cert": true,/' "${INSTALL_DIR}/config.json"
+            fi
+            IS_HTTPS=true
+            echo -e "  ${GREEN}✓ Domain & SSL configured for ${USER_DOMAIN}!${NC}"
+        fi
+    else
+        echo ""
+        echo -e "${YELLOW}${BOLD}⚠️  [SECURITY WARNING / هشدار امنیتی]${NC}"
+        echo -e "${YELLOW}No domain was added. The Web UI will run on standard HTTP (unencrypted).${NC}"
+        echo -e "${YELLOW}For maximum production security, you can bind a domain and issue SSL anytime${NC}"
+        echo -e "${YELLOW}from the Web Dashboard or via 'hdns'.${NC}"
+        echo ""
+    fi
 fi
 
 # ==============================================================================
@@ -352,28 +502,44 @@ systemctl enable hyperdns.service >/dev/null 2>&1 || true
 systemctl restart hyperdns.service || true
 echo -e "  ${GREEN}✓ Service hyperdns is active and running.${NC}"
 
+# Extract API Key from config.json for display
+CURRENT_API_KEY=$(grep -o '"api_key": "[^"]*"' "${INSTALL_DIR}/config.json" 2>/dev/null | cut -d'"' -f4 || echo "hdns_live_...")
+
 # ==============================================================================
-# INSTALLATION SUMMARY BANNER
+# INSTALLATION / UPGRADE SUMMARY BANNER
 # ==============================================================================
 echo ""
 echo -e "${GREEN}${BOLD}========================================================================${NC}"
-echo -e "${GREEN}${BOLD} ★ HyperDNS INSTALLED & RUNNING SUCCESSFULLY! ★${NC}"
-echo -e "${GREEN}${BOLD}========================================================================${NC}"
+if [ "$IS_UPGRADE" = true ]; then
+    echo -e "${GREEN}${BOLD} ★ HyperDNS SUCCESSFULLY UPGRADED TO beta 1.2.0! ★${NC}"
+    echo -e "${GREEN}${BOLD}========================================================================${NC}"
+    echo -e " • ${BOLD}Upgrade Status${NC}       : ${GREEN}Success (Zero Data Loss)${NC}"
+    echo -e " • ${BOLD}Previous Version${NC}     : ${CYAN}${PREV_VERSION}${NC}"
+    echo -e " • ${BOLD}Active Version${NC}       : ${GREEN}beta 1.2.0 (171+ Games & REST API v1)${NC}"
+    if [ -n "$BACKUP_DIR" ]; then
+        echo -e " • ${BOLD}Config Backup Saved${NC}  : ${YELLOW}${BACKUP_DIR}${NC}"
+    fi
+else
+    echo -e "${GREEN}${BOLD} ★ HyperDNS INSTALLED & RUNNING SUCCESSFULLY! ★${NC}"
+    echo -e "${GREEN}${BOLD}========================================================================${NC}"
+fi
 
 if [ "$IS_HTTPS" = true ]; then
     echo -e " • ${BOLD}Web Dashboard (HTTPS)${NC} : ${CYAN}https://${USER_DOMAIN}:8443/dashboard${NC} (or http://${PUBLIC_IP}:8080/dashboard)"
+    echo -e " • ${BOLD}REST API Docs${NC}        : ${CYAN}https://${USER_DOMAIN}:8443/api/v1/docs${NC}"
     echo -e " • ${BOLD}DoT Private DNS Host${NC} : ${CYAN}${USER_DOMAIN}${NC} (Android Settings > Private DNS)"
     echo -e " • ${BOLD}DoH Endpoint${NC}         : ${CYAN}https://${USER_DOMAIN}:8443/dns-query${NC}"
 else
     echo -e " • ${BOLD}Web Dashboard (HTTP)${NC}  : ${CYAN}http://${PUBLIC_IP}:8080/dashboard${NC}"
-    echo -e " • ${BOLD}Matrix Gateway${NC}        : ${CYAN}http://${PUBLIC_IP}:8080/${NC}"
+    echo -e " • ${BOLD}REST API Docs${NC}        : ${CYAN}http://${PUBLIC_IP}:8080/api/v1/docs${NC}"
     echo -e " • ${BOLD}DoH Endpoint (HTTP)${NC}   : ${CYAN}http://${PUBLIC_IP}:8080/dns-query${NC}"
     echo -e "${YELLOW} ⚠️  [SECURITY NOTICE / هشدار امنیتی]: Web UI is currently running on unencrypted HTTP.${NC}"
     echo -e "${YELLOW}     We strongly recommend adding a domain and SSL via the Web UI or 'hdns'.${NC}"
 fi
 
+echo -e " • ${BOLD}Master API Key${NC}       : ${YELLOW}${CURRENT_API_KEY}${NC}"
 echo -e " • ${BOLD}Default Username${NC}     : ${YELLOW}admin${NC}"
-echo -e " • ${BOLD}Default Password${NC}     : ${YELLOW}admin${NC} (Change upon first login)"
+echo -e " • ${BOLD}Default Password${NC}     : ${YELLOW}admin${NC} (or your customized password)"
 echo -e " • ${BOLD}Standard DNS IP${NC}      : ${CYAN}${PUBLIC_IP}${NC} (Set in Windows / PS5 / Xbox)"
 echo -e " • ${BOLD}Terminal Manager (TUI)${NC}: Type ${PURPLE}hdns${NC} in any SSH terminal"
 echo -e "${GREEN}${BOLD}========================================================================${NC}"

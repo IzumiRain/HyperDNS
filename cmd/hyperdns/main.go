@@ -40,7 +40,13 @@ func main() {
 	daemonMode := flag.Bool("daemon", false, "Run as background server engine (for systemd)")
 	serverMode := flag.Bool("server", false, "Run as background server engine")
 	enableTUI := flag.Bool("tui", false, "Launch interactive Terminal User Interface (TUI)")
+	showVersion := flag.Bool("version", false, "Print version information")
 	flag.Parse()
+
+	if *showVersion {
+		fmt.Println("HyperDNS v1.2.0-beta")
+		return
+	}
 
 	// Find config file path
 	cPath := *configPath
@@ -60,6 +66,9 @@ func main() {
 	if len(args) > 0 {
 		subcmd := strings.ToLower(args[0])
 		switch subcmd {
+		case "version", "-v", "--version":
+			fmt.Println("HyperDNS v1.2.0-beta")
+			return
 		case "status":
 			tui.PrintStatus(cPath)
 			return
