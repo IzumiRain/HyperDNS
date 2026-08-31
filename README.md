@@ -15,11 +15,11 @@
 > **IMPORTANT:** This project is currently under active development in **BETA**. It may contain unexpected bugs, unhandled exceptions, or edge-case routing quirks. If you experience any issues, game connectivity bugs, or have improvement suggestions, please report them via **[GitHub Issues](https://github.com/IzumiRain/HyperDNS/issues)**.
 
 <p align="center">
+  <a href="#-quick-installation">Installation</a> •
   <a href="#-features">Features</a> •
   <a href="SUPPORTED_GAMES.md">Supported Games (171+)</a> •
   <a href="API.md">REST API v1</a> •
   <a href="CHANGELOG.md">Changelog</a> •
-  <a href="#-quick-installation">Installation</a> •
   <a href="#-tui-terminal-controller-hdns">TUI Controller</a> •
   <a href="#-client-setup-guides">Client Setup</a> •
   <a href="README.fa.md">فارسی (Persian)</a> •
@@ -52,6 +52,41 @@ It transforms any single Linux or Windows server into a private **Anti-Sanction 
                          ▼                                           ▼
               [ Upstream Resolvers ]                        [ Destination Servers ]
             (1.1.1.1, 8.8.8.8, Quad9)                  (Riot, Epic, Discord, Steam)
+```
+
+---
+
+## 🚀 Quick Installation
+
+### Option 1: One-Line Linux Installer (Recommended)
+Run as `root` on Ubuntu 20.04+, Debian 11+, or CentOS/RHEL/Alma/Rocky 8+:
+```bash
+curl -fsSL https://raw.githubusercontent.com/IzumiRain/HyperDNS/main/scripts/install.sh | sudo bash
+```
+> [!TIP]
+> **Auto-Detection & Upgrade:** Running this script on a server with an existing HyperDNS installation will automatically perform a zero-data-loss safe upgrade to the latest version while preserving all client accounts and configurations.
+
+### Option 2: Docker Compose
+```bash
+git clone https://github.com/IzumiRain/HyperDNS.git
+cd HyperDNS
+docker compose up -d
+```
+
+### Option 3: 100% Offline Bundle (Zero Internet on Server)
+Upload `hyperdns-offline-bundle.tar.gz` to your server and run:
+```bash
+tar -xzvf hyperdns-offline-bundle.tar.gz
+chmod +x install.sh hyperdns
+sudo ./install.sh
+```
+
+### Option 4: Compile from Source
+```bash
+git clone https://github.com/IzumiRain/HyperDNS.git
+cd HyperDNS
+go build -o hyperdns ./cmd/hyperdns
+./hyperdns -config config.json
 ```
 
 ---
@@ -98,31 +133,6 @@ It transforms any single Linux or Windows server into a private **Anti-Sanction 
 ### 🖥️ 7. Dual Interfaces (Web Dashboard + `hdns` TUI)
 - **Web Dashboard:** Real-time QPS, CPU %, RAM MB, live bandwidth telemetry (`↓ KB/s` / `↑ KB/s`), and live Server-Sent Events (SSE) query stream.
 - **Terminal UI (`hdns`):** Rich interactive terminal management menu.
-
----
-
-## 🚀 Quick Installation
-
-### Option 1: One-Line Linux Installer (Recommended)
-Run as `root` on Ubuntu 20.04+, Debian 11+, or CentOS/RHEL/Alma/Rocky 8+:
-```bash
-curl -fsSL https://raw.githubusercontent.com/IzumiRain/HyperDNS/main/scripts/install.sh | sudo bash
-```
-
-### Option 2: Docker Compose
-```bash
-git clone https://github.com/IzumiRain/HyperDNS.git
-cd HyperDNS
-docker compose up -d
-```
-
-### Option 3: Compile from Source
-```bash
-git clone https://github.com/IzumiRain/HyperDNS.git
-cd HyperDNS
-go build -o hyperdns ./cmd/hyperdns
-./hyperdns -config config.json
-```
 
 ---
 

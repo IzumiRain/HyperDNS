@@ -16,12 +16,12 @@
 > لطفاً در صورت مواجهه با هرگونه اشکال، باگ در مسیریابی بازی‌ها یا قطعی، از طریق بخش **[Issues](https://github.com/IzumiRain/HyperDNS/issues)** گزارش دهید تا سریعاً بررسی و برطرف شود.
 
 <div align="center" dir="rtl">
+  <a href="#-نصب-سریع-و-آسان">نصب سریع</a> •
   <a href="#-معرفی-پروژه">معرفی پروژه</a> •
   <a href="SUPPORTED_GAMES.md">لیست ۱۷۱+ بازی ساپورت‌شده</a> •
   <a href="API.md">داکیومنت REST API</a> •
   <a href="CHANGELOG.md">تغییرات (Changelog)</a> •
   <a href="#-ویژگیهای-کلیدی">ویژگی‌ها</a> •
-  <a href="#-نصب-سریع-و-آسان">نصب سریع</a> •
   <a href="#-کنترلر-ترمینال-hdns">کنترلر TUI</a> •
   <a href="#-راهنمای-اتصال-دستگاهها">راهنمای اتصال</a> •
   <a href="README.md">English</a> •
@@ -58,6 +58,57 @@
                          ▼                                           ▼
               [ سرورهای دی‌ان‌اس تمیز ]                     [ سرورهای مقصد بازی ]
             (1.1.1.1, 8.8.8.8, Quad9)                  (Riot, Epic, Discord, Steam)
+```
+
+---
+
+<div dir="rtl">
+
+## 🚀 نصب سریع و آسان
+
+### روش اول: اسکریپت نصب تک‌خطی لینوکس (پیشنهادی)
+روی اوبونتو، دبیان یا CentOS دستور زیر را به عنوان `root` اجرا کنید:
+</div>
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/IzumiRain/HyperDNS/main/scripts/install.sh | sudo bash
+```
+
+> [!TIP]
+> **تشخیص و ارتقای خودکار (Auto-Detect):** اجرای این دستور روی سروری که نسخه‌های قبلی HyperDNS روی آن نصب است، به صورت خودکار نسخه قبلی را تشخیص داده و یک ارتقای بدون از دست رفتن داده (Zero-Data-Loss) به همراه بکاپ‌گیری اتوماتیک انجام می‌دهد.
+
+<div dir="rtl">
+
+### روش دوم: با Docker Compose
+</div>
+
+```bash
+git clone https://github.com/IzumiRain/HyperDNS.git
+cd HyperDNS
+docker compose up -d
+```
+
+<div dir="rtl">
+
+### روش سوم: نصب ۱۰۰٪ آفلاین (بدون نیاز به اینترنت روی سرور)
+اگر سرور دسترسی مستقیم به اینترنت برای دانلود پکیج‌ها ندارد یا می‌خواهید پکیج آماده را مستقیماً آپلود و نصب کنید:
+
+۱. فایل فشرده پکیج آفلاین (`hyperdns-offline-bundle.tar.gz`) را روی سرور آپلود کنید:
+</div>
+
+```bash
+# آپلود از سیستم لوکال با SCP
+scp hyperdns-offline-bundle.tar.gz root@YOUR_SERVER_IP:/root/
+```
+
+<div dir="rtl">
+۲. روی سرور اکسترکت و نصب کنید:
+</div>
+
+```bash
+tar -xzvf hyperdns-offline-bundle.tar.gz
+chmod +x install.sh hyperdns
+sudo ./install.sh
 ```
 
 ---
@@ -108,54 +159,6 @@
 - **رابط خط‌فرمان (`hdns`):** کنترل کامل تنظیمات، دامنه‌ها، ریستارت سرویس و تغییر وضعیت پالیسی‌ها از داخل SSH.
 
 </div>
-
----
-
-<div dir="rtl">
-
-## 🚀 نصب سریع و آسان
-
-### روش اول: اسکریپت نصب تک‌خطی لینوکس (پیشنهادی)
-روی اوبونتو، دبیان یا CentOS دستور زیر را به عنوان `root` اجرا کنید:
-</div>
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/IzumiRain/HyperDNS/main/scripts/install.sh | sudo bash
-```
-
-<div dir="rtl">
-
-### روش دوم: با Docker Compose
-</div>
-
-```bash
-git clone https://github.com/IzumiRain/HyperDNS.git
-cd HyperDNS
-docker compose up -d
-```
-
-<div dir="rtl">
-
-### روش سوم: نصب ۱۰۰٪ آفلاین (بدون نیاز به اینترنت روی سرور)
-اگر سرور دسترسی مستقیم به اینترنت برای دانلود پکیج‌ها ندارد یا می‌خواهید پکیج آماده را مستقیماً آپلود و نصب کنید:
-
-۱. فایل فشرده پکیج آفلاین (`hyperdns-offline-bundle.tar.gz`) را روی سرور آپلود کنید:
-</div>
-
-```bash
-# آپلود از سیستم لوکال با SCP
-scp hyperdns-offline-bundle.tar.gz root@YOUR_SERVER_IP:/root/
-```
-
-<div dir="rtl">
-۲. روی سرور اکسترکت و نصب کنید:
-</div>
-
-```bash
-tar -xzvf hyperdns-offline-bundle.tar.gz
-chmod +x install.sh hyperdns
-sudo ./install.sh
-```
 
 ---
 
