@@ -69,6 +69,8 @@ logs/
 *.pid
 tmp/
 temp/
+build/
+dist/
 
 # 7. IDE, Editor & OS Specific Files
 .vscode/

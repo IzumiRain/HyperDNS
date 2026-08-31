@@ -1,0 +1,66 @@
+﻿name: Release HyperDNS
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    name: Build & Release Cross-Platform Binaries
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+          check-latest: true
+
+      - name: Build Cross-Platform Binaries
+        run: |
+          mkdir -p dist
+          
+          # Linux AMD64
+          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags "-s -w" -o dist/hyperdns-linux-amd64 ./cmd/hyperdns
+          
+          # Linux ARM64
+          CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -ldflags "-s -w" -o dist/hyperdns-linux-arm64 ./cmd/hyperdns
+          
+          # Windows AMD64
+          CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -ldflags "-s -w" -o dist/hyperdns-windows-amd64.exe ./cmd/hyperdns
+          
+          # macOS ARM64 (Apple Silicon)
+          CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -ldflags "-s -w" -o dist/hyperdns-darwin-arm64 ./cmd/hyperdns
+          
+          # macOS AMD64 (Intel)
+          CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -ldflags "-s -w" -o dist/hyperdns-darwin-amd64 ./cmd/hyperdns
+          
+          # Build Offline Bundle
+          mkdir -p offline_temp/certs offline_temp/scripts
+          cp dist/hyperdns-linux-amd64 offline_temp/hyperdns
+          cp offline-bundle/install.sh offline_temp/install.sh
+          cp config.example.json offline_temp/config.json
+          cp scripts/ssl_issue.sh offline_temp/scripts/ssl_issue.sh 2>/dev/null || true
+          chmod +x offline_temp/install.sh offline_temp/hyperdns
+          
+          tar -czvf dist/hyperdns-offline-bundle.tar.gz -C offline_temp .
+          (cd offline_temp && zip -r ../dist/hyperdns-offline-bundle.zip .)
+          
+          # Generate SHA256 Checksums
+          cd dist
+          sha256sum * > checksums.txt
+          cat checksums.txt
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: |
+            dist/*
+          generate_release_notes: true
