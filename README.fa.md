@@ -1,7 +1,7 @@
 # ⚡ پروژه HyperDNS — گیت‌وی و کنترلر هوشمند SmartDNS و کاهش پینگ گیمینگ
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Release-beta%201.1.0-00f0ff?style=for-the-badge&logo=rocket" alt="Version">
+  <img src="https://img.shields.io/badge/Release-beta%201.2.0-00f0ff?style=for-the-badge&logo=rocket" alt="Version">
   <img src="https://img.shields.io/badge/Status-Beta%20Preview-amber?style=for-the-badge" alt="Status">
   <img src="https://img.shields.io/badge/Language-Go%201.26-00ADD8?style=for-the-badge&logo=go" alt="Go">
   <img src="https://img.shields.io/badge/Architecture-Single%20Binary-a855f7?style=for-the-badge" alt="Single Binary">
@@ -17,6 +17,9 @@
 
 <div align="center" dir="rtl">
   <a href="#-معرفی-پروژه">معرفی پروژه</a> •
+  <a href="SUPPORTED_GAMES.md">لیست ۱۷۱+ بازی ساپورت‌شده</a> •
+  <a href="API.md">داکیومنت REST API</a> •
+  <a href="CHANGELOG.md">تغییرات (Changelog)</a> •
   <a href="#-ویژگیهای-کلیدی">ویژگی‌ها</a> •
   <a href="#-نصب-سریع-و-آسان">نصب سریع</a> •
   <a href="#-کنترلر-ترمینال-hdns">کنترلر TUI</a> •
@@ -31,7 +34,7 @@
 
 ## 📖 معرفی پروژه
 
-**HyperDNS** یک سرور SmartDNS فوق‌سریع و پراکسی شفاف SNI است که به صورت یک تک‌فایل باینری مستقل با زبان Go نوشته شده و دارای پنل مدیریتی تحت وب با تم سایبرپانک و رابط خط‌فرمان تعاملی (`hdns`) می‌باشد.
+**HyperDNS** یک سرور SmartDNS فوق‌سریع و پراکسی شفاف SNI است که به صورت یک تک‌فایل باینری مستقل با زبان Go نوشته شده و دارای پنل مدیریتی تحت وب با تم سایبرپانک، رابط برنامه‌نویسی REST API v1 و رابط خط‌فرمان تعاملی (`hdns`) می‌باشد.
 
 این پروژه هر سرور مجازی (VPS/VDS) در خارج از کشور (ترکیه، آلمان، هلند و ...) را به یک **سامانه ضدتحریم (دور زدن ارور ۴۰۳) و کاهش پینگ گیمینگ** تبدیل می‌کند که بدون نیاز به نصب هرگونه فیلترشکن یا کلاینت، روی کامپیوتر، پلی‌استیشن ۵، ایکس‌باکس، اندروید، آیفون و روترها کار می‌کند.
 
@@ -49,7 +52,7 @@
        │  - In-Memory Sharded LRU Cache    │       │  - TLS ClientHello SNI Parser     │
        │  - Smart Policy Matcher           │       │  - Zero-Knowledge TCP Forwarder   │
        │  - Fastest Upstream Racing Pool   │       │  - Anti-DPI TLS Fragmentation     │
-       │  - Access Control (Tokens/IPs)    │       │  - Direct Forward to Target Host  │
+       │  - Access Control (Tokens/1-IP)   │       │  - Direct Forward to Target Host  │
        └─────────────────┬─────────────────┘       └─────────────────┬─────────────────┘
                          │                                           │
                          ▼                                           ▼
@@ -63,40 +66,44 @@
 
 ## 🌟 ویژگی‌های کلیدی
 
-### 🎮 ۱. پالیسی‌های دسته‌بندی‌شده و هوشمند (Policies)
-- **پالیسی‌های گیمینگ:**
-  - **PUBG Mobile & PC:** رفع تحریم و کاهش پینگ پابجی موبایل و پی‌سی (Krafton / Level Infinite).
-  - **Call of Duty Mobile & Warzone:** رفع تحریم کالاف دیوتی موبایل، وارزون موبایل، شبکه اکتیویژن و مچ‌میکینگ Demonware.
-  - **Supercell Games:** رفع کامل مشکل وصل نشدن و لودینگ بازی‌های براول استارز (Brawl Stars)، کلش آو کلنز (Clash of Clans) و کلش رویال.
-  - **Riot Games:** رفع کامل تحریم Valorant، League of Legends، Riot Client و بهینه‌سازی Vanguard.
-  - **Epic Games:** فروشگاه Epic، بازی Fortnite و سرورهای Easy Anti-Cheat.
-  - **Steam & Valve:** مارکت‌پلیس استیم، CS2 و Dota 2.
-  - **Electronic Arts:** برنامه EA App، Origin و Apex Legends.
-  - **Blizzard:** پلتفرم Battle.net، اورواچ و وارکرافت.
-  - **Ubisoft Connect:** رینبو سیکس و اساسینز کرید.
-  - **Rockstar Games:** سرورهای GTA Online، RDR2 و Social Club.
-  - **Xbox & Microsoft:** شبکه Xbox Live، ماینکرفت و PlayFab.
-  - **PlayStation Network:** لاگین PSN، استور PS5/PS4.
-  - **Roblox:** کلاینت بازی و CDN است‌ها.
-- **پالیسی‌های استریم و مدیا:**
-  - **Discord:** رفع فیلترینگ چت، برطرف کردن باگ چرخیدن روی Updating و اتصال پایدار Voice RTC.
-  - **Twitch & Kick:** لایو استریم پرسرعت و وب‌سوکت چت.
-  - **Spotify:** پخش آنلاین موزیک بدون تحریم ۴۰۳.
-- **پالیسی‌های توسعه‌دهندگان (Dev 403):**
-  - دور زدن تحریم‌های Docker Hub، OpenAI / ChatGPT، Claude / Anthropic، npm، Gradle، Android SDK، PyPI، HuggingFace، Supabase، Vercel، MongoDB و Oracle.
-- **پالیسی‌های امنیتی (AdGuard / Pi-hole Style):**
-  - **AdBlock & Trackers:** مسدودسازی تبلیغات درون‌برنامه‌ای و تله‌متری به روش سینک‌هول (`0.0.0.0`).
-  - **Family Safe Filter:** مسدودسازی سایت‌های غیراخلاقی و مستهجن.
+### 🎮 ۱. پالیسی‌های دسته‌بندی‌شده و هوشمند (پشتیبانی از بیش از ۱۷۱ بازی و سرویس)
+- **شوترهای تاکتیکال و بتل‌رویال:** Valorant، CS2، Call of Duty (Warzone / Mobile / BO6)، The Finals، Escape from Tarkov، Delta Force: Hawk Ops، HellDivers 2، PUBG، Apex Legends، Rainbow Six Siege، Rust، Squad، DayZ، ArmA، Dead by Daylight.
+- **انیمه، گاچا و MMORPGها:** Genshin Impact، Honkai: Star Rail، Zenless Zone Zero، Wuthering Waves، Arknights: Endfield، Lost Ark، Throne & Liberty، Path of Exile 1 & 2، Warframe، Elden Ring، Black Desert، Final Fantasy XIV.
+- **ورزشی، مبارزه‌ای و ریسینگ:** EA Sports FC 25 / FIFA، eFootball / PES، Street Fighter 6، Mortal Kombat 1، Tekken 8، 2XKO، Assetto Corsa، Euro Truck Simulator 2، Forza Horizon 5، F1 24.
+- **پلتفرم‌ها، آنتی‌چیت‌ها و کلود گیمینگ:** Faceit AC، Riot Vanguard، EasyAntiCheat (EAC)، BattlEye، Ricochet، GeForce NOW، Boosteroid، Xbox Cloud Gaming، Razer Synapse، Logitech G Hub، Corsair iCUE.
+- **اکوسیستم و ناشران:** Riot Games، Steam/Valve، Epic Games، Blizzard، EA، Ubisoft، Rockstar، Xbox Live، PlayStation Network، Roblox، Supercell.
+- **استریم و مدیا:** Discord (کامل + حل مشکل Updating + ویس چت RTC)، Spotify و SoundCloud، Twitch، Kick.com.
+- **سوییت توسعه‌دهندگان (Dev 403):** دور زدن تحریم‌های Docker Hub، OpenAI / ChatGPT، Claude / Anthropic، npm، Gradle، Android SDK، PyPI، HuggingFace، Supabase، Vercel.
+- **امنیت و مسدودسازی:** AdBlock و تله‌متری به شیوه Sinkhole (`0.0.0.0`)، فیلتر Family Safe.
 
-### ⚡ ۲. کَش پرسرعت در حافظه رم و سیستم Fastest Racing
+👉 **[مشاهده دایرکتوری کامل بازی‌ها و پلتفرم‌های ساپورت‌شده (۱۷۱+ عنوان)](SUPPORTED_GAMES.md)**
+
+### 🔌 ۲. رابط برنامه‌نویسی REST API v1 و مستندات تعاملی Swagger
+- کنترل کامل و بی‌سر (Headless) از طریق REST API با دو روش احراز هویت: Master API Key و توکن JWT.
+- صفحه تعاملی Swagger / OpenAPI در اندپوینت `/api/v1/docs`.
+- امکان ساخت اکانت، تمدید اشتراک، دریافت زنده تله‌متری QPS و تغییر آنلاین رول‌ها بدون ریستارت سرویس.
+
+👉 **[مشاهده مستندات فنی REST API و نمونه کدها](API.md)**
+
+### 👥 ۳. اکانتینگ کاربران با محدودیت سفت‌وسخت ۱ آی‌پی و قطع آنی اشتراک‌های منقضی
+- **لینک اختصاصی ۱-کلیک ثبت آی‌پی:** تولید لینک `/r/:token` برای ثبت خودکار و تغییر آی‌پی داینامیک کاربر بدون نیاز به ورود به پنل ادمین.
+- **محدودیت سفت‌وسخت ۱ آی‌پی (Strict 1-IP):** جلوگیری از شیر کردن اکانت؛ در صورت لاگین دستگاه جدید، آی‌پی قبلی خودکار جایگزین و قطع می‌شود.
+- **چک‌کننده پس‌زمینه ۱ دقیقه‌ای:** بررسی خودکار و قطع لحظه‌ای دسترسی DNS اکانت‌های منقضی‌شده.
+
+### 🔄 ۴. سیستم هوشمند Auto-Detect و ارتقای بدون از دست رفتن داده‌ها
+- اسکریپت نصب تک‌خطی به صورت خودکار نسخه قبلی (`v1.1.0-beta`) را تشخیص می‌دهد.
+- از کانفیگ و گواهینامه‌ها بکاپ زمان‌دار می‌گیرد (`/opt/hyperdns/backups/backup_*`).
+- کانفیگ را ارتقا داده و ۱۰۰٪ اطلاعات کاربران، پسورد ادمین، رول‌های سفارشی و گواهی‌های SSL را بدون تغییر حفظ می‌کند.
+
+### ⚡ ۵. کَش پرسرعت در حافظه رم و سیستم Fastest Racing
 - پاسخگویی به درخواست‌های تکراری در کمتر از **۰.۵ میلی‌ثانیه**.
 - ارسال همزمان درخواست به کلودفلر (`1.1.1.1`)، گوگل (`8.8.8.8`) و Quad9 (`9.9.9.9`) و انتخاب سریع‌ترین سرور.
 
-### 🛡️ ۳. مقاومت در برابر فیلترینگ DPI
+### 🛡️ ۶. مقاومت در برابر فیلترینگ DPI
 - فوروارد شفاف ترافیک TLS بدون شکستن رمزنگاری (Zero-Knowledge).
 - قابلیت **TLS ClientHello Fragmentation** برای شکستن هدر SNI و عبور از فیلترینگ DPI.
 
-### 🖥️ ۴. دو رابط کاربری کامل (پنل وب + ترمینال `hdns`)
+### 🖥️ ۷. دو رابط کاربری کامل (پنل وب + ترمینال `hdns`)
 - **پنل تحت وب:** گرافیک سایبرپانک، مانیتورینگ زنده QPS، پردازنده، رم، سرعت ترافیک دانلود/آپلود، تست تشخیصی سرور و استریم زنده لاگ کوئری‌ها.
 - **رابط خط‌فرمان (`hdns`):** کنترل کامل تنظیمات، دامنه‌ها، ریستارت سرویس و تغییر وضعیت پالیسی‌ها از داخل SSH.
 

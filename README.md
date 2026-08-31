@@ -1,7 +1,7 @@
 # ⚡ HyperDNS — Next-Gen Standalone SmartDNS & Gaming Gateway
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Release-beta%201.1.0-00f0ff?style=for-the-badge&logo=rocket" alt="Version">
+  <img src="https://img.shields.io/badge/Release-beta%201.2.0-00f0ff?style=for-the-badge&logo=rocket" alt="Version">
   <img src="https://img.shields.io/badge/Status-Beta%20Preview-amber?style=for-the-badge" alt="Status">
   <img src="https://img.shields.io/badge/Language-Go%201.26-00ADD8?style=for-the-badge&logo=go" alt="Go">
   <img src="https://img.shields.io/badge/Architecture-Single%20Binary-a855f7?style=for-the-badge" alt="Single Binary">
@@ -18,6 +18,7 @@
   <a href="#-features">Features</a> •
   <a href="SUPPORTED_GAMES.md">Supported Games (171+)</a> •
   <a href="API.md">REST API v1</a> •
+  <a href="CHANGELOG.md">Changelog</a> •
   <a href="#-quick-installation">Installation</a> •
   <a href="#-tui-terminal-controller-hdns">TUI Controller</a> •
   <a href="#-client-setup-guides">Client Setup</a> •
@@ -29,7 +30,7 @@
 
 ## 📖 Overview
 
-**HyperDNS** is an ultra-fast, single-binary SmartDNS server and transparent SNI Proxy engine with an embedded cyberpunk/gaming web dashboard and interactive terminal interface (`hdns`).
+**HyperDNS** is an ultra-fast, single-binary SmartDNS server and transparent SNI Proxy engine with an embedded cyberpunk/gaming web dashboard, developer REST API, and interactive terminal interface (`hdns`).
 
 It transforms any single Linux or Windows server into a private **Anti-Sanction (403 Bypass)** and **Low-Latency Gaming Gateway** for PC, PlayStation 5, Xbox, Nintendo Switch, Android, iOS, and Routers with **zero client software required** and **zero VPN encapsulation overhead**.
 
@@ -45,7 +46,7 @@ It transforms any single Linux or Windows server into a private **Anti-Sanction 
        │  - In-Memory Sharded LRU Cache    │       │  - TLS ClientHello SNI Parser     │
        │  - Smart Policy Matcher           │       │  - Zero-Knowledge TCP Forwarder   │
        │  - Fastest Upstream Racing Pool   │       │  - Anti-DPI TLS Fragmentation     │
-       │  - Access Control (Tokens/IPs)    │       │  - Direct Forward to Target Host  │
+       │  - Access Control (Tokens/1-IP)   │       │  - Direct Forward to Target Host  │
        └─────────────────┬─────────────────┘       └─────────────────┬─────────────────┘
                          │                                           │
                          ▼                                           ▼
@@ -58,25 +59,43 @@ It transforms any single Linux or Windows server into a private **Anti-Sanction 
 ## 🌟 Features
 
 ### 🎮 1. Categorized Smart Policies (171+ Games & Services)
-- **Gaming & Tactical Shooters:** Valorant, CS2, Call of Duty (Warzone / Mobile / BO6), The Finals, Tarkov, Delta Force, HellDivers 2, PUBG, Apex Legends, Rainbow Six Siege, Rust, Squad, DayZ, ArmA, Dead by Daylight.
-- **Anime, Gacha & MMORPGs:** Genshin Impact, Honkai: Star Rail, Zenless Zone Zero, Wuthering Waves, Arknights, Lost Ark, Throne & Liberty, Path of Exile 1 & 2, Warframe, Elden Ring, Black Desert.
-- **Sports, Fighting & Racing:** EA Sports FC 25, eFootball, Street Fighter 6, Mortal Kombat 1, Tekken 8, Assetto Corsa, Euro Truck Simulator 2, 2XKO.
+- **Gaming & Tactical Shooters:** Valorant, CS2, Call of Duty (Warzone / Mobile / BO6), The Finals, Escape from Tarkov, Delta Force: Hawk Ops, HellDivers 2, PUBG, Apex Legends, Rainbow Six Siege, Rust, Squad, DayZ, ArmA, Dead by Daylight.
+- **Anime, Gacha & MMORPGs:** Genshin Impact, Honkai: Star Rail, Zenless Zone Zero, Wuthering Waves, Arknights: Endfield, Lost Ark, Throne & Liberty, Path of Exile 1 & 2, Warframe, Elden Ring, Black Desert, Final Fantasy XIV.
+- **Sports, Fighting & Racing:** EA Sports FC 25, eFootball, Street Fighter 6, Mortal Kombat 1, Tekken 8, 2XKO, Assetto Corsa, Euro Truck Simulator 2, Forza Horizon 5, F1 24.
+- **Platforms, Anti-Cheats & Cloud Gaming:** Faceit AC, Riot Vanguard, EasyAntiCheat (EAC), BattlEye, Ricochet, GeForce NOW, Boosteroid, Xbox Cloud Gaming, Razer Synapse, Logitech G Hub, Corsair iCUE.
 - **Publishers & Ecosystems:** Riot Games, Steam/Valve, Epic Games, Blizzard, EA, Ubisoft, Rockstar, Xbox Live, PlayStation Network, Roblox, Supercell.
-- **Streaming & Media:** Discord (Full Suite + RTC Voice + Updates), Spotify & SoundCloud, Twitch, Kick.com.
+- **Streaming & Media:** Discord (Full Suite + RTC Voice + Updating Fix), Spotify & SoundCloud, Twitch, Kick.com.
 - **Developer 403 Suite:** Docker Hub, OpenAI / ChatGPT, Claude / Anthropic, npm, Gradle, Android SDK, PyPI, HuggingFace, Supabase, Vercel.
 - **Security & Privacy:** AdBlock & Telemetry Sinkhole (`0.0.0.0`), Family Safe Adult Content Protection.
 
 👉 **[View Full Supported Games & Platforms Directory (171+ Titles)](SUPPORTED_GAMES.md)**
 
-### ⚡ 2. Microsecond In-Memory Cache & Racing Resolvers
+### 🔌 2. Developer REST API v1 & Interactive Swagger Docs
+- Full programmatic control via headless REST API (`/api/v1`) with dual authentication: Master API Key (`X-API-Key`) and JWT Bearer Tokens.
+- Interactive OpenAPI / Swagger documentation endpoint at `/api/v1/docs`.
+- Manage client lifecycles, hot-toggle game rules, run server latency benchmarks, and query live QPS/RAM telemetry.
+
+👉 **[View Full REST API Documentation & Code Samples](API.md)**
+
+### 👥 3. Multi-Client Accounting, Strict 1-IP Limit & Expiration Watcher
+- **1-Click Dynamic IP Auto-Registration:** Provide users with private token URLs (`/r/:token`) that instantly bind their IP.
+- **Strict 1-IP Policy:** Prevents account sharing by automatically enforcing exactly one active IP per token (replaces old IP when a new device connects).
+- **Background Expiration Watcher:** Automatic 60-second ticker immediately cuts off DNS resolution for expired subscriptions.
+
+### 🔄 4. Auto-Detection & Zero-Data-Loss Safe Upgrade
+- The one-line installer automatically detects existing HyperDNS installations (e.g. `v1.1.0-beta`).
+- Creates timestamped backups (`/opt/hyperdns/backups/backup_*`).
+- Seamlessly migrates configuration schemas while preserving 100% of existing accounts, credentials, custom rules, and SSL certificates.
+
+### ⚡ 5. Microsecond In-Memory Cache & Racing Resolvers
 - **RAM Cache:** Repeated queries resolve in **<0.5ms** with automatic TTL decay.
 - **Fastest Upstream Racing:** Parallel queries to Cloudflare (`1.1.1.1`), Google (`8.8.8.8`), and Quad9 (`9.9.9.9`) — the fastest response wins.
 
-### 🛡️ 3. DPI Resistance & Zero-Knowledge SNI Proxy
+### 🛡️ 6. DPI Resistance & Zero-Knowledge SNI Proxy
 - Preserves end-to-end encryption without SSL certificate decryption.
 - Optional **TLS ClientHello Fragmentation** to bypass DPI middleboxes on restricted networks.
 
-### 🖥️ 4. Dual Interfaces (Web Dashboard + `hdns` TUI)
+### 🖥️ 7. Dual Interfaces (Web Dashboard + `hdns` TUI)
 - **Web Dashboard:** Real-time QPS, CPU %, RAM MB, live bandwidth telemetry (`↓ KB/s` / `↑ KB/s`), and live Server-Sent Events (SSE) query stream.
 - **Terminal UI (`hdns`):** Rich interactive terminal management menu.
 
