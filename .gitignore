@@ -95,3 +95,7 @@ Thumbs.db
 .system_generated/
 .antigravity/
 fastfetch/
+
+# Private Plan Testing File
+plan-testing.md
+
