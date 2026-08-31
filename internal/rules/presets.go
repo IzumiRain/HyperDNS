@@ -615,7 +615,7 @@ var (
 		"*.onlyfans.com",
 	}
 
-	// --- ADDITIONAL 171 GAMES & PACKETRAFT INTEGRATION POLICIES ---
+	// --- EXTENDED 171+ GAMES & GLOBAL GAMING GATEWAY POLICIES ---
 
 	// Tactical Shooters & Battle Royales Extra
 	PresetShootersExtra = []string{

@@ -42,6 +42,7 @@ config.prod.json
 /hyperdns.exe
 /hyperdns-linux
 /hyperdns-*
+/hyperdns_*
 *.exe
 *.dll
 *.so

@@ -29,7 +29,7 @@ func TestMatcher(t *testing.T) {
 		{"api.epicgames.dev", ActionProxy},
 		{"playvalorant.com", ActionProxy},
 		{"wr.pvp.net", ActionProxy},
-		// New PacketRaft Game Rules
+		// Extended 171+ Game Rules
 		{"thefinals.com", ActionProxy},
 		{"api.escapefromtarkov.com", ActionProxy},
 		{"marvelrivals.com", ActionProxy},
