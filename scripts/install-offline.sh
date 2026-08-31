@@ -64,19 +64,113 @@ echo -e "  ${GREEN}✓ Found offline binary: ${SRC_BIN}${NC}"
 mkdir -p "${INSTALL_DIR}"
 mkdir -p "${INSTALL_DIR}/certs"
 
-# Stop existing service if running
-if systemctl is-active --quiet hyperdns; then
-    echo -e "  ${YELLOW}Stopping existing hyperdns service...${NC}"
-    systemctl stop hyperdns || true
+IS_UPGRADE=false
+PREV_VERSION=""
+
+if [ -f "${INSTALL_DIR}/hyperdns" ] || [ -f "${INSTALL_DIR}/config.json" ] || systemctl is-active --quiet hyperdns 2>/dev/null; then
+    IS_UPGRADE=true
+    if [ -x "${INSTALL_DIR}/hyperdns" ]; then
+        PREV_VERSION=$("${INSTALL_DIR}/hyperdns" -version 2>/dev/null || echo "v1.1.0-beta")
+    else
+        PREV_VERSION="v1.1.0-beta"
+    fi
+    echo -e "${YELLOW}${BOLD}┌────────────────────────────────────────────────────────────────────────┐${NC}"
+    echo -e "${YELLOW}│ ⚡ [AUTO-DETECT] Existing HyperDNS installation detected!               │${NC}"
+    echo -e "${YELLOW}│ • Installed Version : ${CYAN}${PREV_VERSION}${YELLOW}                                  │${NC}"
+    echo -e "${YELLOW}│ • Target Version    : ${GREEN}beta 1.2.0 (Offline Bundle)${YELLOW}                       │${NC}"
+    echo -e "${YELLOW}│ • Execution Mode    : ${GREEN}Seamless Zero-Data-Loss Upgrade & Migration${YELLOW}      │${NC}"
+    echo -e "${YELLOW}└────────────────────────────────────────────────────────────────────────┘${NC}"
+    echo ""
+
+    # Create Automated Timestamped Backup
+    BACKUP_DIR="${INSTALL_DIR}/backups/backup_$(date +%Y%m%d_%H%M%S)"
+    mkdir -p "${BACKUP_DIR}"
+    if [ -f "${INSTALL_DIR}/config.json" ]; then
+        cp -p "${INSTALL_DIR}/config.json" "${BACKUP_DIR}/config.json"
+        echo -e "  ${GREEN}✓ Configuration backup saved to: ${BACKUP_DIR}/config.json${NC}"
+    fi
+    if [ -d "${INSTALL_DIR}/certs" ]; then
+        cp -rp "${INSTALL_DIR}/certs" "${BACKUP_DIR}/certs" 2>/dev/null || true
+    fi
+
+    # Stop service gracefully before upgrading binary
+    if systemctl is-active --quiet hyperdns 2>/dev/null; then
+        echo -e "  ${YELLOW}Gracefully stopping running hyperdns service for upgrade...${NC}"
+        systemctl stop hyperdns || true
+    fi
 fi
 
-# Copy binary
-cp -f "${SRC_BIN}" "${INSTALL_DIR}/hyperdns"
-chmod +x "${INSTALL_DIR}/hyperdns"
+# Copy binary atomically
+cp -f "${SRC_BIN}" "${INSTALL_DIR}/hyperdns.new"
+chmod +x "${INSTALL_DIR}/hyperdns.new"
+mv -f "${INSTALL_DIR}/hyperdns.new" "${INSTALL_DIR}/hyperdns"
 ln -sf "${INSTALL_DIR}/hyperdns" /usr/local/bin/hdns
 
-# Copy sample config if present and no config exists
-if [ -f "${SCRIPT_DIR}/config.json" ] && [ ! -f "${INSTALL_DIR}/config.json" ]; then
+# Copy sample config if present and no config exists, or migrate existing
+if [ "$IS_UPGRADE" = true ] && [ -f "${INSTALL_DIR}/config.json" ]; then
+    echo -e "  ${CYAN}Migrating existing configuration to beta 1.2.0 schema...${NC}"
+    python3 - << 'PYEOF' 2>/dev/null || true
+import json, secrets, os
+cfg_path = "/opt/hyperdns/config.json"
+try:
+    with open(cfg_path, "r", encoding="utf-8") as f:
+        data = json.load(f)
+except Exception:
+    data = {}
+
+if not isinstance(data, dict):
+    data = {}
+
+if "server" not in data or not isinstance(data["server"], dict):
+    data["server"] = {}
+if "api_key" not in data["server"] or not data["server"]["api_key"]:
+    data["server"]["api_key"] = f"hdns_live_{secrets.token_hex(20)}"
+
+if "rules" not in data or not isinstance(data["rules"], dict):
+    data["rules"] = {}
+
+presets = {
+    "enable_shooters_extra": True,
+    "enable_anime_gacha": True,
+    "enable_sports_racing": True,
+    "enable_coop_survival": True,
+    "enable_platforms_extra": True,
+    "enable_soundcloud": True,
+    "enable_spotify": True,
+    "enable_riot": True,
+    "enable_epic": True,
+    "enable_steam": True,
+    "enable_pubg": True,
+    "enable_call_of_duty": True,
+    "enable_supercell": True,
+    "enable_discord": True,
+    "enable_ea": True,
+    "enable_blizzard": True,
+    "enable_ubisoft": True,
+    "enable_rockstar": True,
+    "enable_xbox": True,
+    "enable_playstation": True,
+    "enable_roblox": True,
+    "enable_twitch": True,
+    "enable_kick": True,
+    "enable_dev403": True,
+    "enable_adblock": False,
+    "enable_familysafe": False
+}
+for k, v in presets.items():
+    if k not in data["rules"]:
+        data["rules"][k] = v
+
+if "access" not in data or not isinstance(data["access"], dict):
+    data["access"] = {"allow_all": True, "clients": [], "allowed_ips": [], "blocked_ips": []}
+if "clients" not in data["access"]:
+    data["access"]["clients"] = []
+
+with open(cfg_path, "w", encoding="utf-8") as f:
+    json.dump(data, f, indent=2)
+PYEOF
+    echo -e "  ${GREEN}✓ Configuration migrated smoothly.${NC}"
+elif [ -f "${SCRIPT_DIR}/config.json" ] && [ ! -f "${INSTALL_DIR}/config.json" ]; then
     cp "${SCRIPT_DIR}/config.json" "${INSTALL_DIR}/config.json"
 fi
 
