@@ -70,6 +70,7 @@ logs/
 tmp/
 temp/
 build/
+bin/
 dist/
 
 # 7. IDE, Editor & OS Specific Files
@@ -90,12 +91,73 @@ Thumbs.db
 [Dd]esktop.ini
 
 # 8. Agent, Assistant & AI System Folders
+# .claude/ holds the local launch configuration and per-project agent state, and
+# .remember/ holds session handoff notes written verbatim from a working session —
+# both are development scaffolding for this machine and neither is publishable.
 .agents/
+.claude/
+.remember/
 .gemini/
 .system_generated/
 .antigravity/
+.freebuff/
 fastfetch/
 
-# Private Plan Testing File
+# 9. Private Documents — internal only, never published
+# The public set is README.md, README.fa.md, SUPPORTED_GAMES.md, CHANGELOG.md
+# and API.md. Everything listed here stays out of the published repository.
 plan-testing.md
+CHANGELOG-PRIVATE.md
+PRIVATE.md
+STRUCTURE.md
+PLAN-v2.1-SECURITY-SETTINGS.md
+UI-TRANSLATIONS.md
 
+# 10. Runtime Configuration — holds live credentials and subscriber tokens
+# config.example.json is the tracked template; config.json is per-install secret.
+config.json
+
+# 11. Local Backups, Caches & Database Sidecars
+# The *.key and *.db rules above do not match a .bak suffix, which is how
+# master.key.bak and data.db.bak slipped past them.
+*.bak
+*.old
+*.orig
+_backup_v1.2/
+*.db-journal
+*.db-wal
+*.db-shm
+__pycache__/
+*.py[cod]
+
+# 12. Scratch & Verification Helpers — local development only
+# Long benchmark/verification command lines get truncated when passed inline, so
+# they are parked in a scratch runner. Nothing here belongs in a release.
+/t.sh
+/scratch/
+/_scratch/
+*.scratch
+# One-off helpers written during the i18n and UI passes: string extractors, their
+# JSON/TXT dumps, and a local run wrapper. They are dot-prefixed so an editor hides
+# them, but `git add .` would still pick them up, which is what these rules prevent.
+/.extract*.py
+/.hdns-run.ps1
+/.i18n-*.json
+/.i18n-*.txt
+
+node_modules/
+package-lock.json
+
+# ---- publish-prep additions (2026-09-15) ----
+.playwright-mcp/
+graphify-out/
+.zcode/
+.wsl-final-verify.sh
+ap.txt
+root@*
+# UI screenshots (unreferenced — add to README explicitly if wanted)
+/dashboard-*.png
+/login-*.png
+/uiaudit-*.png
+# third-party skill docs that landed in the tree
+docs/superpowers/

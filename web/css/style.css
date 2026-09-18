@@ -1,45 +1,489 @@
-@import url('https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap');
+/* Fonts are self-hosted, and there are exactly two of them.
+ *
+ * History, because it explains the shape of what follows. This file once opened with
+ * an @import of three Google Fonts families (Chakra Petch, Inter, JetBrains Mono).
+ * That request was refused by this project's own Content-Security-Policy on every
+ * single page load — style-src is 'self' 'unsafe-inline' and font-src is 'self'
+ * data:, neither of which permits fonts.googleapis.com — so none of the three had
+ * ever loaded, the panel had always rendered in whatever came next in each stack, and
+ * the console logged a violation every time the dashboard opened. The @import was
+ * removed and the real fallback stacks were written out in its place.
+ *
+ * That left a second, quieter problem: the panel is bilingual. Half its text is
+ * Persian and half is English, and a stack of Latin-only families means every Persian
+ * string fell through all of them to the browser's last resort — Tahoma on Windows,
+ * something else on Android, nothing predictable anywhere. Persian and English in the
+ * same row rendered at different apparent sizes with different baselines, which is
+ * precisely the kind of defect that reads as "cheap" without the reader being able to
+ * say why.
+ *
+ * So the fonts now ship in the binary:
+ *
+ *   Vazirmatn      — one variable file, weights 100-900, Persian *and* Latin in a
+ *                    single family. It carries both scripts, so a heading that mixes
+ *                    them has one set of metrics and one baseline, and no weight
+ *                    needs its own download.
+ *   JetBrains Mono — regular only, for the telemetry: IPs, tokens, UUIDs, latency
+ *                    figures. Its digits are the same width, which is why a number
+ *                    that repaints once a second stops shifting the cells beside it.
+ *                    Bold mono is synthesised by the browser from this one face;
+ *                    that is a deliberate trade of a small amount of fidelity for
+ *                    92 KB, in a role that is 12px monospace on a dark panel.
+ *
+ * Both are OFL, and both licences sit next to the files in web/fonts/.
+ *
+ * Chakra Petch — the old display family for headings — is gone rather than
+ * self-hosted. It has no Persian coverage at all, so every Persian heading would have
+ * fallen out of it into a different family with a different x-height, reintroducing
+ * the exact mismatch above in the most prominent text on the page. Vazirmatn at 700
+ * with tracking carries a heading perfectly well, and it carries it identically in
+ * both languages.
+ *
+ * url() is relative to this stylesheet rather than absolute, so the panel keeps
+ * working if it is ever served under a path prefix. font-src 'self' already permits
+ * these, so the CSP is unchanged — see csp_test.go, which pins that. */
 
-:root {
-  --bg-main: #060913;
+@font-face {
+  font-family: 'Vazirmatn';
+  /* Plain format('woff2') rather than the two-line 'woff2 supports variations' /
+     'woff2-variations' dance upstream ships. Every engine that understands variable
+     fonts also accepts this, and one that does not simply renders a single weight
+     from the same file instead of rejecting the whole src list. */
+  src: url('../fonts/vazirmatn-var.woff2') format('woff2');
+  font-weight: 100 900;
+  font-style: normal;
+  /* swap, not block: the panel's own markup arrives first, and an operator watching a
+     resolver should never see an empty page waiting on a typeface. Served from the
+     binary over the same connection, the swap is usually imperceptible. */
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'JetBrains Mono';
+  src: url('../fonts/jetbrains-mono-var.woff2') format('woff2');
+  /* A variable face carrying the real weight axis, so the range here is the truth
+     rather than a claim. The static Regular that used to sit here forced the browser
+     to synthesise bold for roughly twenty elements — the nine font-extrabold stat
+     numerals among them — which smears a monospaced digit sideways and is exactly
+     the wrong thing to do to a figure someone reads at a glance. This file is also
+     40 KB against the static face's 92 KB, because the latin subset of one variable
+     face is smaller than one static weight of the full character set. */
+  font-weight: 100 800;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Two themes, one set of markup.
+ *
+ * Every colour the panel paints comes from a token below, and the tokens are declared
+ * twice: once here for [data-theme="dark"] and once in the [data-theme="light"] block
+ * that follows. Flipping the attribute on <html> repaints all of it — 396 slate
+ * utilities, 151 cyan, 87 text-white, plus every rule in this file — with no markup
+ * change and no second stylesheet.
+ *
+ * The --c-* tokens are space-separated RGB CHANNELS, not colours: `6 9 19`, not
+ * `#060913`. That form is what lets the Tailwind config wrap them as
+ * `rgb(var(--c-slate-900) / <alpha-value>)` and keep the opacity modifiers working —
+ * 47 utilities in this panel carry one (border-cyan-500/30, bg-slate-950/70), and they
+ * would all paint fully opaque against a plain var() colour. Rules in this file that
+ * want a solid colour write rgb(var(--c-x)); rules that want a tint write
+ * rgb(var(--c-x) / 0.16).
+ *
+ * Read the scale as a ROLE, not as a lightness. slate-900 means "the page" and
+ * slate-950 means "an inset inside the page" in both themes, so the ramp inverts in
+ * light mode: --c-slate-900 is near-white there and text-slate-400 is a dark grey.
+ * Inverting the ramp is what lets the existing markup carry a light theme at all; the
+ * alternative was renaming 116 utilities across 4,000 lines of markup to semantic
+ * names, at a much higher risk of missing one.
+ *
+ * The light values are not the dark ones inverted arithmetically. Each was chosen for
+ * contrast against the light page: every foreground token clears 4.5:1 on
+ * --c-slate-900, which is why cyan-400 becomes #0e7490 rather than a lightened #00f0ff
+ * (neon cyan on white measures 1.4:1 and is unreadable), and why the semantic 300/400
+ * shades — 90 text utilities between them — drop to their 600/700 equivalents. */
+:root,
+[data-theme="dark"] {
+  /* Surfaces and foregrounds. 950 = deepest inset, 900 = the page, 800/700 = raised
+     surfaces and borders, 600-500 = dividers and placeholders, 400-50 = text from
+     muted to strongest. */
+  --c-slate-950: 3 7 18;
+  --c-slate-900: 6 9 19;
+  --c-slate-800: 13 20 38;
+  --c-slate-700: 22 33 62;
+  --c-slate-600: 71 85 105;
+  /* Tailwind's own slate-500 (#64748b) sat here while the comment above described 500 as a
+     divider/placeholder tier — but the markup uses `text-slate-500` for the 9-12px metadata
+     line under every stat, the client-token monospace, "انقضای پلن", "Used: 0 B" and both
+     empty states. As text it measured 3.73:1 on the card, 4.06:1 on the panel and 4.11:1 on
+     the page: ten AA failures, all invisible in review because the text reads as
+     deliberately quiet rather than broken. This is the dark-mode twin of the light block's
+     500/400 note below, and the fix runs the other way — lighter, not darker.
+     Floor: 4.5:1 on the lightest surface any of them lands on, which is the panel
+     (11 25 41 composited); this value measures 5.38:1 there and 5.94:1 on the page. Kept
+     well short of 400 so the muted/faint tiers stay distinguishable — the gap is 1.2:1,
+     which is the cost of the AA floor on a ramp whose page is already near-black. */
+  --c-slate-500: 128 143 163;
+  --c-slate-400: 148 163 184;
+  --c-slate-300: 203 213 225;
+  --c-slate-200: 226 232 240;
+  --c-slate-100: 241 245 249;
+  --c-slate-50: 248 250 252;
+  --c-white: 255 255 255;
+
+  /* Accent. 500 is the fill (buttons, active track), 400 the text and icon accent,
+     300/200 quieter text, 950 a tinted background block. */
+  --c-cyan-500: 0 210 223;
+  --c-cyan-400: 0 240 255;
+  --c-cyan-300: 103 232 249;
+  --c-cyan-200: 165 243 252;
+  --c-cyan-950: 8 51 68;
+
+  /* Semantic. The 300 and 400 shades are the text shades; the 500/600 shades are the
+     fills. Both tiers are tokenised, and the two tiers invert in OPPOSITE directions.
+
+     A text shade has to get darker in light mode, because the surface behind it went
+     from near-black to near-white. A fill shade has to do the reverse — get darker
+     too, but for the opposite reason: it *is* the surface, and the foreground on top
+     of it is `text-slate-950` or `text-white`, both of which are tokenised and both of
+     which flip to near-white on the light page. Leaving the fills at Tailwind's own
+     mid-bright literals (the earlier design, and the reason this comment was rewritten)
+     produced near-white bold text on #10b981 at 2.26:1, on #0891b2 at 3.28:1, on
+     #ea580c at 3.17:1 and on #4f46e5 at 2.98:1 — every primary, danger and confirm
+     button in the panel failing WCAG 1.4.3 in light mode while the cards around them
+     passed. The same literals also made every translucent badge: `bg-emerald-500/10`
+     over a white card is a 10% wash of a bright green, which is no wash at all.
+
+     So in light mode a fill shade is the 700-900 step of its hue, and the ramp reads
+     "higher number = deeper fill" rather than "higher number = lighter colour".
+     Foregrounds that sit on a fill in BOTH themes use `text-onfill`, which is a literal
+     white that does not invert — see the note in index.html's colour config. */
+  --c-emerald-500: 16 185 129;
+  --c-emerald-400: 52 211 153;
+  --c-emerald-300: 110 231 183;
+  /* 700 and 600 exist for the five `text-onfill` buttons and nothing else. White bold 12px
+     on Tailwind's mid-bright fills fails AA in DARK mode — bg-red-500 measures 3.76:1,
+     bg-purple-500 3.96:1, and the `hover:bg-*-400` step they pair with drops to 2.68:1 and
+     2.32:1. That is the exact mirror of the light-mode failure the block below documents
+     (near-white on #10b981 at 2.26:1), and it went unnoticed for the opposite reason: the
+     light sweep fixed the fills by deepening them, which the dark theme never did.
+
+     The fix re-points those five call sites two steps deeper (500→600 resting, 400→700
+     hover) rather than darkening 500 itself, because 500 is also every translucent badge
+     wash, dot and glow in the panel — `bg-red-500/10`, `shadow-purple-500/20` — and those
+     are correct as they are. Two steps deeper lands white at 4.83:1 / 5.38:1 resting and
+     6.47:1 / 6.98:1 on hover, and makes hover DARKEN in dark mode, which is the only
+     direction with headroom left above a saturated fill.
+
+     The four 700s have no [data-theme="light"] twin on purpose: light mode's ramp is this
+     one shifted two steps deeper already, so the value that is a dark-mode 700 is exactly
+     what light mode was painting for the old `-400` hover. Inheriting from :root keeps the
+     light rendering of all five buttons byte-identical to before the re-point — the only
+     light overrides needed are 600, which has to answer the old light `-500`. */
+  --c-red-700: 185 28 28;
+  --c-red-600: 220 38 38;
+  --c-red-500: 239 68 68;
+  --c-red-400: 248 113 113;
+  --c-red-300: 252 165 165;
+  /* 900 and 950 are the only "deep" semantic shades that are tokenised, because they are
+     the only ones used as a surface: the Reset Traffic button is bg-red-950/40 with a
+     bg-red-900/60 hover. Left at Tailwind's near-black maroon those two turn into a dark
+     blob inside a white modal — the single loudest element on the light page, and the one
+     the operator is least meant to be drawn to. */
+  --c-red-950: 69 10 10;
+  --c-red-900: 127 29 29;
+  --c-amber-500: 245 158 11;
+  --c-amber-400: 251 191 36;
+  --c-amber-300: 252 211 77;
+  /* 700/600: the Add Token button and the API-docs gradient — see the red note above. */
+  --c-purple-700: 126 34 206;
+  --c-purple-600: 147 51 234;
+  --c-purple-500: 168 85 247;
+  --c-purple-400: 192 132 252;
+  --c-purple-300: 216 180 254;
+  --c-orange-600: 234 88 12;
+  --c-orange-500: 249 115 22;
+  --c-orange-400: 251 146 60;
+  --c-orange-300: 253 186 116;
+  /* 600 is a FILL-ONLY shade here: the datepicker's selected day (`bg-blue-600`, white
+     text, 5.17:1) and the policy multi-select's chosen option (`bg-blue-600/25`). It used to
+     be the dark end of the brand gradient too — `from-cyan-500 to-blue-600` under near-black
+     `text-slate-950` — and that measured 3.90:1 at 12px/700 across all seven primary buttons
+     (login, add-client, issue-SSL, re-run-diagnostics, the danger-modal confirm and two
+     more). The token could not simply be lightened to fix them: near-black text wants it
+     lighter while the datepicker's white text wants it darker, so one token cannot serve
+     both roles. Flipping the gradient's foreground to `text-onfill` was worse — white on the
+     cyan-500 end is 1.86:1.
+
+     So the seven call sites moved to `to-blue-500` (5.47:1 dark, 8.31:1 light) and dropped
+     their `hover:to-blue-500`, which is now the resting value. `hover:to-blue-400` would
+     have been the tidier two-ended hover, but light 400 and light 500 are the same ink
+     (29 78 216, one of this ramp's documented collisions) so the light hover would have gone
+     dead; separating them would have pushed the three `text-blue-400` icons down to 3.31:1
+     on their own `bg-blue-600/25` wash. Hover feedback survives through the cyan stop
+     (`hover:from-cyan-400`), which brightens in both themes. */
+  --c-blue-600: 37 99 235;
+  --c-blue-500: 59 130 246;
+  --c-blue-400: 96 165 250;
+  --c-blue-300: 147 197 253;
+  --c-blue-200: 191 219 254;
+  --c-yellow-500: 234 179 8;
+  --c-yellow-400: 250 204 21;
+  /* indigo, rose and teal appear only as fills, so they have no text shade — but a
+     fill is exactly what has to invert, so they are tokenised all the same. The two 700s
+     are the hover end of the two gradient buttons; 600 already clears white text at 6.29:1
+     (indigo) and 4.70:1 (rose), so only the hover step needed a new shade. */
+  --c-indigo-700: 67 56 202;
+  --c-indigo-600: 79 70 229;
+  --c-indigo-500: 99 102 241;
+  --c-rose-700: 190 18 60;
+  --c-rose-600: 225 29 72;
+  --c-rose-500: 244 63 94;
+  --c-teal-500: 20 184 166;
+
+  --bg-main: rgb(var(--c-slate-900));
   --bg-card: rgba(13, 20, 38, 0.72);
   --bg-card-hover: rgba(20, 30, 58, 0.9);
   --border-color: rgba(56, 189, 248, 0.16);
   --border-glow: rgba(0, 240, 255, 0.55);
-  --text-main: #f8fafc;
-  --text-muted: #94a3b8;
-  --accent-cyan: #00f0ff;
+  --text-main: rgb(var(--c-slate-50));
+  --text-muted: rgb(var(--c-slate-400));
+  --accent-cyan: rgb(var(--c-cyan-400));
   --accent-green: #10b981;
   --accent-purple: #a855f7;
   --accent-red: #ff4655;
+  /* Brand-fixed: Discord's blurple is Discord's in both themes. */
   --accent-discord: #5865f2;
   --accent-amber: #f59e0b;
+
+  /* Chrome the components below used to hardcode. Named here so the light block can
+     answer them rather than each rule needing a [data-theme] twin. */
+  --page-glow-cyan: rgba(0, 240, 255, 0.12);
+  --page-glow-purple: rgba(168, 85, 247, 0.14);
+  --page-glow-green: rgba(16, 185, 129, 0.08);
+  --page-wash-from: rgba(6, 9, 19, 0.6);
+  --page-wash-to: rgba(6, 9, 19, 0.95);
+  --scanline-opacity: 0.35;
+  --card-shadow: 0 10px 35px 0 rgba(0, 0, 0, 0.45);
+  --card-shadow-hover: 0 12px 40px 0 rgba(0, 240, 255, 0.18);
+  --hover-veil: rgba(255, 255, 255, 0.05);
+  --knob-bg: #cbd5e1;
+  --track-bg: rgba(255, 255, 255, 0.1);
+  --track-border: rgba(255, 255, 255, 0.15);
+  --code-bg: #030611;
+  --code-bg-hover: #050b1d;
+  --scroll-thumb: rgba(56, 189, 248, 0.3);
+  --scroll-track: rgba(6, 9, 19, 0.8);
+
+  /* One definition per role. Vazirmatn leads two of the three and appears in all
+     three: it is the only family here that covers Persian, so it has to be reachable
+     from every role — including the mono one, where the portal renders strings like
+     "۲.۵ GB باقیمانده" and would otherwise set the number in JetBrains Mono and the
+     Persian beside it in whatever the OS offered. The system names after it are the
+     no-webfont path (a 304-less first paint, a stripped build, an operator who blocks
+     fonts) and are ordered so that path still looks deliberate. */
+  --font-body: 'Vazirmatn', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI',
+    Roboto, 'Helvetica Neue', Arial, 'Noto Sans Arabic', 'Noto Sans', sans-serif;
+  --font-heading: 'Vazirmatn', system-ui, -apple-system, BlinkMacSystemFont,
+    'Segoe UI', Roboto, 'Noto Sans Arabic', sans-serif;
+  --font-mono: 'JetBrains Mono', 'Vazirmatn', ui-monospace, 'Cascadia Mono',
+    'Segoe UI Mono', 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace;
+}
+
+/* Light theme. Same roles, inverted ramp — see the note above the dark block.
+ *
+ * The page is not pure white. #f7f9fc keeps a hint of the slate identity, and it stops
+ * the large white panels from disappearing into their own background, which is what
+ * happens when both the page and the cards are #fff and the only thing between them is
+ * a 1px border. */
+[data-theme="light"] {
+  --c-slate-950: 238 242 247;
+  --c-slate-900: 247 249 252;
+  --c-slate-800: 221 227 236;
+  --c-slate-700: 195 204 218;
+  --c-slate-600: 141 153 171;
+  /* 500 and 400 sit much closer together here than they do in the dark block, and that
+     is forced rather than sloppy. Both are text — 500 is the 9-10px metadata line under
+     every stat ("سیستم: 812 MB", "هسته: 8 · ترد 16"), 400 is the muted body tier — and
+     on a near-white page both have to clear 4.5:1. The floor leaves about 30 units of
+     room between "faint" and "muted" instead of the 48 the dark ramp enjoys, because
+     dark mode can go as bright as it likes above the page and light mode cannot go
+     lighter than the page. Tuned against the worst surface either one lands on, which is
+     the language-switch track (--c-slate-800, not a card): 500 measures 4.96:1 there and
+     6.3:1 on the page, 400 measures 6.5:1 and 7.9:1. The previous values put 500 at
+     4.17:1 on the sunken rows and 4.49:1 on the cards — a 9px failure repeated 18 times
+     across the dashboard, and the kind that is invisible in review because the text
+     looks deliberately quiet rather than broken. */
+  --c-slate-500: 84 95 112;
+  --c-slate-400: 74 84 100;
+  --c-slate-300: 60 70 84;
+  --c-slate-200: 42 51 64;
+  --c-slate-100: 27 36 50;
+  --c-slate-50: 17 24 35;
+  --c-white: 11 18 32;
+
+  /* Every shade here is a foreground on a near-white page EXCEPT 500, which is a fill
+     under a foreground that inverted with the page. So 500 goes deeper than 400, not
+     lighter: cyan-800 rather than cyan-600, which is what lifts the seven primary
+     buttons from 3.28:1 to 6.5:1.
+
+     The 300 tier follows one rule, and it is stated here rather than seven times below:
+     a 300 must clear 4.5:1 on a 20% wash of its OWN 500. That is the worst surface any of
+     them lands on, because the markup pairs them — `text-emerald-300` inside
+     `bg-emerald-500/20`, `text-purple-300` inside `bg-purple-500/10` — and a text shade
+     tinted with its own hue has no headroom left. Tuning them against a plain card
+     instead is what put emerald-300 at 2.69:1 on the API bind badge and the Safe DNS
+     label, purple-300 at 4.47:1 on the Telegram-card button, and amber-300 at 4.56:1 with
+     six hundredths of margin. cyan-300 is the one shade that was already tuned this way
+     (5.07:1 on its own 20% wash) and is therefore the only one left unchanged — the rule
+     is not new, it just was not applied to the other six.
+
+     Going this deep is safe because no 300 in this codebase is ever a fill, a border, a
+     gradient stop or a hover step: grep `-300` across web/*.{html,js} and every hit is
+     `text-` or an icon's `stroke`. Nothing can collapse into anything. Each value is its
+     hue's Tailwind 800 step, or the 800/900 midpoint where 500 already occupies 800
+     (emerald, purple, red), so the numbers stay traceable to the palette. */
+  --c-cyan-500: 21 94 117;
+  --c-cyan-400: 14 116 144;
+  --c-cyan-300: 11 97 120;
+  --c-cyan-200: 8 80 95;
+  --c-cyan-950: 224 245 250;
+
+  --c-emerald-500: 6 95 70;
+  /* 400 is both the hover step of the emerald-500 Save button and the text of the
+     "12.0 ms" health badge, which sits on a 10% emerald-500 wash. emerald-700 cleared
+     4.5:1 on a plain card but only 4.32:1 on that wash — the same one-step-short mistake
+     the amber ramp made. Half a step deeper fixes the badge (5.0:1) and keeps the hover
+     visibly lighter than the resting fill, which is the constraint that stops it going
+     all the way to 800. */
+  --c-emerald-400: 5 108 78;
+  --c-emerald-300: 6 86 64;
+  /* 600 mirrors 500 rather than going a step deeper, and that is the whole point of it: the
+     five text-onfill buttons moved from `-500` to `-600` to fix DARK mode, and light mode was
+     already passing at 8.31:1, so 600 answers here with exactly what those buttons painted
+     before. Same for purple below. The matching 700s inherit from :root for the same reason —
+     see the long note in the dark block. Net effect: light mode renders identically, the ramp
+     reads "600/700 = the on-fill pair" rather than "deeper", and nothing else moved. */
+  --c-red-600: 153 27 27;
+  --c-red-500: 153 27 27;
+  --c-red-400: 185 28 28;
+  --c-red-300: 140 28 28;
+  /* Inverted into tints, so the same two utilities that paint a deep maroon block in dark
+     mode paint the conventional light-mode destructive button: a pale wash behind a strong
+     red label and border. The alphas in the markup (/40 and /60) are what set the final
+     strength, which is why these are Tailwind's 200 and 300 rather than 50 and 100 — at 40%
+     over a white card anything lighter is indistinguishable from the card. */
+  --c-red-950: 254 202 202;
+  --c-red-900: 252 165 165;
+  /* The amber ramp carries both roles at once, which is why it is the one that pins the
+     rule down. 300 is inline text on a card. 400 is the download card's title and the
+     hover step of two solid buttons. 500 is the fill and the warning stripe. Read as a
+     fill ramp — deeper as the number rises — all three land: title 6.98:1, warning
+     heading 5.9:1 on its own tint, stripe 9.1:1, solid fill under near-white bold text
+     8.1:1, hover 6.3:1 and still visibly lighter than the resting fill. The earlier
+     values put the title at 4.9:1 with no headroom, so the same colour on the tinted
+     callout inside the card dropped to 4.2 and the hover state to 4.4.
+
+     300 and 400 hold the same value here, and that is the 300-tier rule landing on a ramp
+     whose 500 was already pushed to Tailwind's 900. The rule asks for the 800 step, 400 is
+     the 800 step, so they meet. Leaving 300 lighter would put the inline "Security
+     requirement:" text at 4.56:1 — six hundredths of margin; pushing it past 400 would
+     invert the ramp's own "deeper as the number rises" reading for no contrast gain. They
+     never appear in the same component, so the collision costs nothing. */
+  --c-amber-500: 120 53 15;
+  --c-amber-400: 146 64 14;
+  --c-amber-300: 146 64 14;
+  --c-purple-600: 107 33 168;
+  --c-purple-500: 107 33 168;
+  --c-purple-400: 126 34 206;
+  --c-purple-300: 98 31 152;
+  --c-orange-600: 154 52 18;
+  --c-orange-500: 194 65 12;
+  --c-orange-400: 194 65 12;
+  --c-orange-300: 154 52 18;
+  --c-blue-600: 30 64 175;
+  --c-blue-500: 29 78 216;
+  --c-blue-400: 29 78 216;
+  --c-blue-300: 30 64 175;
+  --c-blue-200: 30 64 175;
+  /* Yellow exists for exactly one thing: the "degraded latency" upstream badge, where 400
+     is the label and 500 is its 10% wash and 30% border. Nothing paints a solid yellow
+     fill, so both shades are free to go a step deeper than the other ramps — and they had
+     to: yellow is the hue that loses the most contrast per unit of lightness, and
+     yellow-700 on its own wash measured 3.91:1, the worst text failure left on the
+     dashboard after the fills were fixed. */
+  --c-yellow-500: 113 63 18;
+  --c-yellow-400: 133 77 14;
+  --c-indigo-600: 55 48 163;
+  --c-indigo-500: 67 56 202;
+  --c-rose-600: 159 18 57;
+  --c-rose-500: 190 18 60;
+  --c-teal-500: 17 94 89;
+
+  /* Cards are opaque here on purpose. The glass effect is a dark-theme device: a 72%
+     translucent white card over a white page shows nothing through it but costs the
+     same backdrop-filter repaint, and on a phone that repaint is the scroll jank. */
+  --bg-card: rgba(255, 255, 255, 0.92);
+  --bg-card-hover: rgba(255, 255, 255, 1);
+  --border-color: rgba(15, 23, 42, 0.1);
+  --border-glow: rgba(8, 145, 178, 0.45);
+  --accent-cyan: rgb(var(--c-cyan-400));
+  /* These four are the text colour of the five .badge-* chips in the live query stream, and
+     nothing else. They are spelled as hexes rather than token references only because the
+     dark block spells them that way; the values are the same 300-tier shades as above, so
+     they inherit the "clears 4.5:1 on a 15% wash of its own hue" property. They previously
+     held the pre-fix 300 values, which is why the stream badges were the one place the
+     light-mode sweep could not reach — a badge only renders once a query arrives. */
+  --accent-green: #065840;
+  --accent-purple: #621f98;
+  --accent-red: #8c1c1c;
+  --accent-amber: #92400e;
+
+  /* The three coloured glows survive, at a third of the strength: enough to keep the
+     page from being flat grey, not enough to tint the cards sitting on top of them. */
+  --page-glow-cyan: rgba(8, 145, 178, 0.1);
+  --page-glow-purple: rgba(147, 51, 234, 0.08);
+  --page-glow-green: rgba(5, 150, 105, 0.07);
+  --page-wash-from: rgba(247, 249, 252, 0.55);
+  --page-wash-to: rgba(237, 242, 249, 0.9);
+  /* The CRT scanline is off. It is a dark-panel affectation, and over light surfaces it
+     reads as a printing defect rather than a screen. */
+  --scanline-opacity: 0;
+  --card-shadow: 0 6px 20px 0 rgba(15, 23, 42, 0.08);
+  --card-shadow-hover: 0 10px 28px 0 rgba(8, 145, 178, 0.16);
+  --hover-veil: rgba(15, 23, 42, 0.05);
+  --knob-bg: #ffffff;
+  --track-bg: rgba(15, 23, 42, 0.12);
+  --track-border: rgba(15, 23, 42, 0.18);
+  --code-bg: #eef3fa;
+  --code-bg-hover: #e5edf8;
+  --scroll-thumb: rgba(15, 23, 42, 0.28);
+  --scroll-track: rgba(15, 23, 42, 0.06);
 }
 
 * {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-family: var(--font-body);
   -webkit-tap-highlight-color: transparent;
 }
 
 h1, h2, h3, h4, .font-heading {
-  font-family: 'Chakra Petch', sans-serif;
+  font-family: var(--font-heading);
   letter-spacing: 0.5px;
 }
 
 code, pre, .font-mono {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-mono);
 }
 
 body {
   background-color: var(--bg-main);
-  background-image: 
-    radial-gradient(circle at 10% 10%, rgba(0, 240, 255, 0.12) 0px, transparent 35%),
-    radial-gradient(circle at 90% 15%, rgba(168, 85, 247, 0.14) 0px, transparent 40%),
-    radial-gradient(circle at 50% 90%, rgba(16, 185, 129, 0.08) 0px, transparent 45%),
-    linear-gradient(to bottom, rgba(6, 9, 19, 0.6), rgba(6, 9, 19, 0.95));
+  background-image:
+    radial-gradient(circle at 10% 10%, var(--page-glow-cyan) 0px, transparent 35%),
+    radial-gradient(circle at 90% 15%, var(--page-glow-purple) 0px, transparent 40%),
+    radial-gradient(circle at 50% 90%, var(--page-glow-green) 0px, transparent 45%),
+    linear-gradient(to bottom, var(--page-wash-from), var(--page-wash-to));
   background-attachment: fixed;
   color: var(--text-main);
   min-height: 100vh;
@@ -54,7 +498,8 @@ body::before {
   z-index: 999;
   background-size: 100% 3px, 6px 100%;
   pointer-events: none;
-  opacity: 0.35;
+  /* 0 in the light theme, which also lets the browser skip compositing the layer. */
+  opacity: var(--scanline-opacity);
 }
 
 /* Glassmorphic Cyber Panels */
@@ -64,14 +509,14 @@ body::before {
   -webkit-backdrop-filter: blur(24px);
   border: 1px solid var(--border-color);
   border-radius: 18px;
-  box-shadow: 0 10px 35px 0 rgba(0, 0, 0, 0.45);
+  box-shadow: var(--card-shadow);
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
 }
 
 .glass-panel:hover {
   border-color: var(--border-glow);
-  box-shadow: 0 12px 40px 0 rgba(0, 240, 255, 0.18);
+  box-shadow: var(--card-shadow-hover);
 }
 
 .glass-card-static {
@@ -80,7 +525,7 @@ body::before {
   -webkit-backdrop-filter: blur(24px);
   border: 1px solid var(--border-color);
   border-radius: 18px;
-  box-shadow: 0 10px 35px 0 rgba(0, 0, 0, 0.45);
+  box-shadow: var(--card-shadow);
 }
 
 /* Card Glow Overlays */
@@ -91,11 +536,16 @@ body::before {
   left: 0;
   right: 0;
   height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(0, 240, 255, 0.4), transparent);
+  background: linear-gradient(90deg, transparent, rgb(var(--c-cyan-400) / 0.4), transparent);
   border-radius: 18px 18px 0 0;
 }
 
-/* Sidebar Nav Item Styling */
+/* Sidebar Nav Item Styling.
+ *
+ * Logical properties rather than left/right: this panel now runs in RTL when the
+ * language is Persian, and a hard `border-left` accent would sit on the wrong edge of
+ * every nav item there — on the side the text runs away from, not the side it starts
+ * from. border-inline-start and text-align: start follow the direction instead. */
 .sidebar-nav-item {
   display: flex;
   align-items: center;
@@ -104,35 +554,42 @@ body::before {
   border-radius: 12px;
   font-size: 13px;
   font-weight: 600;
-  color: #94a3b8;
-  border-left: 3px solid transparent;
+  color: var(--text-muted);
+  border-inline-start: 3px solid transparent;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   text-decoration: none;
   cursor: pointer;
   width: 100%;
-  text-align: left;
+  text-align: start;
   background: transparent;
   border-top: none;
-  border-right: none;
+  border-inline-end: none;
   border-bottom: none;
 }
 
 .sidebar-nav-item:hover {
-  color: #f8fafc;
-  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-main);
+  background: var(--hover-veil);
 }
 
 .sidebar-nav-item.active {
-  color: #00f0ff !important;
-  background: linear-gradient(90deg, rgba(0, 240, 255, 0.15), rgba(0, 240, 255, 0.02)) !important;
-  border-left-color: #00f0ff !important;
-  box-shadow: inset 0 0 15px rgba(0, 240, 255, 0.08);
+  color: var(--accent-cyan) !important;
+  background: linear-gradient(90deg, rgb(var(--c-cyan-400) / 0.15), rgb(var(--c-cyan-400) / 0.02)) !important;
+  border-inline-start-color: var(--accent-cyan) !important;
+  box-shadow: inset 0 0 15px rgb(var(--c-cyan-400) / 0.08);
+}
+
+/* linear-gradient has no logical keyword — `to inline-end` is not valid CSS and would
+   drop the whole declaration — so the one direction-dependent value gets an explicit
+   RTL twin. It has to fade away from the accent border, which is now on the right. */
+[dir="rtl"] .sidebar-nav-item.active {
+  background: linear-gradient(270deg, rgb(var(--c-cyan-400) / 0.15), rgb(var(--c-cyan-400) / 0.02)) !important;
 }
 
 .sidebar-nav-item.active svg,
 .sidebar-nav-item.active i {
-  color: #00f0ff;
-  filter: drop-shadow(0 0 8px rgba(0, 240, 255, 0.6));
+  color: var(--accent-cyan);
+  filter: drop-shadow(0 0 8px rgb(var(--c-cyan-400) / 0.6));
 }
 
 /* Pulse Dot */
@@ -150,6 +607,25 @@ body::before {
   0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
   70% { transform: scale(1.15); box-shadow: 0 0 0 9px rgba(16, 185, 129, 0); }
   100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+}
+
+/* The "LIVE ENGINE" badge used to pulse green unconditionally, including while the
+   stats poll had been failing for ten minutes — a dead daemon and a healthy one looked
+   identical, and every number on the page was frozen at whatever it last read. This is
+   the state the badge wears once the poll has failed twice in a row: amber and still,
+   because a pulsing dot is the thing that says "this is live". */
+.pulse-dot.is-stale {
+  background-color: var(--accent-amber);
+  box-shadow: 0 0 12px var(--accent-amber);
+  animation: none;
+}
+
+/* prefers-reduced-motion: the dot still has to distinguish live from stale, and colour
+   alone does that — the badge text changes too, so it is not the only signal. */
+@media (prefers-reduced-motion: reduce) {
+  .pulse-dot {
+    animation: none;
+  }
 }
 
 /* Cyber Badges */
@@ -179,9 +655,9 @@ body::before {
 }
 
 .badge-block {
-  background: rgba(239, 68, 68, 0.15);
-  color: #ef4444;
-  border: 1px solid rgba(239, 68, 68, 0.4);
+  background: rgb(var(--c-red-400) / 0.15);
+  color: var(--accent-red);
+  border: 1px solid rgb(var(--c-red-400) / 0.4);
 }
 
 .badge-custom {
@@ -194,6 +670,24 @@ body::before {
   background: rgba(245, 158, 11, 0.15);
   color: var(--accent-amber);
   border: 1px solid rgba(245, 158, 11, 0.4);
+}
+
+/* .badge-proxy is the one chip whose text is not an --accent-* hex: it borrows
+   --accent-cyan, which is cyan-400 because that is the right cyan for a border or a glow.
+   On the light page cyan-400 is the hover step of the primary buttons, half a step
+   lighter than cyan-300, and on this chip's own cyan wash it measures 4.19:1. Overriding
+   the chip is the same move as .lang-btn.is-active above: the token is load-bearing
+   elsewhere, so the one component that needs a deeper value asks for it directly. */
+[data-theme="light"] .badge-proxy {
+  color: rgb(var(--c-cyan-300));
+}
+
+/* Fallback for an action string the frontend does not know. Neutral on purpose: an
+   unrecognized action must not borrow the colour of a decision the engine did not make. */
+.badge-unknown {
+  background: rgb(var(--c-slate-400) / 0.15);
+  color: var(--text-muted);
+  border: 1px solid rgb(var(--c-slate-400) / 0.4);
 }
 
 /* Animated Cyber Switches */
@@ -215,8 +709,8 @@ body::before {
   position: absolute;
   cursor: pointer;
   top: 0; left: 0; right: 0; bottom: 0;
-  background-color: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  background-color: var(--track-bg);
+  border: 1px solid var(--track-border);
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   border-radius: 34px;
 }
@@ -226,17 +720,20 @@ body::before {
   content: "";
   height: 18px;
   width: 18px;
-  left: 3px;
+  /* inset-inline-start, not left: in RTL the knob has to rest against the right edge
+     and travel left, which is also why the checked transform is direction-dependent
+     below. A hard `left` put the knob under its own track in Persian. */
+  inset-inline-start: 3px;
   bottom: 3px;
-  background-color: #cbd5e1;
+  background-color: var(--knob-bg);
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   border-radius: 50%;
 }
 
 input:checked + .slider {
-  background-color: rgba(0, 240, 255, 0.25);
+  background-color: rgb(var(--c-cyan-400) / 0.25);
   border-color: var(--accent-cyan);
-  box-shadow: 0 0 12px rgba(0, 240, 255, 0.35);
+  box-shadow: 0 0 12px rgb(var(--c-cyan-400) / 0.35);
 }
 
 input:checked + .slider:before {
@@ -245,18 +742,37 @@ input:checked + .slider:before {
   box-shadow: 0 0 14px var(--accent-cyan);
 }
 
-/* Custom Scrollbar */
+/* translateX is a physical axis, so RTL needs the opposite sign — otherwise the knob
+   leaves the track entirely when the switch is turned on. */
+[dir="rtl"] input:checked + .slider:before {
+  transform: translateX(-22px);
+}
+
+/* Custom Scrollbar.
+ *
+ * The ::-webkit-scrollbar rules below are Chromium and Safari only, so every scrollable panel in
+ * the dashboard — the query stream, the rules lists, the tall modals — rendered with the platform
+ * default light scrollbar on Firefox: a pale bar down the side of a near-black glass panel. The
+ * two standard properties fix that in one place, for every scroller, rather than per element.
+ *
+ * scrollbar-width: thin is the only size the standard offers; it lands close enough to the 5px
+ * below that the two engines do not look like different products. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scroll-thumb) var(--scroll-track);
+}
+
 ::-webkit-scrollbar {
   width: 5px;
   height: 5px;
 }
 
 ::-webkit-scrollbar-track {
-  background: rgba(6, 9, 19, 0.8);
+  background: var(--scroll-track);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(56, 189, 248, 0.3);
+  background: var(--scroll-thumb);
   border-radius: 4px;
 }
 
@@ -266,11 +782,14 @@ input:checked + .slider:before {
 
 /* Code Snippet Box */
 .code-box {
-  background: #030611;
-  border: 1px solid rgba(56, 189, 248, 0.22);
+  background: var(--code-bg);
+  border: 1px solid rgb(var(--c-cyan-400) / 0.22);
   border-radius: 12px;
   padding: 10px 14px;
-  font-family: 'JetBrains Mono', monospace;
+  /* var(), not a second hardcoded 'JetBrains Mono', monospace stack. A copy box holds
+     a token, an IP or a DoH URL, but the portal also puts Persian next to one, and the
+     literal stack that used to be here had no Persian family in it at all. */
+  font-family: var(--font-mono);
   font-size: 12px;
   color: var(--accent-cyan);
   display: flex;
@@ -282,19 +801,183 @@ input:checked + .slider:before {
 
 .code-box:hover {
   border-color: var(--accent-cyan);
-  background: #050b1d;
-  box-shadow: 0 0 20px rgba(0, 240, 255, 0.15);
+  background: var(--code-bg-hover);
+  box-shadow: 0 0 20px rgb(var(--c-cyan-400) / 0.15);
 }
 
-/* Specific Game Brand Glow Styles */
-.card-valorant:hover { border-color: rgba(255, 70, 85, 0.6) !important; box-shadow: 0 8px 30px rgba(255, 70, 85, 0.2) !important; }
-.card-discord:hover { border-color: rgba(88, 101, 242, 0.6) !important; box-shadow: 0 8px 30px rgba(88, 101, 242, 0.2) !important; }
-.card-epic:hover { border-color: rgba(168, 85, 247, 0.6) !important; box-shadow: 0 8px 30px rgba(168, 85, 247, 0.2) !important; }
-.card-steam:hover { border-color: rgba(56, 189, 248, 0.6) !important; box-shadow: 0 8px 30px rgba(56, 189, 248, 0.2) !important; }
-.card-rockstar:hover { border-color: rgba(245, 158, 11, 0.6) !important; box-shadow: 0 8px 30px rgba(245, 158, 11, 0.2) !important; }
-.card-xbox:hover { border-color: rgba(16, 185, 129, 0.6) !important; box-shadow: 0 8px 30px rgba(16, 185, 129, 0.2) !important; }
-.card-playstation:hover { border-color: rgba(59, 130, 246, 0.6) !important; box-shadow: 0 8px 30px rgba(59, 130, 246, 0.2) !important; }
-.card-spotify:hover { border-color: rgba(29, 185, 84, 0.6) !important; box-shadow: 0 8px 30px rgba(29, 185, 84, 0.2) !important; }
+/* The copyable boxes are exposed as buttons and are keyboard-reachable, so the focus
+ * ring has to be visible — a focusable control with no visible focus state is a
+ * control a keyboard user cannot find. :focus-visible rather than :focus so a mouse
+ * click does not leave a ring behind, and the outline is offset so it reads as a ring
+ * around the box instead of thickening its own border. */
+.code-box:focus-visible {
+  outline: 2px solid var(--accent-cyan);
+  outline-offset: 2px;
+  border-color: var(--accent-cyan);
+}
+
+/* ── Policy cards: one accent variable per brand ───────────────────────────────
+ *
+ * Every policy card used to carry a 2xl emoji, and an emoji is drawn by whatever
+ * emoji font the platform ships: Segoe UI Emoji on Windows, Apple Color Emoji on
+ * macOS, Noto on most Android builds, and on a few Linux desktops nothing at all —
+ * a blank box where the game's mark belongs. They also cannot be recoloured, so the
+ * row never matched the panel it sat in.
+ *
+ * The replacement is a Feather glyph in a tinted tile. Feather is already in the
+ * binary and already redrawn by safeFeatherReplace(), so this costs zero extra
+ * bytes, and because Feather draws with stroke="currentColor" the icon simply takes
+ * the tile's colour — hence the single --accent declaration per brand below rather
+ * than a colour repeated in three properties.
+ *
+ * The eight hover rules that were here carried !important, which was working around
+ * .glass-panel's own border-color. It is not needed: .policy-card:hover is (0,2,0)
+ * against .glass-panel's (0,1,0), so it wins on specificity alone. Values are
+ * space-separated RGB channels because that is what rgb()'s slash form needs to
+ * derive the four alphas each accent is used at. */
+/* The default accent has to live on :root, not on .policy-icon, and the reason is the
+ * one asymmetry of custom properties: a declaration on the element itself beats an
+ * inherited one. Put `--accent: cyan` on .policy-icon and all sixteen brand tokens
+ * below stop working, because they are declared on the card — an ancestor — and the
+ * icon's own declaration would shadow every one of them. Declared here it is the
+ * furthest ancestor instead of the nearest, so any .card-* in between still wins.
+ *
+ * This is not hypothetical tidiness. Six .policy-icon tiles are used outside any
+ * .policy-card — the four Policy section headers (Game, Streaming, Dev & Security,
+ * Bandwidth) and the two API card headers — and with --accent undefined all three of
+ * the properties below were invalid at computed-value time: no fill, a border falling
+ * back to currentColor, and a glyph inheriting body text. They rendered as grey
+ * outlines among fifteen coloured tiles. Note why the light-mode override cannot
+ * repair that on its own: an invalid var() does not fall back to the earlier rule, it
+ * computes as unset, so the tile would stay transparent in light mode too. */
+:root { --accent: var(--c-cyan-400); }
+.policy-card { --accent: var(--c-cyan-400); }
+
+.policy-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  /* 34px: the same optical weight the 2xl emoji had, minus its unpredictable
+   * line-height. flex:0 0 auto so a long game name cannot squeeze the tile. */
+  width: 2.125rem;
+  height: 2.125rem;
+  flex: 0 0 auto;
+  border-radius: 0.7rem;
+  background: rgb(var(--accent) / 0.12);
+  border: 1px solid rgb(var(--accent) / 0.28);
+  color: rgb(var(--accent));
+  transition: background 0.2s ease, border-color 0.2s ease;
+}
+
+.policy-card:hover {
+  border-color: rgb(var(--accent) / 0.6);
+  box-shadow: 0 8px 30px rgb(var(--accent) / 0.2);
+}
+.policy-card:hover .policy-icon {
+  background: rgb(var(--accent) / 0.2);
+  border-color: rgb(var(--accent) / 0.5);
+}
+
+/* Brand colours are brand colours in either theme — Valorant's red does not become
+ * a different red on a white page. But a mid-tone hue that reads clearly against a
+ * dark card is thin against a light one, so light mode has to deepen the glyph.
+ *
+ * This used to be `filter: brightness(0.86)` on the tile, and that could never have
+ * worked: a filter applies to the element's own background as well as its content, so
+ * it scaled glyph and tile by the same factor and the gap between them barely moved.
+ * Kick's lime went from 1.26:1 to 1.66:1 against its own wash — still half of the 3:1
+ * that 1.4.11 asks of a meaningful glyph. Ten of the sixteen brands failed the same
+ * way: pubg 1.52, codm 1.70, steam 1.87, rockstar 1.88, xbox 2.16, battlenet 2.19,
+ * spotify 2.20, ubisoft 2.22, valorant 2.71, ea 2.94.
+ *
+ * So darken the colour instead of the pixels. color-mix toward black is what
+ * brightness() was reaching for, except it lands in `color`, where it only touches the
+ * glyph — the tile keeps its pale 16% wash and the gap opens from one side only. 58% is
+ * set by the worst brand: it puts Kick at 3.68:1 resting and 3.62:1 on the hover wash,
+ * and every other brand between 4.2 and 7.9. The four already-dark hues (cyan, discord,
+ * twitch, epic) go deeper than they strictly need — that is the price of one multiplier
+ * instead of sixteen hand-tuned light-mode tokens, and a deep glyph on a pale tint of
+ * its own hue is the conventional light-mode read anyway.
+ *
+ * The @supports arm is not decoration: color-mix is a 2023 baseline, and a browser
+ * without it would drop the declaration and inherit the bright accent unchanged. It
+ * gets the old filter back, which was not enough but was not nothing. */
+[data-theme='light'] .policy-icon {
+  background: rgb(var(--accent) / 0.16);
+  /* currentColor is the darkened glyph from the line below, so the border gets the
+   * deepening for free. At the raw accent it was invisible on the pale hues — Kick's
+   * border measured 1.18:1 against the card, Pubg's 1.24 — which read as a tile with
+   * no edge at all. Mixing the dark glyph colour with transparent instead of the
+   * bright accent puts every border between 1.7 and 2.4:1: still decorative, 1.4.11
+   * does not apply to it because the glyph inside is what carries the meaning, but
+   * now actually present on screen. */
+  border-color: color-mix(in srgb, currentColor 45%, transparent);
+  color: color-mix(in srgb, rgb(var(--accent)) 58%, #000);
+}
+
+@supports not (color: color-mix(in srgb, red 50%, #000)) {
+  [data-theme='light'] .policy-icon { filter: brightness(0.86); }
+}
+
+/* A card whose <h4> is deliberately coloured takes that colour; one whose title is
+ * plain white takes the brand's own. That is the whole rule, and it is why several
+ * cards below carry no brand class at all — their titles are cyan-400, which is what
+ * .policy-card already defaults to. */
+.card-valorant    { --accent: 255 70 85; }
+.card-discord     { --accent: 88 101 242; }
+.card-epic        { --accent: 168 85 247; }
+.card-steam       { --accent: 56 189 248; }
+.card-rockstar    { --accent: 245 158 11; }
+.card-xbox        { --accent: 16 185 129; }
+.card-playstation { --accent: 59 130 246; }
+.card-spotify     { --accent: 29 185 84; }
+.card-pubg        { --accent: 251 191 36; }
+.card-codm        { --accent: 52 211 153; }
+.card-ea          { --accent: 244 63 94; }
+.card-battlenet   { --accent: 96 165 250; }
+.card-ubisoft     { --accent: 148 163 184; }
+.card-roblox      { --accent: 239 68 68; }
+.card-twitch      { --accent: 145 70 255; }
+.card-kick        { --accent: 83 252 24; }
+
+/* ── Language switch ───────────────────────────────────────────────────────────
+ * Two buttons in one track, so the pressed one has to be obvious at a glance: this
+ * is the only control on the panel whose whole job is to tell you which of two
+ * states you are in. is-active is written by js/i18n.js alongside aria-pressed —
+ * the attribute is what a screen reader reads, this is what everyone else sees. */
+.lang-btn {
+  color: rgb(var(--c-slate-400));
+  border: 1px solid transparent;
+}
+.lang-btn:hover { color: rgb(var(--c-slate-200)); }
+.lang-btn.is-active {
+  background: rgb(var(--c-cyan-400) / 0.14);
+  border-color: rgb(var(--c-cyan-400) / 0.35);
+  color: rgb(var(--c-cyan-400));
+}
+.lang-btn:focus-visible {
+  outline: 2px solid var(--accent-cyan);
+  outline-offset: 1px;
+}
+/* Light mode gets a different pressed treatment, not a re-tinted version of the same one.
+ * The wash above works in dark mode because the track is darker than the page and the
+ * chip is lighter than the track — the pressed item is the brightest thing in the group.
+ * Invert the page and that ordering collapses: the track (--c-slate-800) is now a grey
+ * band, a 14% cyan wash over it lands at rgb(192,212,223), and cyan-400 on that measured
+ * 3.49:1 — the worst contrast left anywhere in the panel, on the one control whose entire
+ * purpose is to show you which of two states you are in.
+ *
+ * Deepening --c-cyan-400 was the obvious fix and the wrong one: that token is also the
+ * hover step of the seven cyan-500 primary buttons, and taking it darker collapses it
+ * into the resting fill so the buttons stop reacting to the pointer. So the chip changes
+ * instead of the colour. A raised near-white chip on the grey track is what a light-mode
+ * segmented control actually looks like, it puts cyan-400 back on a near-white surface
+ * (5.15:1), and it reads as pressed from further away than the wash did. */
+[data-theme="light"] .lang-btn.is-active {
+  background: rgb(var(--c-slate-900));
+  border-color: rgb(var(--c-cyan-400) / 0.45);
+  box-shadow: 0 1px 2px rgb(15 23 42 / 0.12);
+}
 
 /* Quick Action Profile Buttons */
 .quick-mode-btn {
@@ -309,6 +992,19 @@ input:checked + .slider:before {
 }
 
 /* Mobile Bottom Navigation Glow */
+/* Sizing lives here rather than on seven class lists. Each item fills the bar's height
+   instead of floating inside it: the bar used to be `py-2` around a 32px column — 48px of
+   chrome carrying a 32px target — and is now `py-1` around a 40px item, the same 48px bar
+   with a 40px target. WCAG 2.2 SC 2.5.8 asks for 24, Material asks for 48, and 40 is what
+   fits once the bar keeps its height. `flex: 1` also makes the seven targets equal width and
+   gapless (360 / 7 ≈ 51px each, enough for the widest label, "Clients", at 10px), so a thumb
+   landing between two labels hits one of them rather than the bar itself. */
+.mobile-nav-item {
+  flex: 1 1 0%;
+  min-width: 0;
+  min-height: 40px;
+  justify-content: center;
+}
 .mobile-nav-item.active {
   color: var(--accent-cyan);
 }

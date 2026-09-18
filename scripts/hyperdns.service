@@ -1,5 +1,17 @@
+# HyperDNS systemd unit — the canonical copy.
+#
+# The three installers write these same directives inline with a heredoc, because
+# a `curl | bash` installer has no repository to copy a file out of. Their copies
+# carry the reasoning in condensed form; this one carries it in full. If a
+# directive here changes, the heredocs in scripts/install.sh,
+# scripts/install-offline.sh and offline-bundle/install.sh change with it —
+# otherwise the unit an operator reads here stops describing the service actually
+# running on their machine, which is worse than having no copy at all. Before this
+# note, this file passed no `-daemon` and all three installers did.
+
 [Unit]
-Description=HyperDNS — High Performance SmartDNS & Gaming Gateway
+Description=HyperDNS — Standalone SmartDNS & Gaming Gateway
+Documentation=https://github.com/IzumiRain/hyperdns
 After=network.target network-online.target
 Wants=network-online.target
 
@@ -7,10 +19,50 @@ Wants=network-online.target
 Type=simple
 User=root
 WorkingDirectory=/opt/hyperdns
-ExecStart=/opt/hyperdns/hyperdns -config /opt/hyperdns/config.json
+RuntimeDirectory=hyperdns
+RuntimeDirectoryMode=0700
+
+# The root-local control socket lives at /run/hyperdns/control.sock. Let systemd
+# create that directory with the same owner and mode the daemon verifies before
+# binding; it is removed automatically when the unit stops.
+
+# Every path is named explicitly. The daemon can work them out on its own — it
+# probes for /opt/hyperdns and otherwise falls back to the working directory — but
+# a unit that states them is a unit an operator can read the state locations out
+# of, and it keeps being correct if the binary is ever installed elsewhere.
+ExecStart=/opt/hyperdns/hyperdns -daemon \
+    -config /opt/hyperdns/config.json \
+    -db /opt/hyperdns/data.db \
+    -key /opt/hyperdns/master.key
+
 Restart=always
 RestartSec=3s
+
+# Stop() drains every listener under one 3-second deadline and severs what is
+# left, so anything past this is wedged rather than busy.
+TimeoutStopSec=15s
+SyslogIdentifier=hyperdns
+
+# 65535 because connection caps are what bound this daemon's stream listeners:
+# 512 on TCP, 1024 on DoT, 512 on HTTPS/DoH — 2048 sockets before UDP, the
+# upstream pool or the SNI relay's two-per-session pairs are counted at all.
+# Against a 1024 soft limit those caps never bind: accepts fail with "too many
+# open files" first, which is the same outage with none of the back-pressure.
 LimitNOFILE=65535
+
+# The daemon is the only process in this unit (issuance has been in-process
+# since v2.2.0), but on the 1 GB VPS this project targets it is still the
+# process most likely to be OOM-killed, and the default policy stops the whole
+# unit when any process in its cgroup dies that way — so memory pressure would
+# take the resolver down with it. Ignored with a warning on systemd < 243.
+OOMPolicy=continue
+
+# Sandboxing note, v2.2.0: the historical reason this unit is NOT further
+# sandboxed — certbot needing /etc/letsencrypt writes, :80 binds, and the
+# Ubuntu snap's setuid snap-confine — is gone: the daemon issues its own
+# certificates in-process and writes only under /opt/hyperdns/certs. Root is
+# still required for the privileged ports (53/80/443/853). Harden beyond that
+# by all means; verify an issuance still completes afterwards.
 
 [Install]
 WantedBy=multi-user.target

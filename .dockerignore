@@ -1,0 +1,113 @@
+# ==============================================================================
+# HyperDNS — Docker build context exclusions
+# ==============================================================================
+# `COPY . .` in the Dockerfile copies whatever the daemon does not exclude here,
+# and what it copied before this file existed was the whole working tree: the
+# master key that decrypts every subscriber record, the live encrypted database,
+# the TLS private key, config.json with the admin credentials in it, and the four
+# documents that are deliberately not published. All of that landed in a build
+# layer. The final image only takes the binary out of the builder, but the layer
+# itself is a real artefact — it sits in the build cache, it is what `docker
+# build --target builder` produces, and a reseller who exports or pushes an
+# intermediate image ships the key with it. One `.dockerignore` is the difference.
+#
+# Note on syntax: patterns here are matched against the *whole* relative path,
+# not against each basename the way .gitignore does it. `*.key` matches only a
+# key at the context root, which is why the secrets below are written `**/*.key`.
+#
+# Nothing that go:embed needs may be excluded, or the build fails at compile
+# time: web/index.html, web/css/{style,portal}.css,
+# web/js/{app,portal,tailwind,feather.min,chart.umd.min}.js and
+# internal/version/version.json all have to reach the builder.
+
+# ------------------------------------------------------------------------------
+# 1. Cryptographic material — the master key is the whole database's confidentiality
+# ------------------------------------------------------------------------------
+**/master.key
+**/master.key.bak
+**/*.key
+**/*.pem
+**/*.crt
+**/*.csr
+**/*.cer
+**/*.der
+**/*.p12
+**/*.pfx
+certs/
+**/certs/
+
+# ------------------------------------------------------------------------------
+# 2. Live state — a database, and the config that holds the admin credentials
+# ------------------------------------------------------------------------------
+**/*.db
+**/*.db-journal
+**/*.db-wal
+**/*.db-shm
+**/*.bak
+**/*.old
+**/*.orig
+config.json
+config.local.json
+config.dev.json
+config.prod.json
+**/.env
+**/.env.*
+
+# ------------------------------------------------------------------------------
+# 3. Documents that must never be published, in an image or anywhere else
+# ------------------------------------------------------------------------------
+PRIVATE.md
+STRUCTURE.md
+CHANGELOG-PRIVATE.md
+plan-testing.md
+
+# ------------------------------------------------------------------------------
+# 4. Bulk the build has no use for. The context is uploaded to the daemon whole,
+#    so every one of these is latency on every build.
+# ------------------------------------------------------------------------------
+.git/
+.gitattributes
+.github/
+.claude/
+.remember/
+_backup_v1.2/
+offline-bundle/
+dist/
+bin/
+build/
+scratch/
+_scratch/
+t.sh
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# tailwind.min.css is 2.9 MB and is not one of the embedded assets — the binary
+# reads web/js/tailwind.js instead. It is pure upload time.
+web/css/tailwind.min.css
+
+# ------------------------------------------------------------------------------
+# 5. Prebuilt binaries. A stale one copied in would be shadowed by the one this
+#    build produces, but it is megabytes of context either way.
+# ------------------------------------------------------------------------------
+**/*.exe
+**/*.dll
+**/*.so
+**/*.dylib
+**/*.out
+hyperdns
+hyperdns-*
+hyperdns_*
+
+# ------------------------------------------------------------------------------
+# 6. Editor, OS and tooling noise
+# ------------------------------------------------------------------------------
+.vscode/
+.idea/
+**/*.swp
+**/*~
+**/.DS_Store
+**/Thumbs.db
+**/__pycache__/
+**/*.py[cod]
+**/*.log

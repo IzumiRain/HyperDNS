@@ -1,0 +1,8 @@
+/*
+ * Input for the committed Tailwind purge. See tools/tailwind.config.js for
+ * the regeneration command. The output (web/css/tailwind.purged.css) is what
+ * the binary embeds; this file never ships.
+ */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;

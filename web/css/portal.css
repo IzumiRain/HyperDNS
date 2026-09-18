@@ -1,0 +1,1061 @@
+/* Subscriber portal styles. Hand-written; no framework, no build step.
+ *
+ * The portal used to be Tailwind markup styled by /js/tailwind.js — the Play CDN
+ * JIT engine, 407 KB of JavaScript that compiles utility classes in the browser on
+ * every page load. On the dashboard that is a cost an operator pays once on a
+ * desktop. Here it was being paid by a reseller's customer, on a phone, on Iranian
+ * mobile data, on the one page they are told to open every time their modem
+ * restarts — and until that 407 KB arrived and ran, the page they were looking at
+ * had no styling at all.
+ *
+ * This file is what those utilities actually resolved to, written out once. It is
+ * ~7 KB, it is cacheable (ETag + gzip, like every other embedded asset), it renders
+ * before any script runs, and it needs no 'unsafe-eval'. The classes it defines are
+ * pinned by portal_assets_test.go: every class used in the portal markup must have
+ * a rule here, and every rule here must be used. A framework cannot be half
+ * removed, so the test is what keeps the two files honest with each other.
+ *
+ * Written logical-first (padding-inline, margin-inline, text-align: start) because
+ * the page is dir="rtl" and mixes Persian prose with LTR addresses. */
+
+/* The portal loads no other stylesheet, so the two @font-face blocks are repeated
+ * here rather than shared with css/style.css. That is deliberate: the portal is one
+ * page a reseller's customer opens on a phone, and making it fetch the dashboard's
+ * stylesheet to learn where a font lives would be a second round trip for two rules.
+ * The files themselves are shared, so the browser has them cached after either page.
+ * See the long note at the top of css/style.css for why they are self-hosted at all
+ * and why only these two families ship. */
+
+@font-face {
+  font-family: 'Vazirmatn';
+  src: url('../fonts/vazirmatn-var.woff2') format('woff2');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'JetBrains Mono';
+  src: url('../fonts/jetbrains-mono-var.woff2') format('woff2');
+  font-weight: 100 800;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Two themes from one set of markup, same as the dashboard. The portal was already
+ * written against semantic tokens — --panel, --ink, --sunken rather than a numbered
+ * ramp — so the light theme is a second value for each of them and nothing else has
+ * to change. Every opaque surface and every foreground below this block reads a
+ * token, because a single #050b1d left inline is a card that stays black in light
+ * mode and nobody notices until a subscriber sends a screenshot.
+ *
+ * The low-alpha accent tints on the pills and chips are the deliberate exception and
+ * stay written out: rgba(52, 211, 153, 0.14) is a pale mint over white and a faint
+ * green glow over near-black, which is the right wash in both themes, and it is
+ * always paired with text in var(--green) — the token that does darken. A tint that
+ * composites correctly over either surface does not need a second value.
+ *
+ * data-theme is written into the <html> tag by the server, not by a script. The
+ * portal's error page carries no <script> at all — TestPortalTemplatesNeedNoCSPRelaxation
+ * forbids adding one — so a client-side restore could not theme the very page a
+ * subscriber is most likely to hit. The handler reads the hdns_theme cookie, renders
+ * the attribute into the markup, and the theme is therefore correct in the first
+ * byte of the response rather than after a paint.
+ *
+ * That is also why there is no prefers-color-scheme branch: the server cannot see
+ * the media query, and duplicating all 25 tokens a third time to honour it would
+ * leave three copies with nothing keeping them in sync. The subscriber picks, the
+ * cookie remembers, and the choice survives the modem restart that brought them
+ * back here. color-scheme below is what tells the browser to match its own
+ * furniture — scrollbars, form controls, the tap-highlight — to that choice. */
+:root,
+[data-theme='dark'] {
+  color-scheme: dark;
+  --bg: #060913;
+  --panel: rgba(13, 20, 38, 0.85);
+  --panel-solid: rgba(13, 20, 38, 0.7);
+  --panel-strong: rgba(13, 20, 38, 0.9);
+  --sunken: #030611;
+  --sunken-hover: #050b1d;
+  --sunken-soft: rgba(3, 6, 17, 0.6);
+  --line: rgba(56, 189, 248, 0.18);
+  --line-soft: rgba(148, 163, 184, 0.16);
+  --ink: #f8fafc;
+  --ink-dim: #94a3b8;
+  --ink-faint: #64748b;
+  --ink-body: #cbd5e1;
+  --cyan: #38bdf8;
+  --cyan-deep: #0891b2;
+  --green: #34d399;
+  --red: #fb7185;
+  /* Amber is the toast's warn fill only. Like --cyan/--green/--red it is a *background*
+     paired with --on-accent text, so it has to be light here and dark in the other
+     block; a single mid amber would fail one of the two. */
+  --amber: #fbbf24;
+  --on-accent: #041016;
+  --card-shadow: 0 10px 34px rgba(0, 0, 0, 0.45);
+  --toast-shadow: 0 12px 30px rgba(0, 0, 0, 0.5);
+  --wash-top: rgba(8, 145, 178, 0.22);
+  --wash-from: rgba(6, 9, 19, 0.4);
+  --wash-to: #000;
+  --btn-face: rgba(148, 163, 184, 0.08);
+  --chip-face: rgba(148, 163, 184, 0.12);
+}
+
+/* The light palette. Cyan drops two steps because #38bdf8 on white measures about
+ * 2:1 — it is a glow colour, and a glow needs something dark behind it to be one.
+ * The page is #f1f5fa rather than #ffffff: a subscriber reads this on a phone at
+ * night, and pure white at full brightness is the thing that makes them close it. */
+[data-theme='light'] {
+  color-scheme: light;
+  --bg: #f1f5fa;
+  --panel: rgba(255, 255, 255, 0.94);
+  --panel-solid: rgba(255, 255, 255, 0.85);
+  --panel-strong: #ffffff;
+  --sunken: #e9eef6;
+  --sunken-hover: #dfe7f2;
+  --sunken-soft: rgba(233, 238, 246, 0.75);
+  --line: rgba(8, 145, 178, 0.28);
+  --line-soft: rgba(71, 85, 105, 0.22);
+  --ink: #0b1220;
+  --ink-dim: #46566e;
+  --ink-faint: #5b6b82;
+  --ink-body: #24313f;
+  --cyan: #0e7490;
+  --cyan-deep: #155e75;
+  --green: #047857;
+  --red: #be123c;
+  --amber: #a16207;
+  --on-accent: #f8fdff;
+  --card-shadow: 0 8px 26px rgba(15, 23, 42, 0.1);
+  --toast-shadow: 0 12px 30px rgba(15, 23, 42, 0.22);
+  --wash-top: rgba(8, 145, 178, 0.12);
+  --wash-from: rgba(241, 245, 250, 0.5);
+  --wash-to: #e6ecf5;
+  --btn-face: rgba(71, 85, 105, 0.07);
+  --chip-face: rgba(71, 85, 105, 0.1);
+}
+
+:root {  /* Vazirmatn is self-hosted above and covers Persian and Latin from one file, so it
+   * leads here and the rest of the list is the no-webfont path. Tahoma stays in it,
+   * early: it is the one font present on stock Windows that draws Persian well.
+   *
+   * Vazirmatn is second in the mono stack, not absent from it. This page sets a
+   * traffic figure like "۲.۵ GB باقیمانده" in the mono role — a Latin-only monospace
+   * would render the number and hand the Persian to whatever the OS chose, at a
+   * different size, on a different baseline, inside one line of text. */
+  --font-fa: 'Vazirmatn', 'Sahel', 'Shabnam', 'Iranian Sans', Tahoma,
+    'Segoe UI', 'Noto Naskh Arabic', 'Geeza Pro', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Vazirmatn', ui-monospace, 'Cascadia Mono',
+    'Segoe UI Mono', 'SF Mono', Menlo, Consolas, monospace;
+
+  --radius: 18px;
+  --radius-sm: 12px;
+  --radius-xs: 8px;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+.portal {
+  margin: 0;
+  padding: 2rem 1rem;
+  min-height: 100vh;
+  font-family: var(--font-fa);
+  font-size: 15px;
+  line-height: 1.7;
+  color: var(--ink);
+  background-color: var(--bg);
+  /* The old markup asked Tailwind for an arbitrary radial-gradient value, which is
+   * one of the things that made the JIT engine load-bearing. It is two lines here. */
+  background-image:
+    radial-gradient(ellipse at 50% -10%, var(--wash-top), transparent 60%),
+    linear-gradient(to bottom, var(--wash-from), var(--wash-to));
+  background-attachment: fixed;
+  -webkit-text-size-adjust: 100%;
+}
+
+.center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.wrap {
+  width: 100%;
+  max-width: 780px;
+  margin-inline: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1.15rem;
+}
+
+.wrap-narrow {
+  max-width: 420px;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  padding: 1.15rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel);
+  box-shadow: var(--card-shadow);
+}
+
+/* Behind @supports because the panel background is translucent: a browser that
+ * parses backdrop-filter but cannot apply it still gets the blur declaration and
+ * shows page gradient straight through the card, which costs text contrast. */
+@supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {
+  .card {
+    -webkit-backdrop-filter: blur(18px);
+    backdrop-filter: blur(18px);
+  }
+}
+
+/* --- Rows, headers, and the small text roles ------------------------------- */
+
+.row,
+.hd,
+.split {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.hd {
+  padding-bottom: 0.6rem;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.split {
+  padding-top: 0.55rem;
+  border-top: 1px solid var(--line-soft);
+  font-size: 12.5px;
+  color: var(--ink-dim);
+}
+
+.split-strong {
+  font-weight: 700;
+  color: var(--green);
+}
+
+.hd-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--cyan);
+}
+
+.hd-note {
+  font-size: 11px;
+  color: var(--ink-faint);
+}
+
+.label {
+  font-size: 11.5px;
+  color: var(--ink-dim);
+}
+
+.value-lg {
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--ink);
+  margin-top: 0.15rem;
+}
+
+.value-ip {
+  color: var(--green);
+}
+
+.value-bad {
+  color: var(--red);
+}
+
+.figure {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+/* Addresses, tokens and quota figures are LTR inside an RTL document. Without the
+ * direction reset a browser reorders "1.1.1.1" or "12.50 GB / 50.0 GB" around the
+ * surrounding Persian and the subscriber copies a value that reads backwards. */
+.mono {
+  font-family: var(--font-mono);
+  direction: ltr;
+  unicode-bidi: isolate;
+}
+
+/* --- Header ---------------------------------------------------------------- */
+
+.grid2 {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+}
+
+.topbar {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  min-width: 0;
+}
+
+/* The icon inside draws with background-color: currentColor, so the logo tile has to
+   name a foreground. Without this it inherits --ink and the mark disappears into the
+   cyan gradient in light mode, where --ink is nearly black. */
+.brand-logo {
+  flex: none;
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  color: var(--on-accent);
+  background: linear-gradient(135deg, var(--cyan), #2563eb);
+  box-shadow: 0 8px 22px rgba(56, 189, 248, 0.28);
+}
+
+.brand-text {
+  min-width: 0;
+}
+
+.brand-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.title {
+  margin: 0;
+  font-size: 19px;
+  font-weight: 800;
+  line-height: 1.4;
+  color: var(--ink);
+}
+
+.subtitle {
+  margin: 0.2rem 0 0;
+  font-size: 11.5px;
+  color: var(--ink-dim);
+}
+
+/* The three preference controls in the topbar: language, theme, and sync. It wraps
+   because at 360px the brand block already takes the full width, and these dropping
+   to a second line is the correct outcome — the alternative is a horizontal scrollbar
+   on the one page a subscriber opens on a phone. margin-inline-start: auto pushes the
+   group to the far edge on a wide screen and does nothing once the row has wrapped,
+   and being logical it lands on the correct side in both directions. */
+.tools {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-inline-start: auto;
+}
+
+/* --- Icons ------------------------------------------------------------------- */
+
+/* The portal used emoji — 💡 ⚡ 🎮 ✅ — and emoji are not a design decision, they are
+ * whatever the reading device happens to have. The same 🎮 is a flat grey pad on
+ * Windows, a purple gradient one on Android, and a missing-glyph box on an older TV
+ * browser; none of them take the page's colour, none of them align on the text
+ * baseline, and none of them change in light mode.
+ *
+ * These are drawn instead as CSS masks over data-URI SVGs. That choice is forced by
+ * where this page runs:
+ *
+ *   - No script. The error page has no <script> at all and cannot get one
+ *     (TestPortalTemplatesNeedNoCSPRelaxation), so the dashboard's approach — Feather
+ *     replacing <i data-feather> after load — is not available here. A mask needs
+ *     nothing but the stylesheet.
+ *   - No extra request, no extra bytes per icon. The whole set travels inside
+ *     portal.css, which is already fetched, ETagged and gzipped; the payloads are
+ *     near-identical strings, which is the case gzip handles best.
+ *   - img-src 'self' data: already permits a data: URI, so the CSP does not move.
+ *   - background-color: currentColor means every icon inherits the colour of the text
+ *     it sits in — the green of a healthy pill, the red of a spent quota, --on-accent
+ *     on the logo tile — and follows the theme with no second declaration.
+ *
+ * The payloads live on :root as custom properties rather than inline on each .ico-*
+ * rule so the three the toast also needs are written once, not twice. Everything is
+ * black: for a mask only the alpha channel is read, so the colour in the SVG is
+ * irrelevant and 'black' avoids a %23 escape. */
+:root {
+  --svg-bolt: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='black'><polygon points='13 2 3 14 12 14 11 22 21 10 12 10 13 2'/></svg>");
+  --svg-activity: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='22 12 18 12 15 21 9 3 6 12 2 12'/></svg>");
+  --svg-globe: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><circle cx='12' cy='12' r='10'/><line x1='2' y1='12' x2='22' y2='12'/><path d='M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z'/></svg>");
+  --svg-moon: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z'/></svg>");
+  --svg-sun: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><circle cx='12' cy='12' r='5'/><line x1='12' y1='1' x2='12' y2='3'/><line x1='12' y1='21' x2='12' y2='23'/><line x1='4.22' y1='4.22' x2='5.64' y2='5.64'/><line x1='18.36' y1='18.36' x2='19.78' y2='19.78'/><line x1='1' y1='12' x2='3' y2='12'/><line x1='21' y1='12' x2='23' y2='12'/><line x1='4.22' y1='19.78' x2='5.64' y2='18.36'/><line x1='18.36' y1='5.64' x2='19.78' y2='4.22'/></svg>");
+  --svg-refresh: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='23 4 23 10 17 10'/><polyline points='1 20 1 14 7 14'/><path d='M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15'/></svg>");
+  --svg-warn: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z'/><line x1='12' y1='9' x2='12' y2='13'/><line x1='12' y1='17' x2='12.01' y2='17'/></svg>");
+  --svg-check: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M22 11.08V12a10 10 0 1 1-5.93-9.14'/><polyline points='22 4 12 14.01 9 11.01'/></svg>");
+  --svg-info: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><circle cx='12' cy='12' r='10'/><line x1='12' y1='16' x2='12' y2='12'/><line x1='12' y1='8' x2='12.01' y2='8'/></svg>");
+  --svg-chart: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><line x1='18' y1='20' x2='18' y2='10'/><line x1='12' y1='20' x2='12' y2='4'/><line x1='6' y1='20' x2='6' y2='14'/></svg>");
+  --svg-ban: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><circle cx='12' cy='12' r='10'/><line x1='4.93' y1='4.93' x2='19.07' y2='19.07'/></svg>");
+  --svg-clock: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><circle cx='12' cy='12' r='10'/><polyline points='12 6 12 12 16 14'/></svg>");
+  /* Not a Feather glyph — Feather has no infinity — so it is drawn here: two lobes as
+     one continuous stroke, which is what a lifetime plan should look like next to the
+     three countdown boxes it replaces. */
+  --svg-infinity: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M6.2 8.4c-2.1 0-3.7 1.6-3.7 3.6s1.6 3.6 3.7 3.6c1.5 0 2.6-.9 3.5-2l2.6-3.2c.9-1.1 2-2 3.5-2 2.1 0 3.7 1.6 3.7 3.6s-1.6 3.6-3.7 3.6c-1.5 0-2.6-.9-3.5-2L9.7 10.4c-.9-1.1-2-2-3.5-2z'/></svg>");
+  /* Also not a Feather glyph. The alternative was 'award' or 'target', and neither
+     says "game" to someone scanning a list of policy names. */
+  --svg-gamepad: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M7.5 7.5h9a5.5 5.5 0 0 1 0 11h-9a5.5 5.5 0 0 1 0-11z'/><line x1='7.2' y1='11' x2='7.2' y2='15'/><line x1='5.2' y1='13' x2='9.2' y2='13'/><line x1='16.3' y1='11.4' x2='16.31' y2='11.4'/><line x1='18.6' y1='14.1' x2='18.61' y2='14.1'/></svg>");
+  --svg-star: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='black'><polygon points='12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2'/></svg>");
+  --svg-clipboard: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2'/><rect x='8' y='2' width='8' height='4' rx='1'/></svg>");
+  --svg-smartphone: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><rect x='5' y='2' width='14' height='20' rx='2'/><line x1='12' y1='18' x2='12.01' y2='18'/></svg>");
+  --svg-monitor: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><rect x='2' y='3' width='20' height='14' rx='2'/><line x1='8' y1='21' x2='16' y2='21'/><line x1='12' y1='17' x2='12' y2='21'/></svg>");
+  --svg-command: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M18 3a3 3 0 0 0-3 3v12a3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3H6a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3V6a3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3h12a3 3 0 0 0 3-3 3 3 0 0 0-3-3z'/></svg>");
+  --svg-wifi: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M5 12.55a11 11 0 0 1 14.08 0M1.42 9a16 16 0 0 1 21.16 0M8.53 16.11a6 6 0 0 1 6.95 0'/><line x1='12' y1='20' x2='12.01' y2='20'/></svg>");
+  --svg-x: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><circle cx='12' cy='12' r='10'/><line x1='15' y1='9' x2='9' y2='15'/><line x1='9' y1='9' x2='15' y2='15'/></svg>");
+}
+
+/* One square em, coloured by the text around it. Sized in em rather than px on purpose:
+ * the same markup appears in a 10.5px pill, a 12.5px button, a 15px card heading and
+ * the 24px logo tile, and an icon that does not scale with its label is the thing that
+ * makes a row look assembled from parts.
+ *
+ * The --ico default is a fallback, not a design: a .ico written without its .ico-*
+ * partner would otherwise have no mask, and an unmasked element with
+ * background-color: currentColor paints a solid square. An info circle is a far
+ * better failure than a black block, and the class inventory catches the typo anyway.
+ *
+ * The -webkit- prefixes are still required: unprefixed mask-image only reached Safari
+ * in 15.4, and iOS below that is common among the phones this page is opened on. */
+.ico {
+  --ico: var(--svg-info);
+  display: inline-block;
+  flex: none;
+  width: 1em;
+  height: 1em;
+  vertical-align: -0.125em;
+  background-color: currentColor;
+  -webkit-mask-image: var(--ico);
+  mask-image: var(--ico);
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-position: center;
+  -webkit-mask-size: contain;
+  mask-size: contain;
+}
+
+.ico-bolt { --ico: var(--svg-bolt); }
+.ico-activity { --ico: var(--svg-activity); }
+.ico-globe { --ico: var(--svg-globe); }
+.ico-moon { --ico: var(--svg-moon); }
+.ico-sun { --ico: var(--svg-sun); }
+.ico-refresh { --ico: var(--svg-refresh); }
+.ico-warn { --ico: var(--svg-warn); }
+.ico-check { --ico: var(--svg-check); }
+.ico-info { --ico: var(--svg-info); }
+.ico-chart { --ico: var(--svg-chart); }
+.ico-ban { --ico: var(--svg-ban); }
+.ico-clock { --ico: var(--svg-clock); }
+.ico-infinity { --ico: var(--svg-infinity); }
+.ico-gamepad { --ico: var(--svg-gamepad); }
+.ico-star { --ico: var(--svg-star); }
+.ico-clipboard { --ico: var(--svg-clipboard); }
+.ico-smartphone { --ico: var(--svg-smartphone); }
+.ico-monitor { --ico: var(--svg-monitor); }
+.ico-command { --ico: var(--svg-command); }
+.ico-wifi { --ico: var(--svg-wifi); }
+.ico-x { --ico: var(--svg-x); }
+
+/* --- Pills and buttons ------------------------------------------------------ */
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  border: 1px solid var(--line-soft);
+  font-size: 10.5px;
+  font-weight: 700;
+  white-space: nowrap;
+  color: var(--ink-dim);
+}
+
+.pill-ok {
+  color: var(--green);
+  border-color: rgba(52, 211, 153, 0.35);
+  background: rgba(52, 211, 153, 0.14);
+}
+
+.pill-info {
+  color: var(--cyan);
+  border-color: rgba(56, 189, 248, 0.35);
+  background: rgba(56, 189, 248, 0.12);
+}
+
+.pill-mute {
+  background: var(--chip-face);
+}
+
+/* Worn by the quota pill once the allowance is spent. The bar being full is not
+   loud enough on its own: it is full at 99.9% too, and the difference between
+   those two states is whether the subscriber's games still resolve. */
+.pill-bad {
+  color: var(--red);
+  border-color: rgba(251, 113, 133, 0.35);
+  background: rgba(251, 113, 133, 0.14);
+}
+
+/* Removed from the layout entirely, not just made invisible: the quota pill is
+   rendered on every page so the script has something to toggle, and an element
+   that only reserves space is a gap nobody can explain. .panel.is-hidden stays
+   scoped to the device guide, whose panels are swapped rather than dropped. */
+.is-gone {
+  display: none;
+}
+
+/* Worn by <button> and by <a> alike. The language and theme switches are real links —
+   they have to work with no script, and a link is what makes the browser's back button
+   and "open in new tab" behave — so this rule cannot assume a button: text-decoration
+   and color are inherited differently, and an anchor would otherwise arrive underlined
+   and in the visited-link colour. */
+.btn {
+  font: inherit;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0.55rem 0.9rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--btn-face);
+  color: var(--ink);
+  font-size: 12.5px;
+  font-weight: 700;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: filter 0.2s ease, transform 0.15s ease;
+}
+
+.btn-primary {
+  border-color: transparent;
+  color: var(--on-accent);
+  background: linear-gradient(135deg, var(--cyan), var(--cyan-deep));
+  box-shadow: 0 8px 20px rgba(56, 189, 248, 0.22);
+}
+
+.btn:hover {
+  filter: brightness(1.12);
+}
+
+.btn:active {
+  transform: scale(0.98);
+}
+
+/* A control that reports a busy state has to look unavailable, or a subscriber on a
+ * slow link taps sync four times and gets four IP registrations. */
+.btn[aria-busy='true'] {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+/* --- Copyable values -------------------------------------------------------- */
+
+.copy-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-top: 0.3rem;
+  padding: 0.45rem 0.6rem;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-xs);
+  background: var(--sunken);
+}
+
+.copy-row-val {
+  font-family: var(--font-mono);
+  direction: ltr;
+  unicode-bidi: isolate;
+  font-size: 12px;
+  color: var(--cyan);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.copy-btn {
+  font: inherit;
+  cursor: pointer;
+  flex: none;
+  padding: 0.15rem 0.45rem;
+  border: 1px solid var(--line-soft);
+  border-radius: 6px;
+  background: var(--chip-face);
+  color: var(--ink-dim);
+  font-size: 10.5px;
+  font-weight: 700;
+}
+
+.copy-btn:hover {
+  color: var(--ink);
+}
+
+/* The register card (Phase B): the one write the portal offers, gated by the
+   out-of-band registration secret. The row is a flex pair — a secret input the
+   browser must not autocomplete or reveal, and the action button that posts it
+   to /ip/<token>. Styled after the copy rows so the card reads as part of the
+   same page rather than a bolted-on form. */
+.reg-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: stretch;
+  margin: 0.4rem 0 0.6rem;
+}
+
+.reg-input {
+  flex: 1;
+  min-width: 0;
+  font: inherit;
+  font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+  font-size: 12px;
+  color: var(--ink);
+  background: var(--chip-face);
+  border: 1px solid var(--line-soft);
+  border-radius: 8px;
+  padding: 0.5rem 0.65rem;
+  letter-spacing: 0.12em;
+}
+
+.reg-input:focus {
+  outline: none;
+  border-color: var(--cyan);
+}
+
+.reg-input::placeholder {
+  color: var(--ink-dim);
+  letter-spacing: 0;
+}
+
+
+.endpoints {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.7rem;
+}
+
+/* Each endpoint is a real <button>, not a div with a click handler. That is what
+ * makes it reachable by keyboard and announced as a control, and it is why there is
+ * no role/tabindex pair to keep in sync. text-align: start because a button
+ * centres its content by default and these are labelled rows. */
+.copy-card {
+  font: inherit;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  width: 100%;
+  padding: 0.7rem 0.8rem;
+  text-align: start;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-sm);
+  background: var(--sunken);
+  color: var(--ink);
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.copy-card:hover {
+  border-color: rgba(56, 189, 248, 0.5);
+  background: var(--sunken-hover);
+}
+
+.copy-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  font-size: 10.5px;
+  color: var(--ink-dim);
+}
+
+.copy-card-tag {
+  color: var(--cyan);
+  white-space: nowrap;
+}
+
+.copy-card-val {
+  font-family: var(--font-mono);
+  direction: ltr;
+  unicode-bidi: isolate;
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+/* --- Quota meter, countdown, policy chips ----------------------------------- */
+
+.meter {
+  height: 14px;
+  padding: 2px;
+  border: 1px solid var(--line-soft);
+  border-radius: 999px;
+  background: var(--sunken);
+  overflow: hidden;
+}
+
+/* The fill's width is the one server-rendered CSS value on the page, and it is
+ * written LTR-first: a bar that grew from the right would read as "used" on the
+ * wrong side for a subscriber comparing it with the figure beside it. */
+.meter-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--green), var(--cyan));
+  transition: width 0.5s ease;
+}
+
+.count3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.5rem;
+  text-align: center;
+}
+
+.count-cell {
+  padding: 0.5rem 0.25rem;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-sm);
+  background: var(--sunken);
+}
+
+.count-num {
+  font-family: var(--font-mono);
+  font-size: 19px;
+  font-weight: 800;
+  color: var(--cyan);
+}
+
+.count-unit {
+  font-size: 9.5px;
+  color: var(--ink-faint);
+}
+
+/* A lifetime subscription has no countdown. It used to be rendered as "9999 روز",
+ * which reads like a bug to the person paying for it. */
+.count-inf {
+  padding: 0.85rem;
+  text-align: center;
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--green);
+  border: 1px solid rgba(52, 211, 153, 0.3);
+  border-radius: var(--radius-sm);
+  background: rgba(52, 211, 153, 0.1);
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.chip {
+  padding: 0.2rem 0.55rem;
+  border-radius: var(--radius-xs);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--cyan);
+  border: 1px solid rgba(56, 189, 248, 0.3);
+  background: rgba(56, 189, 248, 0.1);
+}
+
+.chip-all {
+  color: var(--green);
+  border-color: rgba(52, 211, 153, 0.3);
+  background: rgba(52, 211, 153, 0.1);
+}
+
+/* --- Device guide tabs ------------------------------------------------------ */
+
+.tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.tab {
+  font: inherit;
+  cursor: pointer;
+  padding: 0.35rem 0.7rem;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-xs);
+  background: var(--panel-solid);
+  color: var(--ink-dim);
+  font-size: 12px;
+  font-weight: 600;
+  transition: color 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+}
+
+.tab:hover {
+  color: var(--ink);
+}
+
+.tab.is-active {
+  color: var(--cyan);
+  border-color: rgba(56, 189, 248, 0.55);
+  background: rgba(56, 189, 248, 0.16);
+}
+
+.panels {
+  padding: 0.9rem;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-sm);
+  background: var(--sunken-soft);
+  font-size: 12.5px;
+  color: var(--ink-body);
+}
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.panel.is-hidden {
+  display: none;
+}
+
+.panel-title {
+  font-weight: 700;
+  color: var(--cyan);
+}
+
+/* Deliberately not a flex column: blockifying an <ol> is what drops or clips the
+ * decimal markers in several browsers, and a numbered setup guide without its
+ * numbers is a guide whose steps have no order. */
+.steps {
+  margin: 0;
+  padding-inline-start: 1.35rem;
+}
+
+.steps > li + li {
+  margin-top: 0.4rem;
+}
+
+.para {
+  margin: 0;
+}
+
+/* The DNS values inside a step. Two addresses on their own lines, LTR, so a
+ * subscriber reading a Persian instruction can still copy them character by
+ * character without the digits reordering. */
+.snippet {
+  font-family: var(--font-mono);
+  direction: ltr;
+  unicode-bidi: isolate;
+  text-align: start;
+  margin-top: 0.35rem;
+  padding: 0.45rem 0.6rem;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-xs);
+  background: var(--panel-strong);
+  color: var(--cyan);
+  overflow-wrap: anywhere;
+}
+
+/* --- Hint box, toast, footer, error page ------------------------------------ */
+
+.hint {
+  padding: 0.55rem 0.7rem;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-xs);
+  background: var(--sunken-soft);
+  font-size: 11.5px;
+  line-height: 1.9;
+  color: var(--ink-dim);
+}
+
+/* Centred with auto inline margins rather than a 50% offset plus a translate: the
+ * transform axis stays physical while the offset flips under dir="rtl", so the
+ * offset-and-translate pair centres the toast in one direction and pushes it off
+ * screen in the other. */
+/* The toast is a bright chip with dark text in the dark theme and a dark chip with
+   light text in the light one — --on-accent flips, so one set of state colours works
+   in both as long as each of them is a token that darkens too. */
+.toast {
+  position: fixed;
+  bottom: 1.25rem;
+  inset-inline: 0;
+  margin-inline: auto;
+  width: max-content;
+  z-index: 50;
+  max-width: min(90vw, 420px);
+  transform: translateY(0.5rem);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0.55rem 0.9rem;
+  border-radius: var(--radius-sm);
+  background: var(--cyan);
+  color: var(--on-accent);
+  font-size: 12.5px;
+  font-weight: 700;
+  text-align: center;
+  box-shadow: var(--toast-shadow);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+
+.toast.is-shown {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* The state carries the icon, and the icon is drawn rather than prefixed to the string.
+   The toast's text is set with textContent because it interpolates data-copied values
+   from the markup — switching to innerHTML to prepend a glyph would put attribute
+   content into an HTML parser on the one page whose URL is a bearer token. A ::before
+   with a mask says the same thing with no parsing at all.
+
+   content: '' lives only on the three state rules, so a plain informational toast has
+   no icon rather than the .ico fallback. */
+.toast.is-ok {
+  --ico: var(--svg-check);
+  background: var(--green);
+}
+
+.toast.is-warn {
+  --ico: var(--svg-warn);
+  background: var(--amber);
+}
+
+.toast.is-bad {
+  --ico: var(--svg-ban);
+  background: var(--red);
+}
+
+.toast.is-ok::before,
+.toast.is-warn::before,
+.toast.is-bad::before {
+  content: '';
+  flex: none;
+  width: 1em;
+  height: 1em;
+  background-color: currentColor;
+  -webkit-mask-image: var(--ico);
+  mask-image: var(--ico);
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-position: center;
+  -webkit-mask-size: contain;
+  mask-size: contain;
+}
+
+.footer {
+  padding: 0.75rem 0;
+  text-align: center;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--ink-faint);
+}
+
+.error-card {
+  align-items: center;
+  text-align: center;
+  gap: 1.1rem;
+  border-color: rgba(251, 113, 133, 0.3);
+}
+
+.error-mark {
+  width: 60px;
+  height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  font-size: 28px;
+  font-weight: 800;
+  color: var(--red);
+  border: 1px solid rgba(251, 113, 133, 0.4);
+  background: rgba(251, 113, 133, 0.1);
+}
+
+.error-box {
+  width: 100%;
+  padding: 0.85rem;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-sm);
+  background: var(--sunken);
+}
+
+/* --- Focus, breakpoints, motion --------------------------------------------- */
+
+/* One rule for every control on the page. :focus-visible rather than :focus so a
+ * tap or a click does not leave a ring behind, and stated once here because a
+ * focusable control with no visible focus state is a control a keyboard user
+ * cannot find — which on this page means they cannot copy their own DNS address. */
+.btn:focus-visible,
+.copy-btn:focus-visible,
+.copy-card:focus-visible,
+.tab:focus-visible {
+  outline: 2px solid var(--cyan);
+  outline-offset: 2px;
+}
+
+@media (min-width: 720px) {
+  .portal {
+    padding: 2.5rem 1.5rem;
+  }
+
+  .grid2 {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .endpoints {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .title {
+    font-size: 21px;
+  }
+}
+
+/* Under 380px the three countdown cells stop fitting and the numbers wrap away
+ * from their labels. */
+@media (max-width: 379px) {
+  .count3 {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .btn,
+  .copy-card,
+  .meter-fill,
+  .tab,
+  .toast {
+    transition: none;
+  }
+
+  .btn:active {
+    transform: none;
+  }
+}

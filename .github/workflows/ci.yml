@@ -1,0 +1,147 @@
+name: CI
+
+# Everything in this file exists because the project's day-to-day development machine
+# is Windows without a C compiler, so `go test -race` cannot run there and for a long
+# time nothing verified a commit but a language server. This workflow is where the
+# suite is actually compiled, vetted, shuffled and race-checked.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# A second push to the same branch makes the first run's answer irrelevant.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Build, vet and test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Read from go.mod rather than pinned here. A hard-coded version silently drifts
+      # from the one the module requires, and the failure it produces — a toolchain
+      # refusing to build the module at all — looks nothing like a version mismatch.
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          check-latest: true
+
+      # First, because it is the cheapest check and the least interesting one to have
+      # to find inside a test log. The diff is printed so the fix needs no local run.
+      - name: gofmt
+        run: |
+          unformatted="$(gofmt -l .)"
+          if [ -n "$unformatted" ]; then
+            echo "::error::not gofmt-clean:"
+            echo "$unformatted"
+            gofmt -d .
+            exit 1
+          fi
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Dashboard chart regression tests
+        run: node --test tests/web/*.test.cjs
+
+      - name: Restore script regression tests
+        run: |
+          for script in scripts/*.sh offline-bundle/install.sh offline-bundle/scripts/*.sh; do bash -n "$script"; done
+          cmp scripts/restore.sh offline-bundle/scripts/restore.sh
+          cmp scripts/uninstall.sh offline-bundle/scripts/uninstall.sh
+          python3 tests/scripts/test_restore.py
+
+      # The suite above only covers --data-dir (offline/disposable) mode. The one
+      # below covers production mode, which stops the hyperdns service and replaces
+      # /opt/hyperdns members, so it runs inside a networkless container with
+      # systemctl stubbed on PATH rather than against a real systemd install.
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Restore script production tests
+        run: |
+          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -o build/hyperdns-restore-fixture ./cmd/hyperdns
+          docker pull golang:1.26-bookworm
+          python3 tests/scripts/test_restore_production.py
+          python3 tests/scripts/test_restore.py
+
+      # The installer writes the resolved drop-in with a shell redirect, so its
+      # mode follows the caller's umask. Under umask 077 the drop-in is 0600 and
+      # unreadable by systemd-resolved's own unprivileged user, which silently
+      # ignores it and keeps 127.0.0.53:53 bound — the daemon then fails to
+      # bind port 53 over a conflict the installer was asked to clear.
+      - name: Installer umask regression tests
+        run: |
+          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -o build/hyperdns-umask-fixture ./cmd/hyperdns
+          python3 tests/scripts/test_installer_umask.py
+
+      - name: go vet
+        run: go vet ./...
+
+      - name: go build
+        run: go build ./...
+
+      # -shuffle=on because a suite this size accumulates order dependence quietly:
+      # a package-level fixture left dirty by one test is invisible while the order
+      # never changes. -count=1 defeats the test cache, so a green run means the tests
+      # ran rather than that they were remembered.
+      - name: go test
+        run: go test -count=1 -shuffle=on -timeout 5m ./...
+
+      # The race detector needs cgo and a C compiler. This runner has both and the
+      # development machine has neither, which makes this the only place the suite is
+      # ever genuinely race-checked — so it is not optional here, and a claim that the
+      # code is race-clean is only supportable if this step is green.
+      - name: go test -race
+        run: go test -race -count=1 -timeout 10m ./...
+
+  cross:
+    name: ${{ matrix.goos }}/${{ matrix.goarch }}
+    runs-on: ubuntu-latest
+
+    # Every target the release workflow publishes, compiled on every commit rather than
+    # for the first time while a tag is being cut. The daemon has per-OS files — CPU
+    # time is read one way on Unix and another on Windows — so a break here is a break
+    # that no amount of testing on one platform would surface.
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - goos: linux
+            goarch: amd64
+          - goos: linux
+            goarch: arm64
+          - goos: windows
+            goarch: amd64
+          - goos: darwin
+            goarch: arm64
+          - goos: darwin
+            goarch: amd64
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          check-latest: true
+
+      # CGO_ENABLED=0 is the release setting: a static binary an operator can drop onto
+      # a VPS with no libc to match. Building any other way here would prove nothing
+      # about the artefact that actually ships.
+      - name: go build
+        env:
+          CGO_ENABLED: 0
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+        run: go build -ldflags="-s -w" ./cmd/hyperdns

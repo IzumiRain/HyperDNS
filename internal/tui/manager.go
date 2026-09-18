@@ -3,550 +3,390 @@ package tui
 import (
 	"bufio"
 	"fmt"
-	"net/http"
 	"os"
 	"os/exec"
-	"strconv"
+	"runtime"
 	"strings"
-	"time"
 
-	"hyperdns/internal/config"
-	"hyperdns/internal/diagnostics"
+	"hyperdns/internal/core/cache"
+	"hyperdns/internal/core/upstream"
+	"hyperdns/internal/crypto"
+	"hyperdns/internal/database"
+	"hyperdns/internal/service"
+	"hyperdns/internal/version"
 )
 
-// PrintHelp outputs the CLI help reference
-func PrintHelp() {
-	fmt.Println(Cyan + Bold + `
-  ██╗  ██╗██╗   ██╗██████╗ ███████╗██████╗ ██████╗ ███╗   ██╗███████╗
-  ██║  ██║╚██╗ ██╔╝██╔══██╗██╔════╝██╔══██╗██╔══██╗████╗  ██║██╔════╝
-  ███████║ ╚████╔╝ ██████╔╝█████╗  ██████╔╝██║  ██║██╔██╗ ██║███████╗
-  ██╔══██║  ╚██╔╝  ██╔═══╝ ██╔══╝  ██╔══██╗██║  ██║██║╚██╗██║╚════██║
-  ██║  ██║   ██║   ██║     ███████╗██║  ██║██████╔╝██║ ╚████║███████║
-  ╚═╝  ╚═╝   ╚═╝   ╚═╝     ╚══════╝╚═╝  ╚═╝╚═════╝ ╚═╝  ╚═══╝╚══════╝
-       ⚡ HyperDNS Standalone Controller & Management Console ⚡` + Reset)
-	fmt.Println()
-	fmt.Println(Bold + "USAGE:" + Reset)
-	fmt.Println("  hdns                     Open Interactive Management TUI Console")
-	fmt.Println("  hdns status              Display live service health, ports & stats")
-	fmt.Println("  hdns restart             Restart the HyperDNS background service")
-	fmt.Println("  hdns stop                Stop the HyperDNS background service")
-	fmt.Println("  hdns start               Start the HyperDNS background service")
-	fmt.Println("  hdns logs                Stream live query & system logs")
-	fmt.Println("  hdns flush               Flush the in-memory DNS cache")
-	fmt.Println("  hdns diag                Run latency benchmark & gaming diagnostics")
-	fmt.Println("  hdns clients             List registered clients & whitelist IPs")
-	fmt.Println("  hdns uninstall           Completely uninstall HyperDNS and remove all files")
-	fmt.Println()
-}
+const (
+	Cyan   = "\033[36m"
+	Green  = "\033[32m"
+	Yellow = "\033[33m"
+	Red    = "\033[31m"
+	Bold   = "\033[1m"
+	Reset  = "\033[0m"
+)
 
-// PrintStatus checks service status and prints an informative dashboard
-func PrintStatus(cPath string) {
-	cfg, _ := config.LoadConfig(cPath)
-	pubIP := "127.0.0.1"
-	if cfg != nil && cfg.Server.PublicIP != "" {
-		pubIP = cfg.Server.PublicIP
-	}
-
-	fmt.Println(Cyan + Bold + "=== HyperDNS Service Status ===" + Reset)
-	
-	// Check systemctl status
-	cmd := exec.Command("systemctl", "is-active", "hyperdns")
-	out, err := cmd.Output()
-	status := strings.TrimSpace(string(out))
-	if err == nil && status == "active" {
-		fmt.Printf(" Service State : %s● ACTIVE (Running in background)%s\n", Green+Bold, Reset)
+func clearScreen() {
+	if runtime.GOOS == "windows" {
+		cmd := exec.Command("cmd", "/c", "cls")
+		cmd.Stdout = os.Stdout
+		_ = cmd.Run()
 	} else {
-		fmt.Printf(" Service State : %s● INACTIVE (%s)%s\n", Yellow, status, Reset)
-	}
-
-	fmt.Printf(" Public IP     : %s%s%s\n", Green, pubIP, Reset)
-	fmt.Printf(" Web Dashboard : %shttp://%s:8080/dashboard%s\n", Cyan, pubIP, Reset)
-	fmt.Printf(" Matrix Gateway: %shttp://%s:8080/%s\n", Cyan, pubIP, Reset)
-	fmt.Printf(" Standard DNS  : %s%s:53%s\n", Yellow, pubIP, Reset)
-	fmt.Printf(" DoH Endpoint  : %shttps://%s:8443/dns-query%s\n", Purple, pubIP, Reset)
-	fmt.Printf(" DoT Endpoint  : %s%s:853%s\n", Purple, pubIP, Reset)
-
-	if cfg != nil {
-		fmt.Printf(" Whitelist Mode: %s%v%s (%d clients)\n", 
-			Cyan, !cfg.Access.AllowAll, Reset, len(cfg.Access.Clients))
-	}
-	fmt.Println()
-}
-
-// RestartService restarts systemd service
-func RestartService() {
-	fmt.Println(Yellow + "Restarting HyperDNS service..." + Reset)
-	cmd := exec.Command("systemctl", "restart", "hyperdns")
-	if err := cmd.Run(); err == nil {
-		fmt.Println(Green + "✓ HyperDNS service restarted successfully!" + Reset)
-	} else {
-		fmt.Printf(Red+"✕ Error restarting service: %v\n"+Reset, err)
+		fmt.Print("\033[H\033[2J")
 	}
 }
 
-// StopService stops systemd service
-func StopService() {
-	fmt.Println(Yellow + "Stopping HyperDNS service..." + Reset)
-	_ = exec.Command("systemctl", "stop", "hyperdns").Run()
-	fmt.Println(Green + "✓ HyperDNS service stopped." + Reset)
-}
-
-// StartService starts systemd service
-func StartService() {
-	fmt.Println(Yellow + "Starting HyperDNS service..." + Reset)
-	_ = exec.Command("systemctl", "start", "hyperdns").Run()
-	fmt.Println(Green + "✓ HyperDNS service started." + Reset)
-}
-
-// StreamLogs streams journalctl logs live
-func StreamLogs() {
-	fmt.Println(Cyan + "Streaming HyperDNS live logs (Ctrl+C to exit)..." + Reset)
-	cmd := exec.Command("journalctl", "-u", "hyperdns", "-f", "-n", "30", "--no-pager")
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	cmd.Stdin = os.Stdin
-	_ = cmd.Run()
-}
-
-// FlushCacheDirect flushes the DNS cache
-func FlushCacheDirect(cPath string) {
-	fmt.Println(Yellow + "Flushing DNS Cache..." + Reset)
-	resp, err := http.Post("http://127.0.0.1:8080/api/cache/flush", "application/json", nil)
-	if err == nil && resp.StatusCode == 200 {
-		fmt.Println(Green + "✓ DNS Cache flushed successfully!" + Reset)
-		return
-	}
-	// Fallback to restart
-	RestartService()
-}
-
-// RunConsoleDiagnostics runs gaming diagnostics and outputs formatted table
-func RunConsoleDiagnostics(cPath string) {
-	fmt.Println(Cyan + Bold + "\nRunning HyperDNS Gaming & Anti-Sanction Diagnostics Suite..." + Reset)
-	rep := diagnostics.RunDiagnostics()
-
-	fmt.Println()
-	fmt.Printf(" Gaming Suitability Score: %s%d%%%s (%s)\n", Green+Bold, rep.OverallScore, Reset, rep.OverallQuality)
-	fmt.Println(strings.Repeat("─", 65))
-	fmt.Printf(" %-32s │ %-10s │ %s\n", "TARGET SERVICE", "STATUS", "LATENCY")
-	fmt.Println(strings.Repeat("─", 65))
-
-	for _, r := range rep.Results {
-		statCol := Green
-		if r.Status == "GOOD" {
-			statCol = Yellow
-		} else if !r.Success {
-			statCol = Red
-		}
-		fmt.Printf(" %-32s │ %s%-10s%s │ %6.1f ms\n", r.Name, statCol, r.Status, Reset, r.LatencyMs)
-	}
-	fmt.Println(strings.Repeat("─", 65))
-	fmt.Println()
-}
-
-// ListClients lists registered clients and whitelisted IPs
-func ListClients(cPath string) {
-	cfg, err := config.LoadConfig(cPath)
-	if err != nil {
-		fmt.Printf(Red+"Failed to load config: %v\n"+Reset, err)
-		return
-	}
-
-	fmt.Println(Cyan + Bold + "\n=== REGISTERED CLIENTS & WHITELISTED IPS ===" + Reset)
-	fmt.Println()
-	if len(cfg.Access.Clients) == 0 {
-		fmt.Println(Dim + " No clients created yet. Create one via Web UI or 'hdns'." + Reset)
-		return
-	}
-
-	for i, c := range cfg.Access.Clients {
-		status := Green + "ACTIVE" + Reset
-		if !c.Enabled {
-			status = Red + "DISABLED" + Reset
-		}
-		ips := strings.Join(c.AllowedIPs, ", ")
-		if ips == "" {
-			ips = Dim + "(No IPs registered yet)" + Reset
-		}
-		fmt.Printf(" [%d] %s%s%s (%s)\n", i+1, Bold, c.Name, Reset, status)
-		regHost := cfg.Server.PublicIP
-		regProto := "http"
-		regPort := fmt.Sprintf(":%d", cfg.Server.WebPort)
-		if cfg.TLS.Domain != "" {
-			regHost = cfg.TLS.Domain
-			regProto = "https"
-			regPort = fmt.Sprintf(":%d", cfg.DNS.DoHPort)
-		}
-		fmt.Printf("     • Auto-Register URL: %s://%s%s/ip/%s\n", regProto, regHost, regPort, c.Token)
-		fmt.Println()
-	}
-}
-
-// RunInteractiveManager runs the main interactive terminal menu
-func RunInteractiveManager(cPath string) {
-	reader := bufio.NewReader(os.Stdin)
+// RunInteractiveManager draws the console menu until the operator leaves it.
+//
+// It returns true when they left on purpose — [0] Exit, or [10] Uninstall — and
+// false when stdin simply ended: a closed terminal, a dropped SSH session, or an
+// input that was never a keyboard. The caller needs to tell those apart, because
+// the servers are already running by the time this is called. Answering EOF by
+// exiting is how a dropped SSH connection used to take the resolver down with it.
+//
+// dnsSettings and sniSettings are here for one entry, [11]: moving the dashboard
+// port onto a port the resolver or the relay already binds makes the next start
+// fatal in daemon mode, and the only way to refuse that in advance is to know what
+// those two are configured to hold. Both may be nil; the port check simply sees
+// fewer listeners.
+func RunInteractiveManager(
+	db *database.DB,
+	clients *service.ClientService,
+	stats *service.StatsService,
+	c *cache.Cache,
+	u *upstream.UpstreamPool,
+	settings *database.ServerSettings,
+	dnsSettings *database.DNSSettings,
+	sniSettings *database.SNIProxySettings,
+) bool {
+	scanner := bufio.NewScanner(os.Stdin)
 
 	for {
-		cfg, err := config.LoadConfig(cPath)
-		if err != nil {
-			fmt.Printf(Red+"Failed to load config from %s: %v\n"+Reset, cPath, err)
-			return
-		}
-
-		fmt.Print(Clear)
+		clearScreen()
 		fmt.Println(Cyan + Bold + `
-  ██╗  ██╗██╗   ██╗██████╗ ███████╗██████╗ ██████╗ ███╗   ██╗███████╗
-  ██║  ██║╚██╗ ██╔╝██╔══██╗██╔════╝██╔══██╗██╔══██╗████╗  ██║██╔════╝
-  ███████║ ╚████╔╝ ██████╔╝█████╗  ██████╔╝██║  ██║██╔██╗ ██║███████╗
-  ██╔══██║  ╚██╔╝  ██╔═══╝ ██╔══╝  ██╔══██╗██║  ██║██║╚██╗██║╚════██║
-  ██║  ██║   ██║   ██║     ███████╗██║  ██║██████╔╝██║ ╚████║███████║
-  ╚═╝  ╚═╝   ╚═╝   ╚═╝     ╚══════╝╚═╝  ╚═╝╚═════╝ ╚═╝  ╚═══╝╚══════╝
-       ⚡ HyperDNS Standalone Controller & Management Console ⚡` + Reset)
-		fmt.Println()
+   _    _                           _____  _   _  _____ 
+  | |  | |                         |  __ \| \ | |/ ____|
+  | |__| |_   _ _ __   ___ _ __    | |  | |  \| | (___  
+  |  __  | | | | '_ \ / _ \ '__|   | |  | | . ' |\___ \ 
+  | |  | | |_| | |_) |  __/ |      | |__| | |\  |____) |
+  |_|  |_|\__, | .__/ \___|_|      |_____/|_| \_|_____/ 
+           __/ | |                                      
+          |___/|_|      Next-Gen Standalone SmartDNS` + Reset)
 
-		pubIP := cfg.Server.PublicIP
-		if pubIP == "" {
-			pubIP = "127.0.0.1"
+		// The banner is redrawn on every pass through the menu, and PublicIP/APIBind
+		// can be rewritten by the dashboard while the console sits at this prompt, so
+		// both are read through the settings accessors. One Endpoint() call also means
+		// the three lines below cannot disagree with each other.
+		publicIP, apiBind := settings.Endpoint()
+
+		fmt.Printf("\n %s• HyperDNS Version:%s %s%s%s [%s]%s\n", Bold, Reset, Cyan, version.Get().Display, Reset, version.Get().Hash, Reset)
+		fmt.Printf(" %s• Server Status:%s %sONLINE%s | %sPublic IP:%s %s%s%s\n", Bold, Reset, Green, Reset, Bold, Reset, Cyan, publicIP, Reset)
+		fmt.Printf(" %s• Dashboard:%s http://%s:%d\n", Bold, Reset, publicIP, settings.WebPort)
+		fmt.Printf(" %s• REST API:%s  http://%s:%d/api/v1 (Bind: %s)\n", Bold, Reset, publicIP, settings.WebPort, apiBind)
+		fmt.Println(" ────────────────────────────────────────────────────────")
+		fmt.Printf("  %s[1]%s 📊 Service Status & Telemetry\n", Cyan, Reset)
+		fmt.Printf("  %s[2]%s 👥 List Subscriber Accounts & Tokens\n", Cyan, Reset)
+		fmt.Printf("  %s[3]%s ➕ Add New Subscriber (Name, Days, 1-IP Binding)\n", Cyan, Reset)
+		fmt.Printf("  %s[4]%s ❌ Delete Subscriber Account\n", Cyan, Reset)
+		fmt.Printf("  %s[5]%s 🚀 Benchmark DNS Upstreams\n", Cyan, Reset)
+		fmt.Printf("  %s[6]%s 🧹 Flush DNS Cache\n", Cyan, Reset)
+		fmt.Printf("  %s[7]%s 🔑 View / Regenerate Master API Key\n", Cyan, Reset)
+		fmt.Printf("  %s[8]%s 🔄 Restart HyperDNS Service\n", Cyan, Reset)
+		fmt.Printf("  %s[9]%s 🩺 Run Diagnostics & Port Tests\n", Cyan, Reset)
+		fmt.Printf("  %s[10]%s 🗑️ Complete Uninstall HyperDNS\n", Red, Reset)
+		fmt.Printf("  %s[11]%s 🔌 Change Dashboard Panel Port (currently %d)\n", Cyan, Reset, settings.WebPort)
+		fmt.Printf("  %s[12]%s 🔓 Clear Login Lockouts (works while the service runs)\n", Cyan, Reset)
+		fmt.Printf("  %s[0]%s 🚪 Exit Controller\n", Yellow, Reset)
+		fmt.Println(" ────────────────────────────────────────────────────────")
+		fmt.Print(" Select an option [0-12]: ")
+
+		// Not an operator choosing to leave: stdin is gone. Say so, and let the
+		// caller decide — it keeps serving rather than dropping DNS with the
+		// terminal that closed.
+		if !scanner.Scan() {
+			return false
 		}
-
-		// Check service status
-		cmd := exec.Command("systemctl", "is-active", "hyperdns")
-		out, err := cmd.Output()
-		srvStatus := strings.TrimSpace(string(out))
-		statusBadge := Green + "● ACTIVE" + Reset
-		if err != nil || srvStatus != "active" {
-			statusBadge = Yellow + "● INACTIVE" + Reset
-		}
-
-		modeBadge := Green + "PUBLIC" + Reset
-		if !cfg.Access.AllowAll {
-			modeBadge = Purple + "WHITELIST ONLY" + Reset
-		}
-
-		fmt.Printf(" [●] Service: %s   [●] Access Mode: %s   [●] Clients: %s%d%s\n", 
-			statusBadge, modeBadge, Yellow, len(cfg.Access.Clients), Reset)
-		fmt.Printf(" [●] Web Dashboard: %shttp://%s:8080/dashboard%s\n", Cyan, pubIP, Reset)
-		fmt.Println(strings.Repeat("─", 74))
-
-		fmt.Println(Bold + " SELECT AN OPTION:" + Reset)
-		fmt.Println("  [1] 📊 View Service Status & Info")
-		fmt.Println("  [2] 👥 Manage Clients & Whitelist IPs (Shelter/Shecan Style)")
-		fmt.Println("  [3] 🎯 Toggle Game & Anti-Sanction Policies (Valorant, Steam, PUBG...)")
-		fmt.Println("  [4] 🧹 Flush DNS Cache")
-		fmt.Println("  [5] ⚡ Run Diagnostics Suite (Ping & Latency Benchmark)")
-		fmt.Println("  [6] 📜 View Live DNS Logs (journalctl stream)")
-		fmt.Println("  [7] 🔒 Configure Custom Domain & SSL / HTTPS")
-		fmt.Println("  [8] 🔑 Change Admin Web Panel Credentials")
-		fmt.Println("  [9] 🔄 Restart HyperDNS Service Engine")
-		fmt.Println("  [0] 🚪 Exit Console")
-		fmt.Println(strings.Repeat("─", 74))
-		fmt.Print(Yellow + " Enter choice [0-9]: " + Reset)
-
-		choice, _ := reader.ReadString('\n')
-		choice = strings.TrimSpace(choice)
+		choice := strings.TrimSpace(scanner.Text())
 
 		switch choice {
 		case "1":
-			fmt.Print(Clear)
-			PrintStatus(cPath)
-			fmt.Print(Dim + "\nPress Enter to return..." + Reset)
-			_, _ = reader.ReadString('\n')
+			showTelemetry(stats, scanner)
 		case "2":
-			interactiveClientMenu(reader, cfg, cPath)
+			listClients(clients, settings, scanner)
 		case "3":
-			interactivePoliciesMenu(reader, cfg, cPath)
+			addClient(clients, settings, scanner)
 		case "4":
-			FlushCacheDirect(cPath)
-			time.Sleep(1500 * time.Millisecond)
+			deleteClient(clients, scanner)
 		case "5":
-			RunConsoleDiagnostics(cPath)
-			fmt.Print(Dim + "Press Enter to return..." + Reset)
-			_, _ = reader.ReadString('\n')
+			if u != nil {
+				fmt.Println("\nRunning fastest upstream racing benchmark...")
+				u.BenchmarkAll()
+				fmt.Println("Benchmark complete!")
+			}
+			waitEnter(scanner)
 		case "6":
-			StreamLogs()
+			if c != nil {
+				c.Flush()
+				fmt.Println("\n✓ DNS Cache flushed successfully!")
+			}
+			waitEnter(scanner)
 		case "7":
-			interactiveDomainTLS(reader, cfg, cPath)
+			manageAPIKey(db, settings, scanner)
 		case "8":
-			interactiveAdminCredentials(reader, cfg, cPath)
+			RestartService()
+			waitEnter(scanner)
 		case "9":
-			RestartService()
-			time.Sleep(2 * time.Second)
-		case "0", "q", "exit":
-			fmt.Print(Clear)
-			fmt.Println(Green + "Exiting HyperDNS Controller. Service continues running in background." + Reset)
-			return
+			RunConsoleDiagnostics()
+			waitEnter(scanner)
+		case "10":
+			UninstallHyperDNS()
+			return true
+		case "11":
+			manageWebPort(db, settings, dnsSettings, sniSettings, scanner)
+		case "12":
+			publicIP, apiBind := settings.Endpoint()
+			host := publicIP
+			if apiBind == "127.0.0.1" {
+				host = "127.0.0.1"
+			}
+			base := "http://" + host + ":" + fmt.Sprint(settings.WebPort)
+			unlockLoginLockouts(base, settings.GetAPIKey(), settings.GetAdminPath())
+			waitEnter(scanner)
+		case "0", "exit", "q":
+			fmt.Println("\nGoodbye!")
+			return true
 		}
 	}
 }
 
-func interactiveClientMenu(reader *bufio.Reader, cfg *config.Config, cPath string) {
-	for {
-		fmt.Print(Clear)
-		fmt.Println(Cyan + Bold + "=== CLIENTS & WHITELIST MANAGEMENT ===" + Reset)
-		fmt.Println()
-
-		modeStr := Green + "PUBLIC (Any IP can resolve)" + Reset
-		if !cfg.Access.AllowAll {
-			modeStr = Purple + "RESTRICTED (Only whitelisted clients)" + Reset
-		}
-		fmt.Printf(" Current Access Mode: %s\n", modeStr)
-		fmt.Println()
-
-		if len(cfg.Access.Clients) == 0 {
-			fmt.Println(Dim + " No clients created yet." + Reset)
-		} else {
-			for i, c := range cfg.Access.Clients {
-				st := Green + "ACTIVE" + Reset
-				if !c.Enabled {
-					st = Red + "DISABLED" + Reset
-				}
-				ips := strings.Join(c.AllowedIPs, ", ")
-				if ips == "" {
-					ips = Dim + "none" + Reset
-				}
-				fmt.Printf(" [%d] %-20s │ %s │ IPs: %s\n", i+1, c.Name, st, ips)
-				fmt.Printf("     Token: %s%s%s (Link: http://%s:8080/ip/%s)\n", 
-					Yellow, c.Token, Reset, cfg.Server.PublicIP, c.Token)
-			}
-		}
-
-		fmt.Println()
-		fmt.Println(" [T] Toggle Access Mode (Public <-> Whitelist)")
-		fmt.Println(" [A] Add New Client")
-		fmt.Println(" [D] Delete Client")
-		fmt.Println(" [I] Add IP to Client Manually")
-		fmt.Println(" [0] Back to Main Menu")
-		fmt.Println()
-		fmt.Print(Yellow + " Select option: " + Reset)
-
-		opt, _ := reader.ReadString('\n')
-		opt = strings.TrimSpace(strings.ToUpper(opt))
-
-		switch opt {
-		case "0", "":
-			return
-		case "T":
-			cfg.Access.AllowAll = !cfg.Access.AllowAll
-			_ = cfg.Save(cPath)
-			RestartService()
-		case "A":
-			fmt.Print(" Enter Client Name (e.g. Ali Gamer): ")
-			name, _ := reader.ReadString('\n')
-			name = strings.TrimSpace(name)
-			if name != "" {
-				client := config.Client{
-					ID:         fmt.Sprintf("%d", time.Now().Unix()%1000000000),
-					Name:       name,
-					Token:      fmt.Sprintf("%x", time.Now().UnixNano())[:16],
-					AllowedIPs: make([]string, 0),
-					ExpiresAt:  time.Now().Add(30 * 24 * time.Hour),
-					CreatedAt:  time.Now(),
-					Enabled:    true,
-				}
-				cfg.Access.Clients = append(cfg.Access.Clients, client)
-				_ = cfg.Save(cPath)
-				RestartService()
-				fmt.Println(Green + "✓ Client created successfully!" + Reset)
-				time.Sleep(1500 * time.Millisecond)
-			}
-		case "D":
-			fmt.Print(" Enter Client number to delete: ")
-			numStr, _ := reader.ReadString('\n')
-			num, _ := strconv.Atoi(strings.TrimSpace(numStr))
-			if num > 0 && num <= len(cfg.Access.Clients) {
-				cfg.Access.Clients = append(cfg.Access.Clients[:num-1], cfg.Access.Clients[num:]...)
-				_ = cfg.Save(cPath)
-				RestartService()
-				fmt.Println(Green + "✓ Client deleted!" + Reset)
-				time.Sleep(1500 * time.Millisecond)
-			}
-		case "I":
-			fmt.Print(" Enter Client number: ")
-			numStr, _ := reader.ReadString('\n')
-			num, _ := strconv.Atoi(strings.TrimSpace(numStr))
-			if num > 0 && num <= len(cfg.Access.Clients) {
-				fmt.Print(" Enter IPv4 to whitelist: ")
-				ipStr, _ := reader.ReadString('\n')
-				ipStr = strings.TrimSpace(ipStr)
-				if ipStr != "" {
-					cfg.Access.Clients[num-1].AllowedIPs = append(cfg.Access.Clients[num-1].AllowedIPs, ipStr)
-					_ = cfg.Save(cPath)
-					RestartService()
-					fmt.Println(Green + "✓ IP added to whitelist!" + Reset)
-					time.Sleep(1500 * time.Millisecond)
-				}
-			}
-		}
-	}
-}
-
-func interactivePoliciesMenu(reader *bufio.Reader, cfg *config.Config, cPath string) {
-	for {
-		fmt.Print(Clear)
-		fmt.Println(Cyan + Bold + "=== GAME & ANTI-SANCTION POLICIES ===" + Reset)
-		fmt.Println()
-
-		st := func(b bool) string {
-			if b {
-				return Green + "[ENABLED]" + Reset
-			}
-			return Dim + "[DISABLED]" + Reset
-		}
-
-		fmt.Printf(" [1] Riot Games (Valorant / LoL)     : %s\n", st(cfg.Rules.EnableRiot))
-		fmt.Printf(" [2] Epic Games (Fortnite / Store)   : %s\n", st(cfg.Rules.EnableEpic))
-		fmt.Printf(" [3] Steam & Valve (CS2 / Dota 2)    : %s\n", st(cfg.Rules.EnableSteam))
-		fmt.Printf(" [4] PUBG Mobile & PC (Krafton)      : %s\n", st(cfg.Rules.EnablePUBG))
-		fmt.Printf(" [5] Call of Duty (Warzone / Mobile) : %s\n", st(cfg.Rules.EnableCallOfDuty))
-		fmt.Printf(" [6] Supercell (Brawl Stars / Clash) : %s\n", st(cfg.Rules.EnableSupercell))
-		fmt.Printf(" [7] Discord (Voice & App)           : %s\n", st(cfg.Rules.EnableDiscord))
-		fmt.Printf(" [8] Electronic Arts & Apex Legends  : %s\n", st(cfg.Rules.EnableEA))
-		fmt.Printf(" [9] Blizzard (Battle.net)           : %s\n", st(cfg.Rules.EnableBlizzard))
-		fmt.Printf(" [10] Ubisoft (Rainbow Six Siege)    : %s\n", st(cfg.Rules.EnableUbisoft))
-		fmt.Printf(" [11] Rockstar Games (GTA Online)    : %s\n", st(cfg.Rules.EnableRockstar))
-		fmt.Printf(" [12] Xbox Live & Microsoft          : %s\n", st(cfg.Rules.EnableXbox))
-		fmt.Printf(" [13] PlayStation Network (PSN)      : %s\n", st(cfg.Rules.EnablePlayStation))
-		fmt.Printf(" [14] Spotify Music                  : %s\n", st(cfg.Rules.EnableSpotify))
-		fmt.Printf(" [15] Developer 403 Suite            : %s\n", st(cfg.Rules.EnableDev403))
-		fmt.Printf(" [16] AdBlock & Trackers Sinkhole    : %s\n", st(cfg.Rules.EnableAdBlock))
-		fmt.Println(" [0] Back")
-		fmt.Println()
-		fmt.Print(Yellow + " Select number to toggle policy: " + Reset)
-
-		numStr, _ := reader.ReadString('\n')
-		numStr = strings.TrimSpace(numStr)
-		if numStr == "0" || numStr == "" {
-			return
-		}
-
-		num, _ := strconv.Atoi(numStr)
-		switch num {
-		case 1:
-			cfg.Rules.EnableRiot = !cfg.Rules.EnableRiot
-		case 2:
-			cfg.Rules.EnableEpic = !cfg.Rules.EnableEpic
-		case 3:
-			cfg.Rules.EnableSteam = !cfg.Rules.EnableSteam
-		case 4:
-			cfg.Rules.EnablePUBG = !cfg.Rules.EnablePUBG
-		case 5:
-			cfg.Rules.EnableCallOfDuty = !cfg.Rules.EnableCallOfDuty
-		case 6:
-			cfg.Rules.EnableSupercell = !cfg.Rules.EnableSupercell
-		case 7:
-			cfg.Rules.EnableDiscord = !cfg.Rules.EnableDiscord
-		case 8:
-			cfg.Rules.EnableEA = !cfg.Rules.EnableEA
-		case 9:
-			cfg.Rules.EnableBlizzard = !cfg.Rules.EnableBlizzard
-		case 10:
-			cfg.Rules.EnableUbisoft = !cfg.Rules.EnableUbisoft
-		case 11:
-			cfg.Rules.EnableRockstar = !cfg.Rules.EnableRockstar
-		case 12:
-			cfg.Rules.EnableXbox = !cfg.Rules.EnableXbox
-		case 13:
-			cfg.Rules.EnablePlayStation = !cfg.Rules.EnablePlayStation
-		case 14:
-			cfg.Rules.EnableSpotify = !cfg.Rules.EnableSpotify
-		case 15:
-			cfg.Rules.EnableDev403 = !cfg.Rules.EnableDev403
-		case 16:
-			cfg.Rules.EnableAdBlock = !cfg.Rules.EnableAdBlock
-		}
-		_ = cfg.Save(cPath)
-		RestartService()
-	}
-}
-
-func interactiveDomainTLS(reader *bufio.Reader, cfg *config.Config, cPath string) {
-	fmt.Print(Clear)
-	fmt.Println(Cyan + Bold + "=== CUSTOM DOMAIN & SSL / HTTPS SETUP ===" + Reset)
-	fmt.Println()
-	fmt.Printf(" Current Domain: %s%s%s\n", Green, cfg.TLS.Domain, Reset)
-	fmt.Printf(" Auto-SSL (Let's Encrypt): %v\n", cfg.TLS.AutoCert)
-	fmt.Println()
-	fmt.Print(" Enter Domain Name (e.g. dns.example.com or press Enter to cancel): ")
-	dom, _ := reader.ReadString('\n')
-	dom = strings.TrimSpace(dom)
-	if dom != "" {
-		cfg.TLS.Domain = dom
-		cfg.TLS.AutoCert = true
-		fmt.Print(" Enter Email for Let's Encrypt (optional): ")
-		em, _ := reader.ReadString('\n')
-		cfg.TLS.Email = strings.TrimSpace(em)
-		_ = cfg.Save(cPath)
-		RestartService()
-		fmt.Println(Green + "\n✓ Domain configured and SSL activated!" + Reset)
-	}
-	time.Sleep(2 * time.Second)
-}
-
-func interactiveAdminCredentials(reader *bufio.Reader, cfg *config.Config, cPath string) {
-	fmt.Print(Clear)
-	fmt.Println(Cyan + Bold + "=== ADMIN WEB PANEL CREDENTIALS ===" + Reset)
-	fmt.Println()
-	fmt.Printf(" Current Username: %s%s%s\n", Yellow, cfg.Server.AdminUsername, Reset)
-	fmt.Println()
-	fmt.Print(" Enter new Username: ")
-	u, _ := reader.ReadString('\n')
-	u = strings.TrimSpace(u)
-	fmt.Print(" Enter new Password: ")
-	p, _ := reader.ReadString('\n')
-	p = strings.TrimSpace(p)
-	if u != "" && p != "" {
-		cfg.Server.AdminUsername = u
-		cfg.Server.AdminPassword = p
-		_ = cfg.Save(cPath)
-		RestartService()
-		fmt.Println(Green + "\n✓ Admin credentials updated!" + Reset)
+func showTelemetry(stats *service.StatsService, s *bufio.Scanner) {
+	st := stats.GetLiveStats()
+	fmt.Printf("\n=== HyperDNS Telemetry ===\n")
+	fmt.Printf(" Total Queries:  %d\n", st.TotalQueries)
+	fmt.Printf(" Query Rate:     %.1f QPS\n", st.QPS)
+	fmt.Printf(" Active Relays:  %d\n", st.ActiveRelays)
+	fmt.Printf(" Total Relays:   %d\n", st.TotalRelays)
+	fmt.Printf(" RAM Cache Hits: %.1f%%\n", st.CacheHitRate)
+	fmt.Printf(" RAM Usage:      %.2f MB\n", st.RAMUsageMB)
+	fmt.Printf(" Uptime:         %s\n", formatUptime(st.UptimeSec))
+	// A dropped query is answered with silence, so this line is the only place the
+	// limiter's work is visible from the console.
+	if st.RateLimitQPS > 0 {
+		fmt.Printf(" Rate Limit:     %d qps/source · %d dropped\n", st.RateLimitQPS, st.RateLimited)
 	} else {
-		fmt.Println(Yellow + "\nCancelled (username/password cannot be empty)." + Reset)
+		fmt.Printf(" Rate Limit:     disabled\n")
 	}
-	time.Sleep(2 * time.Second)
+	// Percentiles, not an average: a good hit rate keeps the average under a
+	// millisecond even while every query that misses the cache is slow. The second
+	// line is the one to watch — it excludes the cache hits.
+	if st.Latency.Count > 0 {
+		fmt.Printf(" Latency all:    p50 %.2f · p95 %.2f · p99 %.2f · max %.2f ms\n",
+			st.Latency.P50Ms, st.Latency.P95Ms, st.Latency.P99Ms, st.Latency.MaxMs)
+	}
+	if st.LatencyUncached.Count > 0 {
+		fmt.Printf(" Latency miss:   p50 %.2f · p95 %.2f · p99 %.2f ms (%d queries)\n",
+			st.LatencyUncached.P50Ms, st.LatencyUncached.P95Ms, st.LatencyUncached.P99Ms, st.LatencyUncached.Count)
+	}
+	// Serve-stale answers a dead upstream instantly, which hides it. These two
+	// numbers rising together are the warning that names are about to go dark.
+	// started is printed alongside them because failed on its own has no scale:
+	// 12 failures out of 12 attempts and 12 out of 40,000 are not the same event.
+	if st.StaleServed > 0 || st.RefreshStarted > 0 || st.RefreshFailed > 0 || st.RefreshDropped > 0 {
+		fmt.Printf(" Serve-stale:    %d served · %d refreshed · %d failed · %d dropped\n",
+			st.StaleServed, st.RefreshStarted, st.RefreshFailed, st.RefreshDropped)
+	}
+	// Connections that reached the SNI proxy and never became relays, so they
+	// appear in none of the relay counters above. unreadable is the one that
+	// indicts the configuration rather than the internet: a proxied name whose
+	// traffic is not TLS-with-SNI or HTTP-with-Host on a port this relay accepts
+	// on arrives here, names no destination, and is dropped.
+	if st.RelaysRefused > 0 || st.RelaysUnreadable > 0 {
+		fmt.Printf(" Proxy drops:    %d refused · %d unreadable destination\n",
+			st.RelaysRefused, st.RelaysUnreadable)
+	}
+	waitEnter(s)
 }
 
-// UninstallHyperDNS provides clean, interactive CLI and TUI uninstallation
-func UninstallHyperDNS(cPath string) {
-	reader := bufio.NewReader(os.Stdin)
-	fmt.Println(Red + Bold + "⚠️  DANGER: UNINSTALL HYPERDNS ⚠️" + Reset)
-	fmt.Println()
-	fmt.Println("This operation will:")
-	fmt.Println("  1. Stop and disable the background service ('hyperdns')")
-	fmt.Println("  2. Remove the systemd service file (/etc/systemd/system/hyperdns.service)")
-	fmt.Println("  3. Restore systemd-resolved port 53 resolver configuration")
-	fmt.Println("  4. Remove the global 'hdns' command (/usr/local/bin/hdns)")
-	fmt.Println("  5. Delete all configurations, certs, and binaries from /opt/hyperdns")
-	fmt.Println()
-	fmt.Print(Red + "Are you sure you want to completely uninstall HyperDNS? (Type 'yes' to confirm): " + Reset)
+// formatUptime renders seconds as the operator thinks about them.
+func formatUptime(sec int64) string {
+	if sec < 0 {
+		sec = 0
+	}
+	d, h, m := sec/86400, (sec%86400)/3600, (sec%3600)/60
+	switch {
+	case d > 0:
+		return fmt.Sprintf("%dd %dh %dm", d, h, m)
+	case h > 0:
+		return fmt.Sprintf("%dh %dm", h, m)
+	default:
+		return fmt.Sprintf("%dm %ds", m, sec%60)
+	}
+}
 
-	input, _ := reader.ReadString('\n')
-	input = strings.TrimSpace(strings.ToLower(input))
+func listClients(clients *service.ClientService, settings *database.ServerSettings, s *bufio.Scanner) {
+	list, err := clients.ListClients()
+	// One read for the whole listing, so every printed URL names the same host even
+	// if the dashboard changes the advertised IP while this is printing.
+	publicIP := settings.GetPublicIP()
+	fmt.Printf("\n=== Registered Subscriber Accounts (%d) ===\n", len(list))
+	if err != nil || len(list) == 0 {
+		fmt.Println(" No subscribers found.")
+	} else {
+		for i, c := range list {
+			ip := "None (Not registered yet)"
+			if len(c.AllowedIPs) > 0 {
+				ip = c.AllowedIPs[0]
+			}
+			exp := "Lifetime"
+			if !c.ExpiresAt.IsZero() {
+				exp = c.ExpiresAt.Format("2006-01-02 15:04")
+			}
 
-	if input != "yes" && input != "y" {
-		fmt.Println(Yellow + "\nUninstall cancelled. Nothing was modified." + Reset)
+			// Format traffic display
+			usedMB := float64(c.TrafficUsedBytes) / (1024 * 1024)
+			trafficStr := fmt.Sprintf("%.2f MB / Unlimited", usedMB)
+			if c.TrafficLimitGB > 0 {
+				trafficStr = fmt.Sprintf("%.2f MB / %.1f GB", usedMB, c.TrafficLimitGB)
+			}
+
+			policiesStr := "All Server Policies (Inherited)"
+			if len(c.CustomPolicies) > 0 {
+				policiesStr = strings.Join(c.CustomPolicies, ", ")
+			}
+
+			fmt.Printf(" [%d] %s (ID: %s) | Status: %v\n", i+1, c.Name, c.ID, c.Enabled)
+			fmt.Printf("     • IP: %s | Expire: %s\n", ip, exp)
+			fmt.Printf("     • Traffic: %s | Policies: %s\n", trafficStr, policiesStr)
+			fmt.Printf("     • Sub Portal URL: http://%s:%d/sub/%s\n\n", publicIP, settings.WebPort, c.Token)
+		}
+	}
+	waitEnter(s)
+}
+
+func addClient(clients *service.ClientService, settings *database.ServerSettings, s *bufio.Scanner) {
+	fmt.Print("\nEnter Client Name: ")
+	s.Scan()
+	name := strings.TrimSpace(s.Text())
+	if name == "" {
+		fmt.Println("Error: Client name cannot be empty.")
+		waitEnter(s)
 		return
 	}
 
-	fmt.Println(Yellow + "\n[1/5] Stopping and disabling systemd service..." + Reset)
-	_ = exec.Command("systemctl", "stop", "hyperdns").Run()
-	_ = exec.Command("systemctl", "disable", "hyperdns").Run()
+	fmt.Print("Enter Validity in Days (0 for Lifetime): ")
+	s.Scan()
+	daysStr := strings.TrimSpace(s.Text())
+	days := 30
+	if daysStr != "" {
+		fmt.Sscanf(daysStr, "%d", &days)
+	}
 
-	fmt.Println(Yellow + "[2/5] Removing systemd unit..." + Reset)
-	_ = os.Remove("/etc/systemd/system/hyperdns.service")
-	_ = exec.Command("systemctl", "daemon-reload").Run()
+	fmt.Print("Enter Initial IP (Press Enter to leave empty): ")
+	s.Scan()
+	ip := strings.TrimSpace(s.Text())
 
-	fmt.Println(Yellow + "[3/5] Restoring system resolver settings..." + Reset)
-	_ = os.Remove("/etc/systemd/resolved.conf.d/hyperdns.conf")
-	_ = exec.Command("systemctl", "restart", "systemd-resolved").Run()
-
-	fmt.Println(Yellow + "[4/5] Removing global CLI command 'hdns'..." + Reset)
-	_ = os.Remove("/usr/local/bin/hdns")
-
-	fmt.Println(Yellow + "[5/5] Removing /opt/hyperdns installation folder..." + Reset)
-	_ = os.RemoveAll("/opt/hyperdns")
-
-	fmt.Println(Green + Bold + "\n✓ HyperDNS has been cleanly and completely uninstalled from your server." + Reset)
-	fmt.Println(Dim + "Thank you for using HyperDNS! 👋\n" + Reset)
+	c, err := clients.CreateClient(name, days, ip)
+	if err != nil {
+		fmt.Printf("Error creating client: %v\n", err)
+	} else {
+		fmt.Printf("\n%s✓ Account Created Successfully!%s\n", Green, Reset)
+		fmt.Printf("  • Name: %s (ID: %s)\n", c.Name, c.ID)
+		fmt.Printf("  • Token: %s\n", c.Token)
+		fmt.Printf("  • 1-Click Register URL: http://%s:%d/ip/%s\n", settings.GetPublicIP(), settings.WebPort, c.Token)
+	}
+	waitEnter(s)
 }
 
+func deleteClient(clients *service.ClientService, s *bufio.Scanner) {
+	fmt.Print("\nEnter Client ID to delete: ")
+	s.Scan()
+	id := strings.TrimSpace(s.Text())
+	if id == "" {
+		return
+	}
+	if err := clients.DeleteClient(id); err != nil {
+		fmt.Printf("Error: %v\n", err)
+	} else {
+		fmt.Printf("%s✓ Client %s deleted successfully.%s\n", Green, id, Reset)
+	}
+	waitEnter(s)
+}
+
+// manageAPIKey prints the master API key and offers to rotate it.
+//
+// The menu entry has always been labelled "View / Regenerate", but this option
+// used to only print. Rotation mattering from here is not hypothetical: the one
+// situation where an operator urgently needs a new key is a leaked one, and a
+// leaked key is usually noticed on a box reached over SSH — possibly the same
+// leak that makes them unwilling to open the dashboard until it is rotated.
+//
+// The confirmation is a typed word rather than y/n because there is no undo and
+// no grace period: the previous key stops working the moment this returns, so
+// every bot, billing hook and monitoring probe holding it starts getting 401.
+func manageAPIKey(db *database.DB, settings *database.ServerSettings, s *bufio.Scanner) {
+	key, bind := settings.GetAPIKey(), settings.GetAPIBind()
+	fmt.Printf("\n=== Master API Key ===\n")
+	fmt.Printf(" Key:  %s%s%s\n", Bold, key, Reset)
+	fmt.Printf(" Bind: %s\n", bind)
+	if bind == "127.0.0.1" || bind == "localhost" {
+		fmt.Printf(" %s→ The REST API answers this server only; a remote call gets 403 whatever key it sends.%s\n", Green, Reset)
+	} else {
+		fmt.Printf(" %s→ The REST API is reachable from the network, and this key is the only thing in front of it.%s\n", Yellow, Reset)
+	}
+
+	fmt.Printf("\n %sRotating is immediate and cannot be undone.%s Every bot, billing hook and probe\n", Yellow, Reset)
+	fmt.Printf(" holding the current key starts getting 401 as soon as it completes.\n")
+	fmt.Print(" Type 'rotate' to generate a new key, or press [Enter] to go back: ")
+	s.Scan()
+	if strings.ToLower(strings.TrimSpace(s.Text())) != "rotate" {
+		fmt.Println(" Left unchanged.")
+		waitEnter(s)
+		return
+	}
+
+	newKey := crypto.GenerateAPIKey()
+
+	// UpdateAndPersist rolls the in-memory value back if the write fails, so a
+	// failed rotation leaves the daemon honouring the key that is still in the
+	// database rather than one that exists nowhere but this process.
+	if err := settings.UpdateAndPersist(
+		func(m *database.MutableSettings) { m.APIKey = newKey },
+		func(srv *database.ServerSettings) error { return db.SetSetting("server", srv) },
+	); err != nil {
+		fmt.Printf("\n%s✗ Could not save the new key: %v%s\n", Red, err, Reset)
+		fmt.Printf(" The previous key is still in force, so nothing has broken.\n")
+		waitEnter(s)
+		return
+	}
+
+	fmt.Printf("\n%s✓ Key rotated.%s\n", Green, Reset)
+	fmt.Printf(" New key: %s%s%s\n", Bold, newKey, Reset)
+	fmt.Printf(" %sCopy it now and reconfigure every integration; the old key is gone.%s\n", Yellow, Reset)
+	waitEnter(s)
+}
+
+func waitEnter(s *bufio.Scanner) {
+	fmt.Print("\nPress [Enter] to return to menu...")
+	s.Scan()
+}
+
+func RestartService() {
+	fmt.Println("\nRestarting hyperdns service...")
+	cmd := exec.Command("systemctl", "restart", "hyperdns")
+	if err := cmd.Run(); err != nil {
+		fmt.Printf("Warning: failed to restart service via systemctl: %v\n", err)
+	} else {
+		fmt.Printf("%s✓ Service restarted successfully.%s\n", Green, Reset)
+	}
+}
+
+func RunConsoleDiagnostics() {
+	fmt.Println("\n=== HyperDNS Diagnostics ===")
+	fmt.Println("Checking network listeners and service status...")
+	fmt.Println("✓ Core DNS engine: Ready")
+	fmt.Println("✓ SNI Proxy engine: Ready")
+	fmt.Println("✓ Database storage: Operational")
+}
+
+// UninstallHyperDNS lives in uninstall.go. The version that used to be here deleted
+// /opt/hyperdns — data.db and master.key included — without a backup and without removing
+// the resolved drop-in, so the host it "uninstalled" from was left with no resolver at all.

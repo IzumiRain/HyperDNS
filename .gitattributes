@@ -1,0 +1,49 @@
+# Force LF line endings for scripts, service units, and text docs.
+# CRLF breaks shell shebangs (e.g. bash\r) on Linux and corrupts systemd units,
+# so these must always be checked out / committed with LF regardless of platform.
+*.sh      text eol=lf
+*.service text eol=lf
+*.txt     text eol=lf
+*.md      text eol=lf
+
+# JSON/Go are also safest with LF to keep go:embed byte-identical across OS.
+*.json    text eol=lf
+*.go      text eol=lf
+
+# The dashboard and the subscriber portal are compiled into the binary by go:embed,
+# which reads the working tree rather than the index — so without these three lines a
+# Windows build serves CRLF assets and a Linux build serves LF ones from the same
+# commit. Every asset's length, hash and ETag would then depend on who ran the build,
+# and the tests that read the embedded files would behave differently per platform.
+*.html    text eol=lf
+*.js      text eol=lf
+*.css     text eol=lf
+
+# Workflow files are parsed by a Linux runner, and a Dockerfile by a Linux daemon.
+*.yml     text eol=lf
+*.yaml    text eol=lf
+
+# Never transformed. The heuristic that guesses text from binary is reliable for these
+# in practice, but "in practice" is not what should stand between an encrypted client
+# database — or a 32-byte master key — and an end-of-line conversion pass.
+*.db      binary
+*.bak     binary
+*.key     binary
+*.pem     binary
+*.png     binary
+*.jpg     binary
+*.ico     binary
+*.gz      binary
+*.zip     binary
+*.exe     binary
+
+# Webfonts, for the same reason and one more. A woff2 is a Brotli stream inside a
+# container with a declared length; change a single byte and the browser does not
+# render it badly, it rejects the whole file and falls back silently. Combined with the
+# *.css eol=lf rule above — which exists because go:embed reads the working tree — a
+# mis-detected font would make the panel look correct on the machine that committed it
+# and wrong everywhere else, with nothing in any log to say so.
+*.woff2   binary
+*.woff    binary
+*.ttf     binary
+*.otf     binary

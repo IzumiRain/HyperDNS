@@ -1,104 +1,236 @@
 <!DOCTYPE html>
-<html lang="en" class="dark">
+<!-- lang, dir, class and data-theme are all rewritten by the inline script in <head>
+     before the first paint. The literals here are the no-JavaScript / private-mode
+     fallback, and they are the dark English panel this project shipped as 1.2. -->
+<html lang="en" dir="ltr" class="dark" data-theme="dark">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <!-- maximum-scale=1 and user-scalable=no used to be here. Both are removed on purpose:
+       together they disabled pinch-zoom on every Android and iOS browser, which is a WCAG
+       1.4.4 failure and, on this panel specifically, the thing that made 10px monospace
+       tokens and UUIDs unreadable on a phone with no way to enlarge them. Nothing here
+       needs zoom suppressed — the layout is responsive rather than fixed-width. -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <!-- Tells the browser to render its own widgets (scrollbars, form controls, the
+       autofill dropdown) in the theme actually in force. Kept in sync with the
+       data-theme attribute below by app.js. -->
+  <meta name="color-scheme" content="dark light">
   <title>HyperDNS — Next-Gen Gaming & Anti-Sanction SmartDNS Controller</title>
-  <!-- Tailwind CSS CDN -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  <!-- Feather Icons Reliable CDN -->
-  <script src="https://cdn.jsdelivr.net/npm/feather-icons/dist/feather.min.js"></script>
-  <!-- Chart.js CDN -->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-  <!-- Custom CSS -->
-  <link rel="stylesheet" href="/css/style.css">
+  <!-- A drawn mark rather than the ⚡ emoji this used to be. An emoji favicon is rendered
+       by the platform's emoji font, so the tab showed a different glyph on every OS — flat
+       yellow on Windows, a blue-grey bolt on macOS, nothing at all in some Linux builds —
+       and none of them were this panel's colours. The data: URI keeps it request-free.
+       %22 for the quotes and %23 for the # are required: both are URL-significant here. -->
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22><rect width=%2232%22 height=%2232%22 rx=%227%22 fill=%22%230b1220%22/><path d=%22M18.7 3.5 8 18.4h5.6L11.8 28.5 24 13.2h-6.1z%22 fill=%22%2300f0ff%22/></svg>">
+  <!-- Theme and language are applied before the first paint, ahead of every other
+       script and the stylesheet, so the panel never renders one theme and then flips.
+       Inlined rather than imported for the same reason: an external module would be a
+       second round trip, and the flash it would cause is exactly what this prevents.
+       app.js owns the toggles afterwards; this only restores what was chosen last. -->
   <script>
-    tailwind.config = {
-      darkMode: 'class',
-      theme: {
-        extend: {
-          colors: {
-            cyan: { 400: '#00f0ff', 500: '#00d2df' },
-            slate: { 900: '#060913', 800: '#0d1426', 700: '#16213e' }
-          }
+    (function () {
+      try {
+        var t = localStorage.getItem('hyperdns_theme');
+        if (t !== 'light' && t !== 'dark') {
+          t = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
         }
-      }
-    }
+        var l = localStorage.getItem('hyperdns_lang');
+        if (l !== 'fa' && l !== 'en') l = 'en';
+        var h = document.documentElement;
+        h.setAttribute('data-theme', t);
+        h.classList.toggle('dark', t === 'dark');
+        h.setAttribute('lang', l);
+        h.setAttribute('dir', l === 'fa' ? 'rtl' : 'ltr');
+      } catch (e) { /* private mode: the markup's own defaults stand */ }
+    })();
   </script>
+  <!-- Purged, committed Tailwind stylesheet (v2.1): the Play CDN JIT engine and
+       its 397 KB + 'unsafe-eval' cost are gone. The utility set was compiled
+       ahead of time by tools/tailwind.config.js (dev machine only — the output
+       is committed, so no Node runs at build or deploy time). The compile scans
+       index.html, app.js and i18n.js, and safelists the state classes app.js
+       concatenates from variables at runtime. When markup or JS gains new
+       utility classes, re-run the compile and commit the result. -->
+  <link rel="stylesheet" href="/css/tailwind.purged.css">
+  
+  <!-- Local Vendor Scripts & Styles -->
+  <script src="/js/feather.min.js"></script>
+  <script src="/js/chart.umd.min.js"></script>
+  <link rel="stylesheet" href="/css/style.css">
+  <style>
+    .skip-link {
+      position: fixed;
+      inset-block-start: .75rem;
+      inset-inline-start: .75rem;
+      z-index: 100;
+      transform: translateY(-200%);
+      border: 2px solid #22d3ee;
+      border-radius: .5rem;
+      background: #020617;
+      color: #e2e8f0;
+      padding: .65rem 1rem;
+      font-weight: 700;
+    }
+    .skip-link:focus { transform: translateY(0); }
+  </style>
 </head>
 <body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col md:flex-row selection:bg-cyan-500 selection:text-slate-950">
+  <a href="#main-content" class="skip-link">Skip to main content</a>
 
   <!-- TOAST NOTIFICATION CONTAINER -->
-  <div id="toast-container" class="fixed bottom-20 md:bottom-6 right-4 sm:right-6 z-50 flex flex-col gap-2 pointer-events-none max-w-sm w-full"></div>
+  <!-- role/aria-live so a screen reader announces the toast. Every result the
+       dashboard reports for a mutation - including the reason a request was refused -
+       arrives only as a toast, so without this the outcome of an action is invisible
+       to anyone not watching the bottom-right corner. "polite" rather than
+       "assertive": a toast should not cut off whatever is being read. -->
+  <div id="toast-container" role="status" aria-live="polite" aria-atomic="false"
+    class="fixed bottom-20 md:bottom-6 end-4 sm:end-6 z-50 flex flex-col gap-2 pointer-events-none max-w-sm w-full"></div>
 
-  <!-- LOGIN OVERLAY -->
-  <div id="login-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md px-4 hidden">
-    <div class="glass-panel p-6 sm:p-8 w-full max-w-md border border-cyan-500/30">
+  <!-- LOGIN OVERLAY. No data-modal-close: this is the authentication gate, so there is
+       nothing behind it to dismiss to. aria-modal is still honest here because app.js traps
+       Tab inside the panel — without that, tabbing out reaches the dashboard's own controls
+       while the operator is still unauthenticated. -->
+  <div id="login-modal" role="dialog" aria-modal="true" aria-labelledby="login-title"
+    class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md px-4 hidden">
+    <!-- Capped like the rest. Short here means landscape more than small: a 568×320 phone gives
+         the panel less height than it needs, and this is the gate — an unreachable SIGN IN button
+         is the whole dashboard, not one form. -->
+    <div class="glass-panel p-6 sm:p-8 w-full max-w-md max-h-[90vh] overflow-y-auto border border-cyan-500/30">
       <div class="flex items-center gap-3 mb-6">
-        <div class="w-10 h-10 rounded-xl bg-cyan-500/20 flex items-center justify-center text-cyan-400 border border-cyan-500/30">
+        <div class="w-10 h-10 rounded-xl bg-cyan-500/20 flex items-center justify-center text-cyan-400 border border-cyan-500/30 shrink-0">
           <i data-feather="shield"></i>
         </div>
-        <div>
-          <h2 class="text-xl font-bold text-white tracking-wider font-heading">HyperDNS</h2>
+        <div class="flex-1 min-w-0">
+          <h1 id="login-title" class="text-xl font-bold text-white tracking-wider font-heading">HyperDNS</h1>
           <p class="text-xs text-cyan-400 font-mono">STANDALONE CONTROLLER</p>
+        </div>
+        <!-- The gate needs its own pair. Everything else on this screen is behind the
+             login, so an operator who cannot read the English form has no way to reach
+             the sidebar switch that would translate it. -->
+        <div class="flex items-center gap-1.5 shrink-0">
+          <div class="flex items-center gap-0.5 p-0.5 rounded-lg bg-slate-950/80 border border-slate-700" role="group" aria-label="Interface language">
+            <!-- Same 26px floor as the mobile header's pair, for the same reason: the login
+                 screen is the first thing a phone sees, and a 20px pill is the smallest thing
+                 on it. See the comment on that copy for the WCAG 2.5.8 arithmetic. -->
+            <button type="button" data-lang-btn="en" aria-pressed="true" lang="en"
+              class="lang-btn inline-flex items-center justify-center min-h-[26px] min-w-[26px] px-1.5 rounded-md text-[10px] font-bold font-mono leading-none transition" data-no-i18n>EN</button>
+            <button type="button" data-lang-btn="fa" aria-pressed="false" lang="fa"
+              class="lang-btn inline-flex items-center justify-center min-h-[26px] min-w-[26px] px-1.5 rounded-md text-[10px] font-bold leading-none transition" data-no-i18n>فا</button>
+          </div>
+          <button type="button" data-theme-toggle aria-pressed="false"
+            class="p-1.5 rounded-lg bg-slate-950/80 text-slate-400 hover:text-amber-300 border border-slate-700 transition"
+            title="Switch to light theme" aria-label="Switch to light theme">
+            <i data-feather="moon" class="w-4 h-4"></i>
+          </button>
         </div>
       </div>
       <form id="login-form" class="space-y-4">
         <div>
-          <label class="block text-xs font-semibold text-slate-400 mb-1">ADMIN USERNAME</label>
-          <input type="text" id="login-username" value="admin" required
+          <label for="login-username" class="block text-xs font-semibold text-slate-400 mb-1">ADMIN USERNAME</label>
+          <input type="text" id="login-username" value="admin" required autocomplete="username"
             class="w-full px-4 py-2.5 rounded-lg bg-slate-950/80 border border-slate-700 text-white focus:outline-none focus:border-cyan-400 text-sm font-mono">
         </div>
         <div>
-          <label class="block text-xs font-semibold text-slate-400 mb-1">PASSWORD</label>
-          <input type="password" id="login-password" value="admin" required
+          <label for="login-password" class="block text-xs font-semibold text-slate-400 mb-1">PASSWORD</label>
+          <input type="password" id="login-password" required autocomplete="current-password"
+            placeholder="Enter your admin password"
+            class="w-full px-4 py-2.5 rounded-lg bg-slate-950/80 border border-slate-700 text-white focus:outline-none focus:border-cyan-400 text-sm font-mono">
+        </div>
+        <!-- v2.1: the second factor. Hidden until the server says the account
+             carries one; typing a code when 2FA is off is harmless either way. -->
+        <div id="login-2fa-row" class="hidden">
+          <label for="login-code" class="block text-xs font-semibold text-slate-400 mb-1">TWO-FACTOR CODE</label>
+          <input type="text" id="login-code" inputmode="numeric" maxlength="6" autocomplete="one-time-code"
+            placeholder="6-digit code"
             class="w-full px-4 py-2.5 rounded-lg bg-slate-950/80 border border-slate-700 text-white focus:outline-none focus:border-cyan-400 text-sm font-mono">
         </div>
         <div id="login-error" class="text-xs text-red-400 hidden">Invalid username or password.</div>
         <button type="submit"
-          class="w-full py-3 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-bold rounded-lg transition duration-200 shadow-lg shadow-cyan-500/20 text-sm font-heading">
+          class="w-full py-3 bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-400 text-slate-950 font-bold rounded-lg transition duration-200 shadow-lg shadow-cyan-500/20 text-sm font-heading">
           AUTHENTICATE & ACCESS
         </button>
       </form>
     </div>
   </div>
 
-  <!-- FIRST-TIME DEFAULT PASSWORD CHANGE MODAL -->
-  <div id="change-pwd-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md px-4 hidden">
-    <div class="glass-panel p-6 sm:p-8 w-full max-w-md border border-amber-500/40 shadow-2xl shadow-amber-500/10">
+  <!-- ADMIN CREDENTIAL CHANGE MODAL (forced when the password is weak, voluntary from Settings).
+       data-modal-close names the CANCEL button, which showChangePwdModal hides in forced mode —
+       so Escape and a backdrop click dismiss this modal exactly when the button is on screen,
+       and are a no-op when the weak password leaves nothing safe to cancel back to. -->
+  <div id="change-pwd-modal" role="dialog" aria-modal="true" aria-labelledby="change-pwd-title"
+    aria-describedby="change-pwd-intro" data-modal-close="change-pwd-cancel"
+    class="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md px-4 hidden">
+    <!-- max-h/overflow-y is not cosmetic on this one. The panel is a form with five fields, two
+         hint blocks and two buttons, and the backdrop centres it — so on a short viewport it
+         overflowed off BOTH ends, putting SAVE out of reach with nothing to scroll. This is also
+         the modal that cannot be dismissed when it is forced, so an operator opening the
+         dashboard on a phone with a weak password had no way forward and no way out. -->
+    <div class="glass-panel p-6 sm:p-8 w-full max-w-md max-h-[90vh] overflow-y-auto border border-amber-500/40 shadow-2xl shadow-amber-500/10">
       <div class="flex items-center gap-3 mb-4">
         <div class="w-10 h-10 rounded-xl bg-amber-500/20 flex items-center justify-center text-amber-400 border border-amber-500/30">
-          <i data-feather="alert-triangle"></i>
+          <i data-feather="alert-triangle" id="change-pwd-icon"></i>
         </div>
         <div>
-          <h2 class="text-lg font-bold text-white tracking-wide font-heading">Security Setup</h2>
-          <p class="text-xs text-amber-400 font-mono">DEFAULT PASSWORD DETECTED</p>
+          <h2 id="change-pwd-title" class="text-lg font-bold text-white tracking-wide font-heading">Security Setup</h2>
+          <p id="change-pwd-badge" class="text-xs text-amber-400 font-mono">WEAK ADMIN PASSWORD DETECTED</p>
         </div>
       </div>
-      <p class="text-xs text-slate-300 leading-relaxed mb-6">
-        You are currently using default credentials (<code class="text-amber-300 font-bold">admin / admin</code>). Please configure a new administrator password:
+      <p id="change-pwd-intro" class="text-xs text-slate-300 leading-relaxed mb-6">
+        This account is still on a password that fails the current policy. Anyone who
+        can reach this dashboard may be able to log in with it. Set a new
+        administrator password now:
       </p>
       <form id="change-pwd-form" class="space-y-4">
         <div>
-          <label class="block text-xs font-semibold text-slate-400 mb-1">NEW ADMIN USERNAME</label>
-          <input type="text" id="new-admin-user" value="admin" required
+          <label class="block text-xs font-semibold text-slate-400 mb-1" for="current-admin-pass">CURRENT PASSWORD</label>
+          <input type="password" id="current-admin-pass" placeholder="Confirm with your current password" required
+            autocomplete="current-password"
             class="w-full px-4 py-2.5 rounded-lg bg-slate-950/80 border border-slate-700 text-white focus:outline-none focus:border-amber-400 text-sm font-mono">
         </div>
         <div>
-          <label class="block text-xs font-semibold text-slate-400 mb-1">NEW PASSWORD</label>
-          <input type="password" id="new-admin-pass" placeholder="Enter secure password" required minlength="4"
+          <label class="block text-xs font-semibold text-slate-400 mb-1" for="new-admin-user">NEW ADMIN USERNAME</label>
+          <input type="text" id="new-admin-user" value="admin" required autocomplete="username" maxlength="64"
             class="w-full px-4 py-2.5 rounded-lg bg-slate-950/80 border border-slate-700 text-white focus:outline-none focus:border-amber-400 text-sm font-mono">
         </div>
-        <button type="submit"
-          class="w-full py-3 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 text-slate-950 font-bold rounded-lg transition duration-200 shadow-lg shadow-amber-500/20 text-sm font-heading">
-          SAVE NEW CREDENTIALS
-        </button>
+        <div>
+          <label class="block text-xs font-semibold text-slate-400 mb-1" for="new-admin-pass">NEW PASSWORD</label>
+          <input type="password" id="new-admin-pass" placeholder="At least 10 characters" required minlength="10" maxlength="256"
+            autocomplete="new-password"
+            class="w-full px-4 py-2.5 rounded-lg bg-slate-950/80 border border-slate-700 text-white focus:outline-none focus:border-amber-400 text-sm font-mono">
+          <p class="mt-1.5 text-[11px] text-slate-500 leading-relaxed">
+            At least 10 characters, not a common password, and not the same as the username.
+            A short passphrase of unrelated words is both stronger and easier to type.
+          </p>
+        </div>
+        <!-- v2.1.0 (B-04 remediation): hidden until the server says 2FA is on. The
+             rotation endpoint requires a current code with the credentials, and the
+             modal used to have nowhere to put one — every save 401'd. -->
+        <div id="change-pwd-2fa-row" class="hidden">
+          <label class="block text-xs font-semibold text-slate-400 mb-1" for="change-pwd-code">TWO-FACTOR CODE</label>
+          <input type="text" id="change-pwd-code" inputmode="numeric" maxlength="6" autocomplete="one-time-code"
+            placeholder="6-digit code"
+            class="w-full px-4 py-2.5 rounded-lg bg-slate-950/80 border border-slate-700 text-white focus:outline-none focus:border-amber-400 text-sm font-mono">
+        </div>
+        <div class="flex gap-3">
+          <!-- Hidden while the modal is forced by a weak password: there is nothing
+               safe to cancel back to. Shown when opened from Settings. -->
+          <button type="button" id="change-pwd-cancel"
+            class="hidden px-4 py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold rounded-lg transition duration-200 text-sm font-heading">
+            CANCEL
+          </button>
+          <button type="submit"
+            class="flex-1 py-3 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 text-slate-950 font-bold rounded-lg transition duration-200 shadow-lg shadow-amber-500/20 text-sm font-heading">
+            SAVE NEW CREDENTIALS
+          </button>
+        </div>
       </form>
     </div>
   </div>
 
   <!-- SERVER DIAGNOSTICS & POLICY TEST SUITE MODAL -->
-  <div id="diagnostics-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md px-3 sm:px-4 hidden">
+  <div id="diagnostics-modal" role="dialog" aria-modal="true" aria-labelledby="diagnostics-title"
+    data-modal-close="close-diagnostics-btn"
+    class="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md px-3 sm:px-4 hidden">
     <div class="glass-panel p-4 sm:p-6 w-full max-w-2xl border border-cyan-500/40 shadow-2xl max-h-[90vh] flex flex-col">
       <div class="flex items-center justify-between pb-3 sm:pb-4 border-b border-slate-800">
         <div class="flex items-center gap-2.5 sm:gap-3">
@@ -106,11 +238,11 @@
             <i data-feather="check-circle" class="w-5 h-5"></i>
           </div>
           <div>
-            <h2 class="text-sm sm:text-base font-bold text-white font-heading">Gaming Diagnostic Suite</h2>
+            <h2 id="diagnostics-title" class="text-sm sm:text-base font-bold text-white font-heading">Gaming Diagnostic Suite</h2>
             <p class="text-[11px] text-slate-400">Verifying VPS route latency & handshake</p>
           </div>
         </div>
-        <button id="close-diagnostics-btn" class="text-slate-400 hover:text-white p-1">
+        <button id="close-diagnostics-btn" aria-label="Close diagnostics" class="text-slate-400 hover:text-white p-1">
           <i data-feather="x" class="w-5 h-5"></i>
         </button>
       </div>
@@ -123,75 +255,510 @@
             <div id="diag-score" class="text-2xl sm:text-3xl font-extrabold font-heading text-emerald-400 mt-0.5">--%</div>
             <div id="diag-quality" class="text-[11px] font-semibold text-cyan-400 mt-0.5">Ready to test</div>
           </div>
-          <button id="rerun-diagnostics-btn" class="px-3 sm:px-4 py-2 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-bold rounded-lg text-xs font-heading flex items-center gap-1.5 transition whitespace-nowrap">
+          <button id="rerun-diagnostics-btn" class="px-3 sm:px-4 py-2 bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-400 text-slate-950 font-bold rounded-lg text-xs font-heading flex items-center gap-1.5 transition whitespace-nowrap">
             <i data-feather="play" class="w-3.5 h-3.5"></i> Run Test
           </button>
         </div>
 
-        <!-- Diagnostic Items List -->
-        <div id="diag-items-list" class="space-y-1.5 max-h-72 overflow-y-auto pr-1">
-          <div class="text-xs text-slate-500 text-center py-6">Click "Run Test" to benchmark routes to Riot, Epic, Steam, Discord, PUBG, CoD, and EA.</div>
+        <!-- Diagnostic Items List. The eight names here are the targets handleDiagnosticsRun
+             actually dials; the copy used to list "PUBG, CoD, and EA" and omit Battle.net and
+             Spotify, which is a claim about what was measured rather than a label. -->
+        <div id="diag-items-list" class="space-y-1.5 max-h-72 overflow-y-auto pe-1">
+          <div class="text-xs text-slate-500 text-center py-6">Click "Run Test" to benchmark routes to Riot, Epic, Steam, Discord, EA, Battle.net, PUBG and Spotify.</div>
         </div>
       </div>
     </div>
   </div>
 
+  
+  <!-- EDIT CLIENT / USER MODAL (Advanced Client Management Layout). data-modal-close names the
+       header × rather than the footer CANCEL: both only hide the modal, and the × is the one
+       that is always in view in a panel this tall. -->
+  <div id="edit-client-modal" role="dialog" aria-modal="true" aria-labelledby="edit-client-title"
+    data-modal-close="close-edit-client-btn"
+    class="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md px-4 hidden">
+    <div class="glass-panel p-6 sm:p-7 w-full max-w-xl max-h-[90vh] overflow-y-auto border border-cyan-500/40 shadow-2xl space-y-4">
+      <div class="flex items-center justify-between pb-3.5 border-b border-slate-800">
+        <div class="flex items-center gap-2.5">
+          <div class="w-8 h-8 rounded-lg bg-cyan-500/20 flex items-center justify-center text-cyan-400 border border-cyan-500/30">
+            <i data-feather="edit-2" class="w-4 h-4"></i>
+          </div>
+          <div>
+            <h2 id="edit-client-title" class="text-base font-bold text-white font-heading">Edit Client</h2>
+            <p class="text-[11px] text-slate-400">Manage account properties, traffic limits & policy exceptions</p>
+          </div>
+        </div>
+        <button id="close-edit-client-btn" aria-label="Close subscriber editor" class="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition">
+          <i data-feather="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <form id="edit-client-form" class="space-y-4">
+        <input type="hidden" id="edit-client-id">
+
+        <!-- Row 1: Email/Name & the traffic plan — the limit and how often it returns.
+             The cycle sits beside the limit because the two are one decision: a
+             quota with no cycle has to be cleared by hand every period, which is
+             what "50 GB monthly" quietly meant before v1.5.0. -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+          <div>
+            <label for="edit-client-name" class="block text-[11px] font-semibold text-slate-400 mb-1"><span class="text-red-400 font-bold">*</span> Email / Client Name</label>
+            <input type="text" id="edit-client-name" required placeholder="e.g. gamer-reza"
+              class="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-700 text-white focus:outline-none focus:border-cyan-400 text-xs">
+          </div>
+          <div class="grid grid-cols-2 gap-3.5">
+            <div>
+              <label for="edit-client-traffic" class="block text-[11px] font-semibold text-slate-400 mb-1">Traffic Limit (GB)</label>
+              <input type="number" step="0.5" min="0" id="edit-client-traffic" placeholder="0 (0 = Unlimited)"
+                class="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-700 text-white focus:outline-none focus:border-cyan-400 text-xs font-mono">
+            </div>
+            <div>
+              <label for="edit-client-traffic-cycle" class="block text-[11px] font-semibold text-slate-400 mb-1">Auto Reset</label>
+              <select id="edit-client-traffic-cycle"
+                class="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-700 text-white focus:outline-none focus:border-cyan-400 text-xs">
+                <option value="">Never (manual)</option>
+                <option value="daily">Daily</option>
+                <option value="weekly">Weekly</option>
+                <option value="monthly">Monthly</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- Row 2: Gregorian Expiry (with Interactive Calendar Popup) & Manual IP -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5 relative">
+          <div class="relative">
+            <div class="flex items-center justify-between mb-1">
+              <label for="edit-client-expiry" class="block text-[11px] font-semibold text-slate-400">Expiry (Gregorian)</label>
+              <button type="button" id="edit-client-clear-expiry-btn" class="text-[10px] text-slate-500 hover:text-cyan-400 transition">Clear (Lifetime)</button>
+            </div>
+            <div class="relative flex items-center">
+              <input type="text" id="edit-client-expiry" placeholder="YYYY-MM-DD HH:mm:ss" readonly
+                class="w-full ps-3 pe-9 py-2 rounded-lg bg-slate-950 border border-slate-700 text-cyan-300 focus:outline-none focus:border-cyan-400 text-xs font-mono cursor-pointer">
+              <button type="button" id="open-datepicker-btn" aria-label="Open expiry date picker" class="absolute end-2.5 text-slate-400 hover:text-cyan-400 transition">
+                <i data-feather="calendar" class="w-4 h-4"></i>
+              </button>
+            </div>
+
+            <!-- Modern Ant-Design Style DateTime Picker Popup -->
+            <!-- 288px below the sm breakpoint, not 320: this popup is absolutely positioned
+                 inside a modal whose backdrop has px-4, so on a 320px viewport the panel is
+                 288px wide and a 320px popup hung its trailing column — the last four days of
+                 every month — off the edge of the screen with nothing to scroll to reach it.
+
+                 start-0 rather than left-0 so the popup is anchored to the same edge as the
+                 field that opens it in both directions. With left-0 under dir="rtl" it
+                 detached from its own input and grew towards the far side of the panel. -->
+            <div id="datepicker-popup" data-modal-popover class="hidden absolute start-0 top-full mt-1.5 z-50 p-3.5 rounded-xl bg-slate-900 border border-cyan-500/30 shadow-2xl w-[288px] sm:w-[340px] text-xs">
+              <div class="flex items-center justify-between pb-2.5 mb-2.5 border-b border-slate-800">
+                <div class="flex items-center gap-1.5">
+                  <button type="button" id="dp-prev-year" aria-label="Previous year" class="p-1 text-slate-400 hover:text-cyan-300 text-xs font-bold">&laquo;</button>
+                  <button type="button" id="dp-prev-month" aria-label="Previous month" class="p-1 text-slate-400 hover:text-cyan-300 text-xs font-bold">&lsaquo;</button>
+                </div>
+                <div id="dp-month-year-label" class="font-bold text-slate-200 font-mono text-xs">Sep 2026</div>
+                <div class="flex items-center gap-1.5">
+                  <button type="button" id="dp-next-month" aria-label="Next month" class="p-1 text-slate-400 hover:text-cyan-300 text-xs font-bold">&rsaquo;</button>
+                  <button type="button" id="dp-next-year" aria-label="Next year" class="p-1 text-slate-400 hover:text-cyan-300 text-xs font-bold">&raquo;</button>
+                </div>
+              </div>
+
+              <!-- Calendar Grid & Time Column -->
+              <div class="grid grid-cols-7 gap-1 text-center font-mono mb-3">
+                <div class="text-[10px] font-bold text-slate-500">Su</div>
+                <div class="text-[10px] font-bold text-slate-500">Mo</div>
+                <div class="text-[10px] font-bold text-slate-500">Tu</div>
+                <div class="text-[10px] font-bold text-slate-500">We</div>
+                <div class="text-[10px] font-bold text-slate-500">Th</div>
+                <div class="text-[10px] font-bold text-slate-500">Fr</div>
+                <div class="text-[10px] font-bold text-slate-500">Sa</div>
+              </div>
+              <div id="dp-days-grid" class="grid grid-cols-7 gap-1 text-center font-mono text-xs mb-3">
+                <!-- Days populated dynamically -->
+              </div>
+
+              <!-- Time Selector & Quick Presets -->
+              <div class="flex items-center justify-between pt-2.5 border-t border-slate-800 text-[11px]">
+                <div class="flex items-center gap-1.5 font-mono">
+                  <span class="text-slate-500">Time:</span>
+                  <select id="dp-hour-select" aria-label="Expiry hour" class="bg-slate-950 border border-slate-700 rounded px-1.5 py-0.5 text-cyan-300 text-xs"></select>
+                  <span class="text-slate-500">:</span>
+                  <select id="dp-minute-select" aria-label="Expiry minute" class="bg-slate-950 border border-slate-700 rounded px-1.5 py-0.5 text-cyan-300 text-xs"></select>
+                </div>
+                <div class="flex items-center gap-1.5">
+                  <button type="button" id="dp-set-now-btn" class="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-[10px] transition">Now (+30d)</button>
+                  <button type="button" id="dp-confirm-btn" class="px-2.5 py-0.5 rounded bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-[10px] transition">OK</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <label for="edit-client-ip" class="block text-[11px] font-semibold text-slate-400 mb-1">Manual IP Address (Optional)</label>
+            <input type="text" id="edit-client-ip" placeholder="e.g. 5.200.10.42"
+              class="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-700 text-white focus:outline-none focus:border-cyan-400 text-xs font-mono">
+          </div>
+        </div>
+
+        <!-- Row 3: UUID with Regenerate -->
+        <div>
+          <div class="flex justify-between items-center mb-1">
+            <label for="edit-client-uuid" class="block text-[11px] font-semibold text-slate-400">UUID (RFC 4122 v4)</label>
+            <button type="button" id="edit-client-regen-uuid" class="text-[10px] text-cyan-400 hover:text-cyan-300 font-mono flex items-center gap-1">
+              <i data-feather="refresh-cw" class="w-2.5 h-2.5"></i> Regenerate
+            </button>
+          </div>
+          <input type="text" id="edit-client-uuid"
+            class="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-700 text-cyan-300 focus:outline-none focus:border-cyan-400 text-xs font-mono">
+        </div>
+
+        <!-- Row 3b: Registration Secret (Phase B) — the out-of-band credential the
+             subscriber pastes on their /sub/ page to move their binding. Give it to
+             the subscriber through a DIFFERENT channel than the portal link: the
+             link alone must stay read-only (Mantis C-03). -->
+        <div>
+          <div class="flex justify-between items-center mb-1">
+            <label for="edit-client-secret" class="block text-[11px] font-semibold text-slate-400">Registration Secret (IP register)</label>
+            <button type="button" id="edit-client-regen-secret" class="text-[10px] text-cyan-400 hover:text-cyan-300 font-mono flex items-center gap-1">
+              <i data-feather="refresh-cw" class="w-2.5 h-2.5"></i> Regenerate
+            </button>
+          </div>
+          <input type="text" id="edit-client-secret" readonly
+            class="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-700 text-amber-300 focus:outline-none focus:border-cyan-400 text-xs font-mono">
+          <p class="text-[10px] text-slate-500 mt-1">Deliver this secret to the subscriber separately from their /sub/ link. Regenerating invalidates the old one immediately.</p>
+        </div>
+
+        <!-- Row 4: Comment / Note -->
+        <div>
+          <label for="edit-client-note" class="block text-[11px] font-semibold text-slate-400 mb-1">Comment / Note</label>
+          <input type="text" id="edit-client-note" placeholder="e.g. customer-a / VIP Gamer Plan"
+            class="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-700 text-white focus:outline-none focus:border-cyan-400 text-xs">
+        </div>
+
+        <!-- Row 5: Attached Inbounds equivalent -> Attached DNS Policies (Ant Design Multi-Select) -->
+        <div class="space-y-2 p-3.5 rounded-xl bg-slate-950/70 border border-slate-800 relative">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <span class="block text-xs font-bold text-cyan-300 font-heading">Attached DNS Policies</span>
+              <span class="text-[10px] text-slate-400">Leave empty to inherit all global policies, or select specific games.</span>
+            </div>
+            <div class="flex items-center gap-1.5">
+              <button type="button" id="edit-client-policies-select-all" class="px-2 py-0.5 rounded bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 text-[10px] font-semibold transition">
+                Select all
+              </button>
+              <button type="button" id="edit-client-policies-clear-all" class="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-[10px] font-semibold transition">
+                Clear all (Inherit)
+              </button>
+            </div>
+          </div>
+
+          <!-- Multi-Select Input Box (Ant Design / 3x-ui Style) -->
+          <div id="policies-multiselect-box" class="relative min-h-[38px] p-1.5 rounded-lg bg-slate-900 border border-slate-700 hover:border-cyan-500/60 focus-within:border-cyan-400 focus-within:ring-1 focus-within:ring-cyan-400/40 transition cursor-pointer flex flex-wrap items-center gap-1.5">
+            <div id="edit-client-policies-tags" class="flex flex-wrap items-center gap-1.5">
+              <!-- Dynamically populated chips with remove buttons -->
+            </div>
+            <input type="text" id="policies-search-input" aria-label="Search policies" placeholder="Click or search policies..."
+              class="flex-1 min-w-[140px] bg-transparent text-xs text-slate-200 placeholder-slate-500 focus:outline-none cursor-pointer">
+            <div class="pe-1.5 text-slate-500 pointer-events-none">
+              <i data-feather="chevron-down" class="w-3.5 h-3.5"></i>
+            </div>
+          </div>
+
+          <!-- Multi-Select Dropdown List with Highlighted Selected Options & Checkmarks -->
+          <div id="policies-dropdown-list" class="hidden absolute inset-x-3.5 top-full mt-1 z-50 max-h-56 overflow-y-auto rounded-xl bg-slate-900 border border-slate-700 shadow-2xl divide-y divide-slate-800/60">
+            <!-- Dynamically populated options list with highlighted active states and checkmarks -->
+          </div>
+        </div>
+
+        <!-- Row 6: Enabled Toggle Switch -->
+        <fieldset class="contents">
+          <legend class="sr-only">Account status</legend>
+          <div class="flex items-center justify-between p-3 rounded-xl bg-slate-950/60 border border-slate-800">
+          <div class="flex items-center gap-2.5">
+            <span class="text-xs font-semibold text-slate-300">Account Status</span>
+            <span id="edit-client-status-label" class="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 font-bold">ACTIVE</span>
+          </div>
+          <label class="relative inline-flex items-center cursor-pointer">
+            <input type="checkbox" id="edit-client-enabled" class="sr-only peer" checked>
+            <!-- after:left-[2px] stays physical on purpose, and it is the one exception to
+                 the logical-property sweep. The knob is moved by translate-x-full, and a
+                 transform is not mirrored by dir="rtl" — so pairing start-[2px] with a
+                 positive translate under RTL would resolve to "2px from the right edge,
+                 then 20px further right", which slides the knob clean off its own track.
+                 Making it correct needs a second rtl: rule whose cascade order against the
+                 first is not something to gamble a control on. The track is symmetric, so
+                 as it stands the switch works identically in both directions; only the
+                 direction of travel reads as latin, which no user can misread. -->
+            <div class="w-11 h-6 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-cyan-500"></div>
+          </label>
+        </div>
+        </fieldset>
+
+        <!-- Modal Footer: Reset Traffic on left, Cancel & Save on right -->
+        <div class="flex items-center justify-between pt-3 border-t border-slate-800">
+          <button type="button" id="edit-client-reset-traffic-btn"
+            class="px-3.5 py-2 rounded-lg bg-red-950/40 hover:bg-red-900/60 text-red-300 border border-red-500/30 text-xs font-semibold font-heading flex items-center gap-1.5 transition">
+            <i data-feather="rotate-ccw" class="w-3.5 h-3.5"></i>
+            <span>Reset Traffic</span>
+          </button>
+
+          <div class="flex items-center gap-2">
+            <button type="button" id="cancel-edit-client-btn"
+              class="px-4 py-2 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 text-xs font-semibold font-heading transition">
+              Cancel
+            </button>
+            <button type="submit"
+              class="px-6 py-2 bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-400 text-slate-950 font-bold rounded-lg text-xs font-heading transition shadow-lg shadow-cyan-500/20">
+              Save
+            </button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <!-- ADD CLIENT / USER MODAL -->
-  <div id="add-client-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md px-4 hidden">
-    <div class="glass-panel p-6 sm:p-8 w-full max-w-md border border-cyan-500/40 shadow-2xl">
-      <div class="flex items-center justify-between pb-4 border-b border-slate-800 mb-4">
+  <div id="add-client-modal" role="dialog" aria-modal="true" aria-labelledby="add-client-title"
+    data-modal-close="close-add-client-btn"
+    class="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md px-4 hidden">
+    <!-- Same reason as the credential modal above: a centred panel with no height cap overflows
+         off both ends of a short viewport, and the CREATE button is the part that goes missing. -->
+    <!-- Same max-w-xl and row shape as the edit modal: the two forms carry the same
+         fields now, and a create form that is narrower than the editor it feeds
+         re-wraps every row the operator already learned in the other one. -->
+    <div class="glass-panel p-6 sm:p-7 w-full max-w-xl max-h-[90vh] overflow-y-auto border border-cyan-500/40 shadow-2xl space-y-4">
+      <div class="flex items-center justify-between pb-3.5 border-b border-slate-800">
         <div class="flex items-center gap-2.5">
           <div class="w-9 h-9 rounded-xl bg-cyan-500/20 flex items-center justify-center text-cyan-400 border border-cyan-500/30">
             <i data-feather="user-plus" class="w-4 h-4"></i>
           </div>
           <div>
-            <h2 class="text-sm sm:text-base font-bold text-white font-heading">Add New Client Account</h2>
+            <h2 id="add-client-title" class="text-sm sm:text-base font-bold text-white font-heading">Add New Client Account</h2>
             <p class="text-[11px] text-slate-400">Generate IP whitelist registration slug</p>
           </div>
         </div>
-        <button id="close-add-client-btn" class="text-slate-400 hover:text-white p-1">
+        <button id="close-add-client-btn" aria-label="Close new subscriber form" class="text-slate-400 hover:text-white p-1">
           <i data-feather="x" class="w-5 h-5"></i>
         </button>
       </div>
 
       <form id="add-client-form" class="space-y-4">
-        <div>
-          <label class="block text-xs font-semibold text-slate-400 mb-1">CLIENT NAME / LABEL</label>
-          <input type="text" id="client-name-input" placeholder="e.g. Reza (PS5 & Phone)" required
-            class="w-full px-3.5 py-2.5 rounded-lg bg-slate-950 border border-slate-700 text-white focus:outline-none focus:border-cyan-400 text-xs">
+        <!-- Row 1: the name and the traffic plan, the same pairing as the edit modal.
+             The cycle sits beside the limit because the two are one decision: a quota
+             with no cycle has to be cleared by hand every period. -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+          <div>
+            <label for="client-name-input" class="block text-[11px] font-semibold text-slate-400 mb-1"><span class="text-red-400 font-bold">*</span> CLIENT NAME / LABEL</label>
+            <input type="text" id="client-name-input" placeholder="e.g. Reza (PS5 &amp; Phone)" required
+              class="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-700 text-white focus:outline-none focus:border-cyan-400 text-xs">
+          </div>
+          <div class="grid grid-cols-2 gap-3.5">
+            <div>
+              <label for="client-traffic-input" class="block text-[11px] font-semibold text-slate-400 mb-1">Traffic Limit (GB)</label>
+              <input type="number" step="0.5" min="0" id="client-traffic-input" placeholder="0 = Unlimited"
+                class="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-700 text-white focus:outline-none focus:border-cyan-400 text-xs font-mono">
+            </div>
+            <div>
+              <label for="client-traffic-cycle" class="block text-[11px] font-semibold text-slate-400 mb-1">Auto Reset</label>
+              <select id="client-traffic-cycle" class="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-700 text-white focus:outline-none focus:border-cyan-400 text-xs">
+                <option value="">Never (manual)</option>
+                <option value="daily">Daily</option>
+                <option value="weekly">Weekly</option>
+                <option value="monthly">Monthly</option>
+              </select>
+            </div>
+          </div>
         </div>
 
-        <div>
-          <label class="block text-xs font-semibold text-slate-400 mb-1">PLAN DURATION / EXPIRATION</label>
-          <select id="client-expires-select" class="w-full px-3.5 py-2.5 rounded-lg bg-slate-950 border border-slate-700 text-white focus:outline-none focus:border-cyan-400 text-xs font-mono">
-            <option value="30">30 Days (1 Month)</option>
-            <option value="7">7 Days (1 Week)</option>
-            <option value="1">1 Day (24 Hours)</option>
-            <option value="90">90 Days (3 Months)</option>
-            <option value="365">365 Days (1 Year)</option>
-            <option value="0">Lifetime (No Expiration)</option>
-          </select>
+        <!-- Row 2: the exact expiry the plan ends on, and the optional first IP — the
+             same pairing as the edit modal, so an operator who has learned one form
+             already knows where both fields are in the other. The picker replaces the
+             old duration preset select: a preset could only speak in whole days, so a
+             plan meant to end at a specific moment could not be sold as such at
+             creation and had to be corrected in the editor afterwards. -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5 relative">
+          <div class="relative">
+            <div class="flex items-center justify-between mb-1">
+              <label for="add-client-expiry" class="block text-[11px] font-semibold text-slate-400">Expiry (Gregorian)</label>
+              <button type="button" id="add-client-clear-expiry-btn" class="text-[10px] text-slate-500 hover:text-cyan-400 transition">Clear (Lifetime)</button>
+            </div>
+            <div class="relative flex items-center">
+              <input type="text" id="add-client-expiry" placeholder="YYYY-MM-DD HH:mm:ss" readonly
+                class="w-full ps-3 pe-9 py-2 rounded-lg bg-slate-950 border border-slate-700 text-cyan-300 focus:outline-none focus:border-cyan-400 text-xs font-mono cursor-pointer">
+              <button type="button" id="add-open-datepicker-btn" aria-label="Open expiry date picker" class="absolute end-2.5 text-slate-400 hover:text-cyan-400 transition">
+                <i data-feather="calendar" class="w-4 h-4"></i>
+              </button>
+            </div>
+
+            <!-- Same 288px-below-sm sizing and start-0 anchoring as the editor's picker,
+                 for the same reasons: the popup must not hang off a 320px viewport, and
+                 it must stay anchored to its own input in RTL. -->
+            <div id="add-datepicker-popup" data-modal-popover class="hidden absolute start-0 top-full mt-1.5 z-50 p-3.5 rounded-xl bg-slate-900 border border-cyan-500/30 shadow-2xl w-[288px] sm:w-[340px] text-xs">
+              <div class="flex items-center justify-between pb-2.5 mb-2.5 border-b border-slate-800">
+                <div class="flex items-center gap-1.5">
+                  <button type="button" id="add-dp-prev-year" aria-label="Previous year" class="p-1 text-slate-400 hover:text-cyan-300 text-xs font-bold">&laquo;</button>
+                  <button type="button" id="add-dp-prev-month" aria-label="Previous month" class="p-1 text-slate-400 hover:text-cyan-300 text-xs font-bold">&lsaquo;</button>
+                </div>
+                <div id="add-dp-month-year-label" class="font-bold text-slate-200 font-mono text-xs"></div>
+                <div class="flex items-center gap-1.5">
+                  <button type="button" id="add-dp-next-month" aria-label="Next month" class="p-1 text-slate-400 hover:text-cyan-300 text-xs font-bold">&rsaquo;</button>
+                  <button type="button" id="add-dp-next-year" aria-label="Next year" class="p-1 text-slate-400 hover:text-cyan-300 text-xs font-bold">&raquo;</button>
+                </div>
+              </div>
+
+              <div class="grid grid-cols-7 gap-1 text-center font-mono mb-3">
+                <div class="text-[10px] font-bold text-slate-500">Su</div>
+                <div class="text-[10px] font-bold text-slate-500">Mo</div>
+                <div class="text-[10px] font-bold text-slate-500">Tu</div>
+                <div class="text-[10px] font-bold text-slate-500">We</div>
+                <div class="text-[10px] font-bold text-slate-500">Th</div>
+                <div class="text-[10px] font-bold text-slate-500">Fr</div>
+                <div class="text-[10px] font-bold text-slate-500">Sa</div>
+              </div>
+              <div id="add-dp-days-grid" class="grid grid-cols-7 gap-1 text-center font-mono text-xs mb-3">
+                <!-- Days populated dynamically -->
+              </div>
+
+              <div class="flex items-center justify-between pt-2.5 border-t border-slate-800 text-[11px]">
+                <div class="flex items-center gap-1.5 font-mono">
+                  <span class="text-slate-500">Time:</span>
+                  <select id="add-dp-hour-select" aria-label="Expiry hour" class="bg-slate-950 border border-slate-700 rounded px-1.5 py-0.5 text-cyan-300 text-xs"></select>
+                  <span class="text-slate-500">:</span>
+                  <select id="add-dp-minute-select" aria-label="Expiry minute" class="bg-slate-950 border border-slate-700 rounded px-1.5 py-0.5 text-cyan-300 text-xs"></select>
+                </div>
+                <div class="flex items-center gap-1.5">
+                  <button type="button" id="add-dp-set-now-btn" class="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-[10px] transition">Now (+30d)</button>
+                  <button type="button" id="add-dp-confirm-btn" class="px-2.5 py-0.5 rounded bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-[10px] transition">OK</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <label for="client-initial-ip" class="block text-[11px] font-semibold text-slate-400 mb-1">INITIAL IP ADDRESS (OPTIONAL)</label>
+            <input type="text" id="client-initial-ip" placeholder="e.g. 2.189.86.32 (or leave blank for auto-link)"
+              class="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-700 text-white focus:outline-none focus:border-cyan-400 text-xs font-mono">
+            <p class="text-[10px] text-slate-500 mt-1">If blank, client can self-register using their personal URL.</p>
+          </div>
         </div>
 
-        <div>
-          <label class="block text-xs font-semibold text-slate-400 mb-1">INITIAL IP ADDRESS (OPTIONAL)</label>
-          <input type="text" id="client-initial-ip" placeholder="e.g. 2.189.86.32 (or leave blank for auto-link)"
-            class="w-full px-3.5 py-2.5 rounded-lg bg-slate-950 border border-slate-700 text-white focus:outline-none focus:border-cyan-400 text-xs font-mono">
-          <p class="text-[10px] text-slate-500 mt-1">If blank, client can self-register using their personal URL.</p>
+        <!-- The policies the plan carries, decided at creation for the same reason the
+             quota is: an account created inheriting everything and then corrected in
+             the editor is live with the wrong rules for the whole gap between the two
+             writes. -->
+        <div class="space-y-2 p-3.5 rounded-xl bg-slate-950/70 border border-slate-800 relative">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <span class="block text-xs font-bold text-cyan-300 font-heading">Attached DNS Policies</span>
+              <span class="text-[10px] text-slate-400">Leave empty to inherit all global policies, or select specific games.</span>
+            </div>
+            <div class="flex items-center gap-1.5">
+              <button type="button" id="add-client-policies-select-all" class="px-2 py-0.5 rounded bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 text-[10px] font-semibold transition">
+                Select all
+              </button>
+              <button type="button" id="add-client-policies-clear-all" class="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-[10px] font-semibold transition">
+                Clear all (Inherit)
+              </button>
+            </div>
+          </div>
+
+          <div id="add-policies-multiselect-box" class="relative min-h-[38px] p-1.5 rounded-lg bg-slate-900 border border-slate-700 hover:border-cyan-500/60 focus-within:border-cyan-400 focus-within:ring-1 focus-within:ring-cyan-400/40 transition cursor-pointer flex flex-wrap items-center gap-1.5">
+            <div id="add-client-policies-tags" class="flex flex-wrap items-center gap-1.5">
+              <!-- Dynamically populated chips with remove buttons -->
+            </div>
+            <input type="text" id="add-policies-search-input" aria-label="Search policies" placeholder="Click or search policies..."
+              class="flex-1 min-w-[140px] bg-transparent text-xs text-slate-200 placeholder-slate-500 focus:outline-none cursor-pointer">
+            <div class="pe-1.5 text-slate-500 pointer-events-none">
+              <i data-feather="chevron-down" class="w-3.5 h-3.5"></i>
+            </div>
+          </div>
+
+          <div id="add-policies-dropdown-list" class="hidden absolute inset-x-3.5 top-full mt-1 z-50 max-h-56 overflow-y-auto rounded-xl bg-slate-900 border border-slate-700 shadow-2xl divide-y divide-slate-800/60">
+            <!-- Dynamically populated options list with highlighted active states and checkmarks -->
+          </div>
         </div>
 
         <button type="submit"
-          class="w-full py-3 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-bold rounded-lg text-xs font-heading transition shadow-lg shadow-cyan-500/20">
-          CREATE CLIENT & GENERATE LINK
+          class="w-full py-3 bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-400 text-slate-950 font-bold rounded-lg text-xs font-heading transition shadow-lg shadow-cyan-500/20">
+          CREATE CLIENT &amp; GENERATE LINK
         </button>
       </form>
+    </div>
+  </div>
+
+  <!-- CLIENT CREATED MODAL (v2.2.0). The create response carries the register
+       link id and the registration secret exactly once, at the moment they are
+       minted; this modal is where the operator sees and copies both. The
+       secret is the WRITE half of the subscriber credential (Phase B: the link
+       alone can display, the secret moves the IP binding) — it is never
+       persisted client-side, never placed in a URL, and never served by any
+       public endpoint. Losing it means regenerating, not recovering. -->
+  <div id="client-created-modal" role="dialog" aria-modal="true" aria-labelledby="client-created-title"
+    data-modal-close="close-client-created-btn"
+    class="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md px-4 hidden">
+    <div class="glass-panel p-6 sm:p-7 w-full max-w-xl max-h-[90vh] overflow-y-auto border border-emerald-500/40 shadow-2xl space-y-4">
+      <div class="flex items-center justify-between pb-3.5 border-b border-slate-800">
+        <div class="flex items-center gap-2.5">
+          <div class="w-9 h-9 rounded-xl bg-emerald-500/20 flex items-center justify-center text-emerald-400 border border-emerald-500/30">
+            <i data-feather="check-circle" class="w-4 h-4"></i>
+          </div>
+          <div>
+            <h2 id="client-created-title" class="text-sm sm:text-base font-bold text-white font-heading">Client Account Created</h2>
+            <p class="text-[11px] text-slate-400">Copy the credentials now — the secret is not shown again</p>
+          </div>
+        </div>
+        <button id="close-client-created-btn" aria-label="Close created client credentials" class="text-slate-400 hover:text-white p-1">
+          <i data-feather="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <div class="space-y-4">
+        <div>
+          <label for="created-client-name" class="block text-[11px] font-semibold text-slate-400 mb-1">Account</label>
+          <div id="created-client-name" class="px-3 py-2 rounded-lg bg-slate-950/60 border border-slate-800 text-white text-xs font-mono truncate"></div>
+        </div>
+
+        <div>
+          <div class="flex items-center justify-between mb-1">
+            <label for="created-register-link" class="block text-[11px] font-semibold text-slate-400">Subscription Link (portal page)</label>
+            <button type="button" id="copy-created-link-btn"
+              class="inline-flex items-center gap-1 px-2 py-1 rounded bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 text-[10px] font-semibold transition">
+              <i data-feather="copy" class="w-3 h-3"></i> Copy
+            </button>
+          </div>
+          <input type="text" id="created-register-link" readonly
+            class="w-full px-3 py-2 rounded-lg bg-slate-950/60 border border-slate-800 text-cyan-300 text-xs font-mono">
+          <p class="text-[10px] text-slate-500 mt-1">The subscriber's portal page — status, quota and IP registration. The registration password below is what they type there to bind their IP.</p>
+        </div>
+
+        <div>
+          <div class="flex items-center justify-between mb-1">
+            <label for="created-register-secret" class="block text-[11px] font-semibold text-amber-300">Registration Secret</label>
+            <div class="flex items-center gap-1.5">
+              <button type="button" id="toggle-created-secret-btn" aria-label="Show or hide the registration secret"
+                class="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 text-[10px] font-semibold transition">Show</button>
+              <button type="button" id="copy-created-secret-btn"
+                class="inline-flex items-center gap-1 px-2 py-1 rounded bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[10px] font-semibold transition">
+                <i data-feather="copy" class="w-3 h-3"></i> Copy
+              </button>
+            </div>
+          </div>
+          <input type="password" id="created-register-secret" readonly
+            class="w-full px-3 py-2 rounded-lg bg-slate-950/60 border border-amber-500/30 text-amber-300 text-xs font-mono">
+          <p class="text-[10px] text-slate-500 mt-1">The subscriber types this on the portal to register their IP. Keep it out of the link — the link alone must never be enough.</p>
+        </div>
+
+        <button type="button" id="close-client-created-done-btn"
+          class="w-full py-3 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 text-slate-950 font-bold rounded-lg text-xs font-heading transition shadow-lg shadow-emerald-500/20">
+          DONE
+        </button>
+      </div>
     </div>
   </div>
 
   <!-- ================================================================= -->
   <!-- VERTICAL LEFT SIDEBAR (Desktop - Sticky on Left) -->
   <!-- ================================================================= -->
-  <aside class="w-full md:w-64 bg-slate-950/90 backdrop-blur-2xl border-b md:border-b-0 md:border-r border-slate-800/80 hidden md:flex flex-col justify-between p-4 flex-shrink-0 md:h-screen md:sticky md:top-0">
+  <aside class="w-full md:w-64 bg-slate-950/90 backdrop-blur-2xl border-b md:border-b-0 md:border-e border-slate-800/80 hidden md:flex flex-col justify-between p-4 flex-shrink-0 md:h-screen md:sticky md:top-0">
     
     <!-- Sidebar Top: Brand & Live Pulse -->
     <div class="space-y-6">
@@ -202,7 +769,7 @@
         <div>
           <div class="flex items-center gap-2">
             <span class="font-extrabold tracking-wider text-base text-white font-heading">HyperDNS</span>
-            <span class="text-[10px] px-1.5 py-0.5 rounded bg-cyan-500/20 text-cyan-300 font-mono font-bold border border-cyan-500/30">beta 1.2.0</span>
+            <span id="app-version-badge" class="text-[10px] px-1.5 py-0.5 rounded bg-cyan-500/20 text-cyan-300 font-mono font-bold border border-cyan-500/30">v2.1.0</span>
           </div>
           <div class="flex items-center gap-1.5 text-[11px] text-emerald-400 font-mono mt-0.5">
             <span class="pulse-dot"></span>
@@ -213,27 +780,31 @@
 
       <!-- Sidebar Navigation Menu -->
       <nav class="space-y-1">
-        <button class="sidebar-nav-item active" data-tab="dashboard">
+        <button class="sidebar-nav-item active" data-tab="dashboard" data-route="/home">
           <i data-feather="activity" class="w-4 h-4"></i>
           <span>Dashboard</span>
         </button>
-        <button class="sidebar-nav-item" data-tab="clients">
+        <button class="sidebar-nav-item" data-tab="clients" data-route="/clients">
           <i data-feather="users" class="w-4 h-4"></i>
           <span>Clients &amp; Whitelist</span>
         </button>
-        <button class="sidebar-nav-item" data-tab="policy">
+        <button class="sidebar-nav-item" data-tab="policy" data-route="/rules">
           <i data-feather="layers" class="w-4 h-4"></i>
-          <span>Policies</span>
+          <span>Gaming Policies</span>
         </button>
-        <button class="sidebar-nav-item" data-tab="stream">
+        <button class="sidebar-nav-item" data-tab="stream" data-route="/logs">
           <i data-feather="terminal" class="w-4 h-4"></i>
           <span>Live Query Log</span>
         </button>
-        <button class="sidebar-nav-item" data-tab="rules">
-          <i data-feather="sliders" class="w-4 h-4"></i>
-          <span>Custom Rules</span>
+        <button class="sidebar-nav-item" data-tab="api" data-route="/api">
+          <i data-feather="code" class="w-4 h-4"></i>
+          <span>REST API Gateway</span>
         </button>
-        <button class="sidebar-nav-item" data-tab="connect">
+        <button class="sidebar-nav-item" data-tab="rules" data-route="/settings">
+          <i data-feather="sliders" class="w-4 h-4"></i>
+          <span>Settings &amp; SSL</span>
+        </button>
+        <button class="sidebar-nav-item" data-tab="connect" data-route="/guide">
           <i data-feather="wifi" class="w-4 h-4"></i>
           <span>Connect Guide</span>
         </button>
@@ -277,6 +848,26 @@
         </button>
       </div>
 
+      <!-- Appearance & Language -->
+      <!-- Both controls are addressed by data- attribute rather than by id because the
+           mobile header carries a second copy of each, and only one copy is ever visible.
+           js/i18n.js wires every match, so the pair works from either viewport. The theme
+           button's icon name (moon/sun) and its label are written by syncSwitchLabels — the
+           literals here are what a browser with JavaScript disabled would show. -->
+      <div class="flex items-center gap-2">
+        <button type="button" data-theme-toggle aria-pressed="false"
+          class="p-2 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-amber-300 border border-slate-800 transition shrink-0"
+          title="Switch to light theme" aria-label="Switch to light theme">
+          <i data-feather="moon" class="w-4 h-4"></i>
+        </button>
+        <div class="flex-1 flex items-center gap-1 p-1 rounded-lg bg-slate-900 border border-slate-800" role="group" aria-label="Interface language">
+          <button type="button" data-lang-btn="en" aria-pressed="true" lang="en"
+            class="lang-btn flex-1 py-1 rounded-md text-[11px] font-bold font-mono transition" data-no-i18n>EN</button>
+          <button type="button" data-lang-btn="fa" aria-pressed="false" lang="fa"
+            class="lang-btn flex-1 py-1 rounded-md text-[11px] font-bold transition" data-no-i18n>فارسی</button>
+        </div>
+      </div>
+
     </div>
 
   </aside>
@@ -292,27 +883,74 @@
         <div class="w-8 h-8 rounded-lg bg-cyan-500/20 border border-cyan-400/40 flex items-center justify-center text-cyan-400">
           <i data-feather="zap" class="w-4 h-4"></i>
         </div>
-        <div>
+        <!-- Stacked, not side by side, and the arithmetic is the reason. These two spans used
+             to be inline children of a plain div, which was invisible for as long as the badge
+             showed the markup's static "v1.5.0" and became a broken header the moment app.js
+             filled it in: the real string is "v1.5.0-beta [3585f9bf]", it does not fit beside
+             the wordmark at 9px mono, so it wrapped to a second line and then a third and
+             pushed a 68px stack through a 56px header — "HyperDNS" clipped by its own top
+             border on every phone.
+             Simply forbidding the wrap moves the failure rather than fixing it. At 360px the
+             header has 328px of content width; a nowrap brand row is 32 (mark) + 10 + 69
+             (wordmark) + 6 + 69 (badge) = 186px and the control cluster on the right is 207px,
+             so the two would collide by 65px and overflow instead. Stacking spends the header's
+             spare *height* rather than its scarce width: the block is 69px wide either way,
+             because the version is narrower than the wordmark above it, and 32px tall inside
+             56px. Brand 111 + controls 207 = 318 ≤ 328, with the slack landing in the
+             justify-between gap.
+             The pill chrome is gone with it — a bordered badge exists to separate the version
+             from a wordmark sitting on the same line, and on its own line the caption reads
+             better without it. app.js gives this element the version without the commit hash
+             (the hash goes to its title), which is what keeps it inside the wordmark's width. -->
+        <div class="flex flex-col leading-none">
           <span class="font-extrabold text-sm text-white font-heading">HyperDNS</span>
-          <span class="text-[9px] px-1 py-0.5 rounded bg-cyan-500/20 text-cyan-300 font-mono font-bold border border-cyan-500/30 ml-1">v1.1</span>
+          <span class="text-[9px] text-cyan-300/90 font-mono font-bold mt-1 whitespace-nowrap" id="app-version-badge-mobile">v2.1.0</span>
         </div>
       </div>
 
-      <div class="flex items-center gap-2">
-        <button id="mobile-open-diag" class="p-1.5 rounded-lg bg-cyan-500/10 text-cyan-300 border border-cyan-500/30 text-xs font-semibold transition" title="Run Diagnostics">
+      <div class="flex items-center gap-1.5">
+        <!-- Touch targets in this cluster are as wide as they can be and as tall as they should
+             be, and those are two different limits.
+             Width is capped by arithmetic: at 360px the header has 328px of content, the brand
+             block takes 111px, and five control groups plus four 6px gaps have to live in the
+             rest. The four icon buttons at 30px wide (px-1.5 + a 16px glyph + 1px borders) plus
+             the 30px-wide language group come to 207px, and 111 + 207 = 318 ≤ 328. Growing the
+             icons to 36px would need 342px and overflow, so 30px is the ceiling — not a
+             preference. It clears WCAG 2.2 SC 2.5.8 outright (≥24×24), and it clears the
+             spacing clause too: centres sit 36px apart, and the 24px exception circles only
+             need 24px of separation.
+             Height was free and was being wasted. `p-1.5` made these 30×30 inside a 56px
+             header, so `py-2.5` takes them to 30×38 — a 33% larger target area, no extra
+             width, and the taller box is easier to hit with a thumb reaching the top edge of a
+             phone. The language pills get `min-h-[32px]` for the same reason and so the group's
+             38px outer height lines up with the buttons beside it.
+             `min-h/min-w 26px` on each pill and `inline-flex` to centre the label inside a box
+             the text no longer sizes: `text-[10px] leading-none` plus `py-1` produced a 20px
+             hit area, under the 24px floor, on the one surface that is only ever touched. The
+             width still comes from px-1.5 for "EN"; min-w only binds on the Persian glyph. -->
+        <div class="flex items-center gap-0.5 p-0.5 rounded-lg bg-slate-800 border border-slate-700" role="group" aria-label="Interface language">
+          <button type="button" data-lang-btn="en" aria-pressed="true" lang="en"
+            class="lang-btn inline-flex items-center justify-center min-h-[32px] min-w-[26px] px-1.5 rounded-md text-[10px] font-bold font-mono leading-none transition" data-no-i18n>EN</button>
+          <button type="button" data-lang-btn="fa" aria-pressed="false" lang="fa"
+            class="lang-btn inline-flex items-center justify-center min-h-[32px] min-w-[26px] px-1.5 rounded-md text-[10px] font-bold leading-none transition" data-no-i18n>فا</button>
+        </div>
+        <button type="button" data-theme-toggle aria-pressed="false" class="px-1.5 py-2.5 rounded-lg bg-slate-800 text-slate-300 hover:text-amber-300 border border-slate-700 transition" title="Switch to light theme" aria-label="Switch to light theme">
+          <i data-feather="moon" class="w-4 h-4"></i>
+        </button>
+        <button id="mobile-open-diag" class="px-1.5 py-2.5 rounded-lg bg-cyan-500/10 text-cyan-300 border border-cyan-500/30 text-xs font-semibold transition" title="Run Diagnostics">
           <i data-feather="activity" class="w-4 h-4"></i>
         </button>
-        <button id="mobile-restart-btn" class="p-1.5 rounded-lg bg-slate-800 text-slate-300 hover:text-orange-400 border border-slate-700 transition" title="Restart Engine">
+        <button id="mobile-restart-btn" class="px-1.5 py-2.5 rounded-lg bg-slate-800 text-slate-300 hover:text-orange-400 border border-slate-700 transition" title="Restart Engine">
           <i data-feather="power" class="w-4 h-4"></i>
         </button>
-        <button id="mobile-logout-btn" class="p-1.5 rounded-lg bg-slate-800 text-slate-300 hover:text-red-400 border border-slate-700 transition" title="Sign Out">
+        <button id="mobile-logout-btn" class="px-1.5 py-2.5 rounded-lg bg-slate-800 text-slate-300 hover:text-red-400 border border-slate-700 transition" title="Sign Out">
           <i data-feather="log-out" class="w-4 h-4"></i>
         </button>
       </div>
     </header>
 
     <!-- CONTENT WRAPPER -->
-    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 flex-1 w-full pb-24 md:pb-8">
+    <main id="main-content" tabindex="-1" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 flex-1 w-full pb-24 md:pb-8">
       
       <!-- ============================================== -->
       <!-- TAB 1: DASHBOARD OVERVIEW -->
@@ -332,7 +970,15 @@
               <span id="stat-qps" class="text-xl sm:text-2xl font-extrabold font-mono text-white">0.0</span>
               <span class="text-[9px] sm:text-[10px] text-slate-400">QPS</span>
             </div>
-            <div class="text-[9px] sm:text-[10px] text-slate-500 mt-0.5 sm:mt-1 font-mono truncate">Total: <span id="stat-total-queries" class="text-slate-300 font-bold">0</span></div>
+            <!-- sm:truncate, not truncate: this sub-line carries two facts joined by a
+                 middot, and at 360px the card is one of two in a grid-cols-2 row — about
+                 24 characters of 9px monospace. "Total: 1,284,331 · Limit: 200/s · 42
+                 dropped" is thirty-nine, so nowrap+ellipsis cut it to "…· 0 dropp…" and
+                 threw away the one number on the line an operator has to act on. Wrapping
+                 to a second line costs ten pixels of card height on a phone; truncating
+                 costs the drop count. From sm: up it fits on one line, so the ellipsis
+                 stays where it is useful — as insurance, not as the normal case. -->
+            <div class="text-[9px] sm:text-[10px] text-slate-500 mt-0.5 sm:mt-1 font-mono sm:truncate">Total: <span id="stat-total-queries" class="text-slate-300 font-bold">0</span> · <span id="stat-ratelimit" class="text-slate-400" title="Per-source query rate limit">Limit: —</span></div>
           </div>
 
           <!-- Card 2: Cache Hit Rate -->
@@ -358,7 +1004,7 @@
               <span id="stat-proxy-active" class="text-xl sm:text-2xl font-extrabold font-mono text-purple-300">0</span>
               <span class="text-[9px] sm:text-[10px] text-slate-400">relays</span>
             </div>
-            <div class="text-[9px] sm:text-[10px] text-slate-500 mt-0.5 sm:mt-1 font-mono truncate">Total: <span id="stat-proxy-total" class="text-slate-300 font-bold">0</span></div>
+            <div class="text-[9px] sm:text-[10px] text-slate-500 mt-0.5 sm:mt-1 font-mono sm:truncate">Total: <span id="stat-proxy-total" class="text-slate-300 font-bold">0</span> · <span id="stat-proxy-drops" class="text-slate-400" title="Connections that reached the proxy and never became relays">no drops</span></div>
           </div>
 
           <!-- Card 4: CPU Load -->
@@ -368,9 +1014,9 @@
               <div class="p-1 sm:p-1.5 rounded-lg bg-orange-500/10 text-orange-400"><i data-feather="cpu" class="w-3.5 h-3.5"></i></div>
             </div>
             <div class="flex items-baseline gap-1">
-              <span id="stat-cpu-percent" class="text-xl sm:text-2xl font-extrabold font-mono text-orange-300">0.5%</span>
+              <span id="stat-cpu-sys" class="text-xl sm:text-2xl font-extrabold font-mono text-orange-300">—</span>
             </div>
-            <div class="text-[9px] sm:text-[10px] text-slate-500 mt-0.5 sm:mt-1 font-mono truncate">Cores: <span id="stat-cpu-cores" class="text-slate-300 font-bold">1</span> · <span id="stat-goroutines" class="text-slate-300">0</span> thr</div>
+            <div class="text-[9px] sm:text-[10px] text-slate-500 mt-0.5 sm:mt-1 font-mono sm:truncate">Server · Proc: <span id="stat-cpu-percent" class="text-slate-300 font-bold">—</span> · <span id="stat-cpu-cores" class="text-slate-300 font-bold">1</span> cores</div>
           </div>
 
           <!-- Card 5: RAM Usage -->
@@ -380,10 +1026,10 @@
               <div class="p-1 sm:p-1.5 rounded-lg bg-blue-500/10 text-blue-400"><i data-feather="server" class="w-3.5 h-3.5"></i></div>
             </div>
             <div class="flex items-baseline gap-1">
-              <span id="stat-memory" class="text-xl sm:text-2xl font-extrabold font-mono text-blue-300">0.0</span>
-              <span class="text-[9px] sm:text-[10px] text-slate-400">MB</span>
+              <span id="stat-mem-sys-used" class="text-xl sm:text-2xl font-extrabold font-mono text-blue-300">—</span>
+              <span class="text-[9px] sm:text-[10px] text-slate-400">/ <span id="stat-mem-sys-total" class="text-slate-300 font-bold">—</span> MB</span>
             </div>
-            <div class="text-[9px] sm:text-[10px] text-slate-500 mt-0.5 sm:mt-1 font-mono truncate">Sys: <span id="stat-memory-sys" class="text-slate-300 font-bold">0</span> MB</div>
+            <div class="text-[9px] sm:text-[10px] text-slate-500 mt-0.5 sm:mt-1 font-mono truncate">Server · <span id="stat-mem-sys-pct" class="text-slate-300 font-bold">—</span>% · Proc: <span id="stat-memory" class="text-slate-300 font-bold">—</span> MB</div>
           </div>
 
           <!-- Card 6: Live Bandwidth / Traffic -->
@@ -392,13 +1038,62 @@
               <span class="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-slate-400">Live Traffic</span>
               <div class="p-1 sm:p-1.5 rounded-lg bg-emerald-500/10 text-emerald-400"><i data-feather="activity" class="w-3.5 h-3.5"></i></div>
             </div>
+            <!-- Feather arrows rather than the ↓/↑ characters that were here. The
+                 characters were not the problem the emoji were — they render in any
+                 font — but they sat at a different weight and cap height from every
+                 other glyph on this row of cards, and ms-1 replaces an ml-1 that
+                 pointed the wrong way once the panel is in RTL. -->
             <div class="flex items-baseline gap-1 font-mono text-xs font-bold text-slate-200 truncate">
-              <span class="text-emerald-400">↓</span><span id="stat-speed-in">0.0</span> <span class="text-[10px]">KB/s</span>
-              <span class="text-cyan-400 ml-1">↑</span><span id="stat-speed-out">0.0</span>
+              <i data-feather="arrow-down" class="w-3 h-3 text-emerald-400 shrink-0"></i><span id="stat-speed-in">0.0</span> <span class="text-[10px]">KB/s</span>
+              <i data-feather="arrow-up" class="w-3 h-3 text-cyan-400 shrink-0 ms-1"></i><span id="stat-speed-out">0.0</span>
             </div>
             <div class="text-[9px] sm:text-[10px] text-slate-500 mt-0.5 sm:mt-1 font-mono truncate">Total: <span id="stat-traffic-total" class="text-slate-300 font-bold">0 MB</span></div>
           </div>
 
+        </div>
+
+        <!-- Resolver latency. Percentiles rather than an average, because with a
+             healthy cache hit rate the mean is dominated by hits and stays under a
+             millisecond no matter how slow the upstreams get. The large row is
+             cache misses only — the queries that actually did resolution work, and
+             the ones a game launcher stalls on. The footer covers every query. -->
+        <div class="glass-panel p-4 sm:p-5">
+          <div class="flex items-center justify-between mb-3 sm:mb-4 gap-3">
+            <div class="min-w-0">
+              <h3 class="text-xs sm:text-sm font-bold uppercase tracking-wider text-white flex items-center gap-2 font-heading">
+                <i data-feather="activity" class="w-4 h-4 text-cyan-400"></i> Resolver Latency
+              </h3>
+              <!-- `sm:truncate`, not `truncate`: on a 360px phone the badge beside this leaves
+                   the text block about 196px, and the Persian sentence needs roughly 230px at
+                   11px, so an unconditional clamp cut it off with no hover to recover it.
+                   Below `sm` it wraps to a second line instead — a taller panel is cheaper
+                   than an unreadable subtitle. -->
+              <p class="text-[11px] text-slate-400 sm:truncate">Service time for queries the cache did not answer</p>
+            </div>
+            <span id="stat-lat-count" class="text-[10px] font-mono text-slate-400 px-2.5 py-0.5 rounded-full bg-slate-800/70 border border-slate-700 whitespace-nowrap">no data yet</span>
+          </div>
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+            <div class="rounded-lg bg-slate-950/70 border border-slate-800 px-3 py-2">
+              <div class="text-[9px] sm:text-[10px] font-bold uppercase tracking-wider text-slate-400">p50 median</div>
+              <div class="flex items-baseline gap-1"><span id="stat-lat-p50" class="text-lg sm:text-xl font-extrabold font-mono text-emerald-400">—</span><span class="text-[9px] text-slate-500">ms</span></div>
+            </div>
+            <div class="rounded-lg bg-slate-950/70 border border-slate-800 px-3 py-2">
+              <div class="text-[9px] sm:text-[10px] font-bold uppercase tracking-wider text-slate-400">p95</div>
+              <div class="flex items-baseline gap-1"><span id="stat-lat-p95" class="text-lg sm:text-xl font-extrabold font-mono text-slate-100">—</span><span class="text-[9px] text-slate-500">ms</span></div>
+            </div>
+            <div class="rounded-lg bg-slate-950/70 border border-slate-800 px-3 py-2">
+              <div class="text-[9px] sm:text-[10px] font-bold uppercase tracking-wider text-slate-400">p99 worst 1%</div>
+              <div class="flex items-baseline gap-1"><span id="stat-lat-p99" class="text-lg sm:text-xl font-extrabold font-mono text-slate-100">—</span><span class="text-[9px] text-slate-500">ms</span></div>
+            </div>
+            <div class="rounded-lg bg-slate-950/70 border border-slate-800 px-3 py-2">
+              <div class="text-[9px] sm:text-[10px] font-bold uppercase tracking-wider text-slate-400">Peak</div>
+              <div class="flex items-baseline gap-1"><span id="stat-lat-max" class="text-lg sm:text-xl font-extrabold font-mono text-slate-100">—</span><span class="text-[9px] text-slate-500">ms</span></div>
+            </div>
+          </div>
+          <div class="mt-3 pt-3 border-t border-slate-800 flex flex-wrap items-center gap-x-4 gap-y-1 text-[9px] sm:text-[10px] font-mono text-slate-500">
+            <span>All queries: <span id="stat-lat-all" class="text-slate-300">—</span></span>
+            <span id="stat-cache-health" class="text-slate-500">Cache refresh: —</span>
+          </div>
         </div>
 
         <!-- Middle Section: Real-time Telemetry Graph & Upstream Resolvers -->
@@ -411,10 +1106,15 @@
                 <h3 class="text-xs sm:text-sm font-bold uppercase tracking-wider text-white flex items-center gap-2 font-heading">
                   <i data-feather="trending-up" class="w-4 h-4 text-cyan-400"></i> Live QPS & Telemetry
                 </h3>
-                <p class="text-[11px] text-slate-400">Rolling real-time DNS query load</p>
+                <p class="text-[11px] text-slate-400">Rolling DNS query load · last 60 seconds · 1 Hz</p>
               </div>
-              <span class="text-[10px] font-mono text-cyan-400 px-2.5 py-0.5 rounded-full bg-cyan-500/10 border border-cyan-500/30 flex items-center gap-1.5">
-                <span class="pulse-dot"></span> LIVE ENGINE
+              <!-- Driven by markStatsHealth() in app.js: the dot and the label both change
+                   when the 2-second stats poll stops succeeding, because a frozen page that
+                   still says LIVE is worse than no badge at all. aria-live so a screen
+                   reader is told the numbers went stale rather than reading old ones. -->
+              <span id="live-engine-badge" class="text-[10px] font-mono text-cyan-400 px-2.5 py-0.5 rounded-full bg-cyan-500/10 border border-cyan-500/30 flex items-center gap-1.5" title="The dashboard is receiving live telemetry">
+                <span class="pulse-dot" id="live-engine-dot" aria-hidden="true"></span>
+                <span id="live-engine-label" aria-live="polite">LIVE ENGINE</span>
               </span>
             </div>
             <div class="h-48 sm:h-56 w-full relative">
@@ -436,15 +1136,26 @@
               <p class="text-[11px] text-slate-400 mb-3">Parallel DNS queries across fastest global upstreams</p>
               
               <!-- Add Custom Upstream Input -->
+              <!-- Same `min-w-0` + `shrink-0` pair as the four rules-tab rows: a `flex-1` form
+                   control keeps its intrinsic ~170px as its min-width unless told otherwise,
+                   and would evict the Add button from the card instead of shrinking. -->
               <div class="flex gap-1.5 mb-3">
-                <input type="text" id="new-upstream-input" placeholder="e.g. 94.140.14.14:53"
-                  class="flex-1 px-2.5 py-1 rounded-lg bg-slate-950 border border-slate-700 text-xs font-mono text-white focus:outline-none focus:border-cyan-400">
-                <button id="add-upstream-btn" class="px-3 py-1 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold rounded-lg text-xs font-heading transition">Add</button>
+                <input type="text" id="new-upstream-input" aria-label="New upstream resolver address" placeholder="e.g. 94.140.14.14:53"
+                  class="flex-1 min-w-0 px-2.5 py-1 rounded-lg bg-slate-950 border border-slate-700 text-xs font-mono text-white focus:outline-none focus:border-cyan-400">
+                <button id="add-upstream-btn" class="shrink-0 px-3 py-1 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold rounded-lg text-xs font-heading transition">Add</button>
               </div>
 
-              <!-- Upstreams List Container -->
-              <div id="upstreams-list" class="space-y-1.5 max-h-48 overflow-y-auto pr-1">
-                <!-- Dynamically populated -->
+              <!-- Upstreams List Container. The row below is what the panel shows until the
+                   first stats poll lands, and for as long as that poll keeps failing.
+                   renderUpstreams replaces the whole container, so it costs one paint and
+                   nothing else — and it stops a blank strip from reading as "no upstreams",
+                   which is a very different statement about a resolver than "not measured
+                   yet". -->
+              <div id="upstreams-list" class="space-y-1.5 max-h-48 overflow-y-auto pe-1">
+                <div class="text-slate-500 text-xs py-2 flex items-center gap-2">
+                  <span class="w-2 h-2 rounded-full bg-slate-600 animate-pulse shrink-0"></span>
+                  Reading upstream health…
+                </div>
               </div>
             </div>
 
@@ -491,24 +1202,38 @@
         </div>
 
         <!-- Clients Header & Action Bar -->
-        <div class="flex flex-col sm:flex-row items-center justify-between gap-3">
+        <!-- `flex-wrap` + `shrink-0` + `sm:ms-auto` is the same safety net as the stream
+             controls bar. Here the row already fits every band by about 14px (288px search +
+             12px gap + the button), but 14px is thinner than the difference between one
+             translated button label and another, so the row is allowed to wrap rather than
+             clip if it ever stops fitting. -->
+        <div class="flex flex-col sm:flex-row flex-wrap items-center justify-between gap-3">
           <div class="flex items-center gap-3 w-full sm:w-auto">
-            <div class="relative w-full sm:w-72">
-              <input type="text" id="client-search-input" placeholder="Search client name, ID, or IP..." 
-                class="w-full pl-8 pr-3 py-2 rounded-lg bg-slate-950 border border-slate-700 text-xs text-white focus:outline-none focus:border-cyan-400 font-mono">
-              <i data-feather="search" class="w-3.5 h-3.5 text-slate-500 absolute left-2.5 top-2.5"></i>
+            <div class="relative w-full sm:w-72 sm:max-w-full">
+              <input type="text" id="client-search-input" aria-label="Search subscriber accounts" placeholder="Search client name, ID, or IP..."
+                class="w-full ps-8 pe-3 py-2 rounded-lg bg-slate-950 border border-slate-700 text-xs text-white focus:outline-none focus:border-cyan-400 font-mono">
+              <i data-feather="search" class="w-3.5 h-3.5 text-slate-500 absolute start-2.5 top-2.5"></i>
             </div>
           </div>
 
-          <button id="open-add-client-btn" class="w-full sm:w-auto px-4 py-2.5 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-bold rounded-lg text-xs font-heading flex items-center justify-center gap-2 transition shadow-lg shadow-cyan-500/20 whitespace-nowrap">
+          <button id="open-add-client-btn" class="w-full sm:w-auto sm:ms-auto sm:shrink-0 px-4 py-2.5 bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-400 text-slate-950 font-bold rounded-lg text-xs font-heading flex items-center justify-center gap-2 transition shadow-lg shadow-cyan-500/20 whitespace-nowrap">
             <i data-feather="user-plus" class="w-4 h-4"></i>
             <span>Add New Client</span>
           </button>
         </div>
 
-        <!-- Clients Cards Container -->
+        <!-- Clients Cards Container. The notice below is the state before loadClients has
+             answered; it carries .clients-placeholder because that is how loadClients tells a
+             grid of notices apart from a grid of subscriber cards when it decides whether a
+             reload may repaint. An empty grid here used to read as "your subscribers are
+             gone" — the one conclusion an operator would act on, and the one that was never
+             true. -->
         <div id="clients-list" class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <!-- Dynamically populated -->
+          <div class="clients-placeholder col-span-1 md:col-span-2 glass-panel p-8 text-center text-slate-400 border border-slate-800">
+            <i data-feather="loader" class="w-8 h-8 mx-auto text-slate-600 mb-2"></i>
+            <div class="font-bold text-slate-300 font-heading">Loading clients…</div>
+            <p class="text-xs text-slate-500 mt-1">Reading the subscriber list from the server.</p>
+          </div>
         </div>
 
       </section>
@@ -527,33 +1252,33 @@
             <p class="text-[11px] text-slate-400">1-Click activate targeted optimization bundles</p>
           </div>
           <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
-            <button id="profile-gaming-btn" class="quick-mode-btn p-3 rounded-xl bg-gradient-to-r from-red-500/20 to-orange-500/20 border border-red-500/40 text-left hover:border-red-400">
+            <button id="profile-gaming-btn" class="quick-mode-btn p-3 rounded-xl bg-gradient-to-r from-red-500/20 to-orange-500/20 border border-red-500/40 text-start hover:border-red-400">
               <div class="flex items-center gap-1.5 mb-0.5">
-                <span>🎯</span>
+                <i data-feather="award" class="w-3.5 h-3.5 text-red-300"></i>
                 <span class="text-xs font-bold text-white font-heading">Pro Gamer</span>
               </div>
-              <p class="text-[10px] text-slate-400 leading-tight">All 13 game routes</p>
+              <p class="text-[10px] text-slate-400 leading-tight">All 18 game routes</p>
             </button>
 
-            <button id="profile-streamer-btn" class="quick-mode-btn p-3 rounded-xl bg-gradient-to-r from-purple-500/20 to-blue-500/20 border border-purple-500/40 text-left hover:border-purple-400">
+            <button id="profile-streamer-btn" class="quick-mode-btn p-3 rounded-xl bg-gradient-to-r from-purple-500/20 to-blue-500/20 border border-purple-500/40 text-start hover:border-purple-400">
               <div class="flex items-center gap-1.5 mb-0.5">
-                <span>🎬</span>
+                <i data-feather="video" class="w-3.5 h-3.5 text-purple-300"></i>
                 <span class="text-xs font-bold text-white font-heading">Streamer</span>
               </div>
               <p class="text-[10px] text-slate-400 leading-tight">Discord, Twitch, Kick</p>
             </button>
 
-            <button id="profile-dev-btn" class="quick-mode-btn p-3 rounded-xl bg-gradient-to-r from-cyan-500/20 to-emerald-500/20 border border-cyan-500/40 text-left hover:border-cyan-400">
+            <button id="profile-dev-btn" class="quick-mode-btn p-3 rounded-xl bg-gradient-to-r from-cyan-500/20 to-emerald-500/20 border border-cyan-500/40 text-start hover:border-cyan-400">
               <div class="flex items-center gap-1.5 mb-0.5">
-                <span>💻</span>
+                <i data-feather="terminal" class="w-3.5 h-3.5 text-cyan-300"></i>
                 <span class="text-xs font-bold text-white font-heading">Dev 403</span>
               </div>
               <p class="text-[10px] text-slate-400 leading-tight">Docker, AI, npm</p>
             </button>
 
-            <button id="profile-privacy-btn" class="quick-mode-btn p-3 rounded-xl bg-gradient-to-r from-emerald-500/20 to-teal-500/20 border border-emerald-500/40 text-left hover:border-emerald-400">
+            <button id="profile-privacy-btn" class="quick-mode-btn p-3 rounded-xl bg-gradient-to-r from-emerald-500/20 to-teal-500/20 border border-emerald-500/40 text-start hover:border-emerald-400">
               <div class="flex items-center gap-1.5 mb-0.5">
-                <span>🛡️</span>
+                <i data-feather="umbrella" class="w-3.5 h-3.5 text-emerald-300"></i>
                 <span class="text-xs font-bold text-emerald-300 font-heading">Safe DNS</span>
               </div>
               <p class="text-[10px] text-slate-400 leading-tight">AdBlock & Family</p>
@@ -564,7 +1289,7 @@
         <!-- SECTION 1: GAMING POLICIES -->
         <div class="space-y-4">
           <div class="flex items-center gap-2 border-b border-slate-800/80 pb-3">
-            <span class="text-xl">🎮</span>
+            <span class="policy-icon"><i data-feather="target" class="w-4 h-4"></i></span>
             <div>
               <h3 class="text-sm sm:text-base font-bold text-white tracking-wide font-heading">Gaming Policies</h3>
               <p class="text-[11px] text-slate-400">Anti-sanction & low-latency routing for competitive PC, Console & Mobile games</p>
@@ -574,11 +1299,11 @@
           <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             
             <!-- Policy: Riot Games -->
-            <div class="glass-panel p-4 card-valorant flex flex-col justify-between">
+            <div class="glass-panel policy-card card-valorant p-4 flex flex-col justify-between">
               <div>
                 <div class="flex items-center justify-between mb-1.5">
                   <div class="flex items-center gap-2">
-                    <span class="text-2xl">🎯</span>
+                    <span class="policy-icon"><i data-feather="aperture" class="w-4 h-4"></i></span>
                     <div>
                       <h4 class="text-xs sm:text-sm font-bold text-white font-heading">Riot Games</h4>
                       <span class="text-[9px] sm:text-[10px] text-slate-400 font-mono">Valorant · LoL · Vanguard</span>
@@ -596,11 +1321,11 @@
             </div>
 
             <!-- Policy: Epic Games -->
-            <div class="glass-panel p-4 card-epic flex flex-col justify-between">
+            <div class="glass-panel policy-card card-epic p-4 flex flex-col justify-between">
               <div>
                 <div class="flex items-center justify-between mb-1.5">
                   <div class="flex items-center gap-2">
-                    <span class="text-2xl">🚀</span>
+                    <span class="policy-icon"><i data-feather="shopping-bag" class="w-4 h-4"></i></span>
                     <div>
                       <h4 class="text-xs sm:text-sm font-bold text-white font-heading">Epic Games</h4>
                       <span class="text-[9px] sm:text-[10px] text-slate-400 font-mono">Store · Fortnite · EAC</span>
@@ -618,11 +1343,11 @@
             </div>
 
             <!-- Policy: Steam & Valve -->
-            <div class="glass-panel p-4 card-steam flex flex-col justify-between">
+            <div class="glass-panel policy-card card-steam p-4 flex flex-col justify-between">
               <div>
                 <div class="flex items-center justify-between mb-1.5">
                   <div class="flex items-center gap-2">
-                    <span class="text-2xl">🎮</span>
+                    <span class="policy-icon"><i data-feather="package" class="w-4 h-4"></i></span>
                     <div>
                       <h4 class="text-xs sm:text-sm font-bold text-white font-heading">Steam & Valve</h4>
                       <span class="text-[9px] sm:text-[10px] text-slate-400 font-mono">Community · CS2 · Dota 2</span>
@@ -640,11 +1365,11 @@
             </div>
 
             <!-- Policy: PUBG Mobile & PC -->
-            <div class="glass-panel p-4 card-valorant flex flex-col justify-between">
+            <div class="glass-panel policy-card card-pubg p-4 flex flex-col justify-between">
               <div>
                 <div class="flex items-center justify-between mb-1.5">
                   <div class="flex items-center gap-2">
-                    <span class="text-2xl">🍗</span>
+                    <span class="policy-icon"><i data-feather="map" class="w-4 h-4"></i></span>
                     <div>
                       <h4 class="text-xs sm:text-sm font-bold text-amber-400 font-heading">PUBG Mobile & PC</h4>
                       <span class="text-[9px] sm:text-[10px] text-slate-400 font-mono">Krafton · Level Infinite</span>
@@ -662,11 +1387,11 @@
             </div>
 
             <!-- Policy: Call of Duty Mobile & Warzone -->
-            <div class="glass-panel p-4 card-rockstar flex flex-col justify-between">
+            <div class="glass-panel policy-card card-codm p-4 flex flex-col justify-between">
               <div>
                 <div class="flex items-center justify-between mb-1.5">
                   <div class="flex items-center gap-2">
-                    <span class="text-2xl">🎖️</span>
+                    <span class="policy-icon"><i data-feather="flag" class="w-4 h-4"></i></span>
                     <div>
                       <h4 class="text-xs sm:text-sm font-bold text-emerald-400 font-heading">Call of Duty Mobile</h4>
                       <span class="text-[9px] sm:text-[10px] text-slate-400 font-mono">CODM · Warzone Mobile</span>
@@ -684,11 +1409,11 @@
             </div>
 
             <!-- Policy: Supercell Games -->
-            <div class="glass-panel p-4 card-epic flex flex-col justify-between">
+            <div class="glass-panel policy-card p-4 flex flex-col justify-between">
               <div>
                 <div class="flex items-center justify-between mb-1.5">
                   <div class="flex items-center gap-2">
-                    <span class="text-2xl">⭐</span>
+                    <span class="policy-icon"><i data-feather="star" class="w-4 h-4"></i></span>
                     <div>
                       <h4 class="text-xs sm:text-sm font-bold text-cyan-400 font-heading">Supercell Games</h4>
                       <span class="text-[9px] sm:text-[10px] text-slate-400 font-mono">Brawl Stars · Clash Royale</span>
@@ -706,11 +1431,11 @@
             </div>
 
             <!-- Policy: Electronic Arts -->
-            <div class="glass-panel p-4 flex flex-col justify-between">
+            <div class="glass-panel policy-card card-ea p-4 flex flex-col justify-between">
               <div>
                 <div class="flex items-center justify-between mb-1.5">
                   <div class="flex items-center gap-2">
-                    <span class="text-2xl">⚡</span>
+                    <span class="policy-icon"><i data-feather="zap" class="w-4 h-4"></i></span>
                     <div>
                       <h4 class="text-xs sm:text-sm font-bold text-white font-heading">EA & Origin</h4>
                       <span class="text-[9px] sm:text-[10px] text-slate-400 font-mono">EA App · Apex Legends</span>
@@ -728,11 +1453,11 @@
             </div>
 
             <!-- Policy: Blizzard -->
-            <div class="glass-panel p-4 flex flex-col justify-between">
+            <div class="glass-panel policy-card card-battlenet p-4 flex flex-col justify-between">
               <div>
                 <div class="flex items-center justify-between mb-1.5">
                   <div class="flex items-center gap-2">
-                    <span class="text-2xl">❄️</span>
+                    <span class="policy-icon"><i data-feather="hexagon" class="w-4 h-4"></i></span>
                     <div>
                       <h4 class="text-xs sm:text-sm font-bold text-white font-heading">Battle.net</h4>
                       <span class="text-[9px] sm:text-[10px] text-slate-400 font-mono">Blizzard · Overwatch · WoW</span>
@@ -750,11 +1475,11 @@
             </div>
 
             <!-- Policy: Ubisoft -->
-            <div class="glass-panel p-4 flex flex-col justify-between">
+            <div class="glass-panel policy-card card-ubisoft p-4 flex flex-col justify-between">
               <div>
                 <div class="flex items-center justify-between mb-1.5">
                   <div class="flex items-center gap-2">
-                    <span class="text-2xl">🛡️</span>
+                    <span class="policy-icon"><i data-feather="compass" class="w-4 h-4"></i></span>
                     <div>
                       <h4 class="text-xs sm:text-sm font-bold text-white font-heading">Ubisoft Connect</h4>
                       <span class="text-[9px] sm:text-[10px] text-slate-400 font-mono">Rainbow Six · AC</span>
@@ -772,11 +1497,11 @@
             </div>
 
             <!-- Policy: Rockstar Games -->
-            <div class="glass-panel p-4 card-rockstar flex flex-col justify-between">
+            <div class="glass-panel policy-card card-rockstar p-4 flex flex-col justify-between">
               <div>
                 <div class="flex items-center justify-between mb-1.5">
                   <div class="flex items-center gap-2">
-                    <span class="text-2xl">🚗</span>
+                    <span class="policy-icon"><i data-feather="navigation-2" class="w-4 h-4"></i></span>
                     <div>
                       <h4 class="text-xs sm:text-sm font-bold text-white font-heading">Rockstar Games</h4>
                       <span class="text-[9px] sm:text-[10px] text-slate-400 font-mono">GTA Online · RDR2</span>
@@ -794,11 +1519,11 @@
             </div>
 
             <!-- Policy: Xbox & Microsoft -->
-            <div class="glass-panel p-4 card-xbox flex flex-col justify-between">
+            <div class="glass-panel policy-card card-xbox p-4 flex flex-col justify-between">
               <div>
                 <div class="flex items-center justify-between mb-1.5">
                   <div class="flex items-center gap-2">
-                    <span class="text-2xl">🟢</span>
+                    <span class="policy-icon"><i data-feather="grid" class="w-4 h-4"></i></span>
                     <div>
                       <h4 class="text-xs sm:text-sm font-bold text-white font-heading">Xbox & Microsoft</h4>
                       <span class="text-[9px] sm:text-[10px] text-slate-400 font-mono">Xbox Live · Minecraft</span>
@@ -816,11 +1541,11 @@
             </div>
 
             <!-- Policy: PlayStation -->
-            <div class="glass-panel p-4 card-playstation flex flex-col justify-between">
+            <div class="glass-panel policy-card card-playstation p-4 flex flex-col justify-between">
               <div>
                 <div class="flex items-center justify-between mb-1.5">
                   <div class="flex items-center gap-2">
-                    <span class="text-2xl">🔵</span>
+                    <span class="policy-icon"><i data-feather="play-circle" class="w-4 h-4"></i></span>
                     <div>
                       <h4 class="text-xs sm:text-sm font-bold text-white font-heading">PlayStation Network</h4>
                       <span class="text-[9px] sm:text-[10px] text-slate-400 font-mono">PSN · PS5 / PS4 Store</span>
@@ -838,11 +1563,11 @@
             </div>
 
             <!-- Policy: Roblox -->
-            <div class="glass-panel p-4 flex flex-col justify-between">
+            <div class="glass-panel policy-card card-roblox p-4 flex flex-col justify-between">
               <div>
                 <div class="flex items-center justify-between mb-1.5">
                   <div class="flex items-center gap-2">
-                    <span class="text-2xl">🧱</span>
+                    <span class="policy-icon"><i data-feather="box" class="w-4 h-4"></i></span>
                     <div>
                       <h4 class="text-xs sm:text-sm font-bold text-white font-heading">Roblox</h4>
                       <span class="text-[9px] sm:text-[10px] text-slate-400 font-mono">Client · Assets CDN</span>
@@ -860,11 +1585,11 @@
             </div>
 
             <!-- Policy: Tactical Shooters Extra -->
-            <div class="glass-panel p-4 card-valorant flex flex-col justify-between">
+            <div class="glass-panel policy-card card-valorant p-4 flex flex-col justify-between">
               <div>
                 <div class="flex items-center justify-between mb-1.5">
                   <div class="flex items-center gap-2">
-                    <span class="text-2xl">🎖️</span>
+                    <span class="policy-icon"><i data-feather="crosshair" class="w-4 h-4"></i></span>
                     <div>
                       <h4 class="text-xs sm:text-sm font-bold text-red-400 font-heading">Tactical Shooters Extra</h4>
                       <span class="text-[9px] sm:text-[10px] text-slate-400 font-mono">Tarkov · The Finals · R6 · HellDivers 2</span>
@@ -882,11 +1607,11 @@
             </div>
 
             <!-- Policy: Anime, Gacha & MMORPGs -->
-            <div class="glass-panel p-4 card-epic flex flex-col justify-between">
+            <div class="glass-panel policy-card card-epic p-4 flex flex-col justify-between">
               <div>
                 <div class="flex items-center justify-between mb-1.5">
                   <div class="flex items-center gap-2">
-                    <span class="text-2xl">✨</span>
+                    <span class="policy-icon"><i data-feather="feather" class="w-4 h-4"></i></span>
                     <div>
                       <h4 class="text-xs sm:text-sm font-bold text-purple-400 font-heading">Anime & Modern MMOs</h4>
                       <span class="text-[9px] sm:text-[10px] text-slate-400 font-mono">Genshin · Wuthering Waves · ZZZ · PoE 2</span>
@@ -904,11 +1629,11 @@
             </div>
 
             <!-- Policy: Sports, Fighting & Racing -->
-            <div class="glass-panel p-4 card-steam flex flex-col justify-between">
+            <div class="glass-panel policy-card card-rockstar p-4 flex flex-col justify-between">
               <div>
                 <div class="flex items-center justify-between mb-1.5">
                   <div class="flex items-center gap-2">
-                    <span class="text-2xl">🏎️</span>
+                    <span class="policy-icon"><i data-feather="dribbble" class="w-4 h-4"></i></span>
                     <div>
                       <h4 class="text-xs sm:text-sm font-bold text-amber-400 font-heading">Sports, Fighting & Racing</h4>
                       <span class="text-[9px] sm:text-[10px] text-slate-400 font-mono">FC 25 · eFootball · SF6 · MK1 · Tekken 8</span>
@@ -926,11 +1651,11 @@
             </div>
 
             <!-- Policy: Co-Op, Survival & Classics -->
-            <div class="glass-panel p-4 card-valorant flex flex-col justify-between">
+            <div class="glass-panel policy-card card-xbox p-4 flex flex-col justify-between">
               <div>
                 <div class="flex items-center justify-between mb-1.5">
                   <div class="flex items-center gap-2">
-                    <span class="text-2xl">🏕️</span>
+                    <span class="policy-icon"><i data-feather="users" class="w-4 h-4"></i></span>
                     <div>
                       <h4 class="text-xs sm:text-sm font-bold text-emerald-400 font-heading">Co-Op, Survival & Strategy</h4>
                       <span class="text-[9px] sm:text-[10px] text-slate-400 font-mono">Palworld · Among Us · Terraria · War Thunder</span>
@@ -948,11 +1673,11 @@
             </div>
 
             <!-- Policy: Gaming Platforms & Hardware -->
-            <div class="glass-panel p-4 card-epic flex flex-col justify-between">
+            <div class="glass-panel policy-card p-4 flex flex-col justify-between">
               <div>
                 <div class="flex items-center justify-between mb-1.5">
                   <div class="flex items-center gap-2">
-                    <span class="text-2xl">🖥️</span>
+                    <span class="policy-icon"><i data-feather="cpu" class="w-4 h-4"></i></span>
                     <div>
                       <h4 class="text-xs sm:text-sm font-bold text-cyan-400 font-heading">Platforms & Hardware Tools</h4>
                       <span class="text-[9px] sm:text-[10px] text-slate-400 font-mono">GeForce Now · AMD · GameLoop · RED</span>
@@ -975,7 +1700,7 @@
         <!-- SECTION 2: STREAMING & MEDIA POLICIES -->
         <div class="space-y-4">
           <div class="flex items-center gap-2 border-b border-slate-800/80 pb-3">
-            <span class="text-xl">🎬</span>
+            <span class="policy-icon"><i data-feather="film" class="w-4 h-4"></i></span>
             <div>
               <h3 class="text-sm sm:text-base font-bold text-white tracking-wide font-heading">Streaming & Media Policies</h3>
               <p class="text-[11px] text-slate-400">Bypass restrictions on live streaming, voice channels, and music</p>
@@ -985,11 +1710,11 @@
           <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             
             <!-- Policy: Discord -->
-            <div class="glass-panel p-4 card-discord flex flex-col justify-between">
+            <div class="glass-panel policy-card card-discord p-4 flex flex-col justify-between">
               <div>
                 <div class="flex items-center justify-between mb-1.5">
                   <div class="flex items-center gap-2">
-                    <span class="text-2xl">🎧</span>
+                    <span class="policy-icon"><i data-feather="message-circle" class="w-4 h-4"></i></span>
                     <div>
                       <h4 class="text-xs sm:text-sm font-bold text-white font-heading">Discord</h4>
                       <span class="text-[9px] sm:text-[10px] text-slate-400 font-mono">Updates · RTC Voice</span>
@@ -1007,11 +1732,11 @@
             </div>
 
             <!-- Policy: Spotify & SoundCloud -->
-            <div class="glass-panel p-4 card-spotify flex flex-col justify-between">
+            <div class="glass-panel policy-card card-spotify p-4 flex flex-col justify-between">
               <div>
                 <div class="flex items-center justify-between mb-1.5">
                   <div class="flex items-center gap-2">
-                    <span class="text-2xl">🎵</span>
+                    <span class="policy-icon"><i data-feather="music" class="w-4 h-4"></i></span>
                     <div>
                       <h4 class="text-xs sm:text-sm font-bold text-white font-heading">Spotify & SoundCloud</h4>
                       <span class="text-[9px] sm:text-[10px] text-slate-400 font-mono">Music Streaming Anti-Sanction</span>
@@ -1029,11 +1754,11 @@
             </div>
 
             <!-- Policy: Twitch -->
-            <div class="glass-panel p-4 flex flex-col justify-between">
+            <div class="glass-panel policy-card card-twitch p-4 flex flex-col justify-between">
               <div>
                 <div class="flex items-center justify-between mb-1.5">
                   <div class="flex items-center gap-2">
-                    <span class="text-2xl">💜</span>
+                    <span class="policy-icon"><i data-feather="twitch" class="w-4 h-4"></i></span>
                     <div>
                       <h4 class="text-xs sm:text-sm font-bold text-purple-400 font-heading">Twitch</h4>
                       <span class="text-[9px] sm:text-[10px] text-slate-400 font-mono">Live Streams & Chat</span>
@@ -1051,11 +1776,11 @@
             </div>
 
             <!-- Policy: Kick -->
-            <div class="glass-panel p-4 flex flex-col justify-between">
+            <div class="glass-panel policy-card card-kick p-4 flex flex-col justify-between">
               <div>
                 <div class="flex items-center justify-between mb-1.5">
                   <div class="flex items-center gap-2">
-                    <span class="text-2xl">🟢</span>
+                    <span class="policy-icon"><i data-feather="radio" class="w-4 h-4"></i></span>
                     <div>
                       <h4 class="text-xs sm:text-sm font-bold text-emerald-400 font-heading">Kick.com</h4>
                       <span class="text-[9px] sm:text-[10px] text-slate-400 font-mono">Live Streaming</span>
@@ -1072,13 +1797,82 @@
               </div>
             </div>
 
+            <!-- Policy: Google Services (v2.2.0). The card copy names what is
+                 NOT proxied as clearly as what is: googleapis/gstatic are the
+                 shared web's infrastructure, and routing them here would drag
+                 half the internet onto the proxy. -->
+            <div class="glass-panel policy-card p-4 flex flex-col justify-between">
+              <div>
+                <div class="flex items-center justify-between mb-1.5">
+                  <div class="flex items-center gap-2">
+                    <span class="policy-icon"><i data-feather="globe" class="w-4 h-4"></i></span>
+                    <div>
+                      <h4 class="text-xs sm:text-sm font-bold text-white font-heading">Google Services</h4>
+                      <span class="text-[9px] sm:text-[10px] text-slate-400 font-mono">Search · Gmail · Drive · YouTube</span>
+                    </div>
+                  </div>
+                  <label class="switch">
+                    <input type="checkbox" id="preset-google" checked>
+                    <span class="slider"></span>
+                  </label>
+                </div>
+                <p class="text-[11px] text-slate-400 leading-relaxed">
+                  Proxies Google consumer apps and YouTube. Shared CDN zones (googleapis, gstatic) and update servers stay direct. YouTube video bytes count toward server bandwidth.
+                </p>
+              </div>
+            </div>
+
+            <!-- Policy: AI Assistants (v2.2.0) -->
+            <div class="glass-panel policy-card p-4 flex flex-col justify-between">
+              <div>
+                <div class="flex items-center justify-between mb-1.5">
+                  <div class="flex items-center gap-2">
+                    <span class="policy-icon"><i data-feather="cpu" class="w-4 h-4"></i></span>
+                    <div>
+                      <h4 class="text-xs sm:text-sm font-bold text-cyan-300 font-heading">AI Assistants</h4>
+                      <span class="text-[9px] sm:text-[10px] text-slate-400 font-mono">Copilot · Gemini · Perplexity · Grok · DeepSeek</span>
+                    </div>
+                  </div>
+                  <label class="switch">
+                    <input type="checkbox" id="preset-ai" checked>
+                    <span class="slider"></span>
+                  </label>
+                </div>
+                <p class="text-[11px] text-slate-400 leading-relaxed">
+                  Unblocks AI chat platforms and their sign-in flows. OpenAI and Claude ride the Developer 403 policy.
+                </p>
+              </div>
+            </div>
+
+            <!-- Policy: Social & Messaging (v2.2.0) -->
+            <div class="glass-panel policy-card p-4 flex flex-col justify-between">
+              <div>
+                <div class="flex items-center justify-between mb-1.5">
+                  <div class="flex items-center gap-2">
+                    <span class="policy-icon"><i data-feather="message-circle" class="w-4 h-4"></i></span>
+                    <div>
+                      <h4 class="text-xs sm:text-sm font-bold text-sky-300 font-heading">Social & Messaging</h4>
+                      <span class="text-[9px] sm:text-[10px] text-slate-400 font-mono">X · Instagram · Facebook · Telegram · Reddit</span>
+                    </div>
+                  </div>
+                  <label class="switch">
+                    <input type="checkbox" id="preset-social" checked>
+                    <span class="slider"></span>
+                  </label>
+                </div>
+                <p class="text-[11px] text-slate-400 leading-relaxed">
+                  Proxies social feeds, DMs and media CDNs. Discord is covered by its own policy.
+                </p>
+              </div>
+            </div>
+
           </div>
         </div>
 
         <!-- SECTION 3: DEVELOPER & SECURITY POLICIES -->
         <div class="space-y-4">
           <div class="flex items-center gap-2 border-b border-slate-800/80 pb-3">
-            <span class="text-xl">🛡️</span>
+            <span class="policy-icon"><i data-feather="shield" class="w-4 h-4"></i></span>
             <div>
               <h3 class="text-sm sm:text-base font-bold text-white tracking-wide font-heading">Developer & Security Policies</h3>
               <p class="text-[11px] text-slate-400">Developer 403 bypass, ad-blocking sinkhole, and parental controls</p>
@@ -1088,11 +1882,11 @@
           <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
             
             <!-- Policy: Developer 403 -->
-            <div class="glass-panel p-4 flex flex-col justify-between">
+            <div class="glass-panel policy-card p-4 flex flex-col justify-between">
               <div>
                 <div class="flex items-center justify-between mb-1.5">
                   <div class="flex items-center gap-2">
-                    <span class="text-2xl">💻</span>
+                    <span class="policy-icon"><i data-feather="code" class="w-4 h-4"></i></span>
                     <div>
                       <h4 class="text-xs sm:text-sm font-bold text-white font-heading">Developer 403 Suite</h4>
                       <span class="text-[9px] sm:text-[10px] text-slate-400 font-mono">Docker · OpenAI · Claude · npm</span>
@@ -1110,11 +1904,11 @@
             </div>
 
             <!-- Policy: AdBlock & Privacy Sinkhole -->
-            <div class="glass-panel p-4 flex flex-col justify-between">
+            <div class="glass-panel policy-card card-xbox p-4 flex flex-col justify-between">
               <div>
                 <div class="flex items-center justify-between mb-1.5">
                   <div class="flex items-center gap-2">
-                    <span class="text-2xl">🛡️</span>
+                    <span class="policy-icon"><i data-feather="slash" class="w-4 h-4"></i></span>
                     <div>
                       <h4 class="text-xs sm:text-sm font-bold text-emerald-400 font-heading">AdBlock & Trackers</h4>
                       <span class="text-[9px] sm:text-[10px] text-slate-400 font-mono">Sinkhole · 0.0.0.0</span>
@@ -1132,11 +1926,11 @@
             </div>
 
             <!-- Policy: Family Safe Protection -->
-            <div class="glass-panel p-4 flex flex-col justify-between col-span-1 sm:col-span-2 md:col-span-1">
+            <div class="glass-panel policy-card card-valorant p-4 flex flex-col justify-between col-span-1 sm:col-span-2 md:col-span-1">
               <div>
                 <div class="flex items-center justify-between mb-1.5">
                   <div class="flex items-center gap-2">
-                    <span class="text-2xl">🔞</span>
+                    <span class="policy-icon"><i data-feather="eye-off" class="w-4 h-4"></i></span>
                     <div>
                       <h4 class="text-xs sm:text-sm font-bold text-red-400 font-heading">Family Safe Filter</h4>
                       <span class="text-[9px] sm:text-[10px] text-slate-400 font-mono">Adult Content Filter</span>
@@ -1156,6 +1950,49 @@
           </div>
         </div>
 
+        <!-- SECTION 4: BANDWIDTH & TRAFFIC POLICY -->
+        <div class="space-y-4">
+          <div class="flex items-center gap-2 border-b border-slate-800/80 pb-3">
+            <span class="policy-icon"><i data-feather="download-cloud" class="w-4 h-4"></i></span>
+            <div>
+              <h3 class="text-sm sm:text-base font-bold text-white tracking-wide font-heading">Bandwidth &amp; Traffic Policy</h3>
+              <p class="text-[11px] text-slate-400">Whether bulk downloads travel through the proxy or the subscriber's own line</p>
+            </div>
+          </div>
+
+          <div class="glass-panel policy-card card-rockstar p-4">
+            <div class="flex items-start justify-between gap-3 mb-1.5">
+              <div class="flex items-center gap-2">
+                <span class="policy-icon"><i data-feather="download-cloud" class="w-4 h-4"></i></span>
+                <div>
+                  <h4 class="text-xs sm:text-sm font-bold text-amber-400 font-heading">Game &amp; App Downloads via DNS</h4>
+                  <span class="text-[9px] sm:text-[10px] text-slate-400 font-mono">Steam · Epic · Xbox · PSN · Battle.net · Riot · EA · Ubisoft · Rockstar · Roblox · GOG</span>
+                </div>
+              </div>
+              <label class="switch shrink-0">
+                <input type="checkbox" id="preset-downloads">
+                <span class="slider"></span>
+              </label>
+            </div>
+            <p class="text-[11px] text-slate-400 leading-relaxed">
+              OFF, the default: store pages, sign-in, matchmaking and patch metadata still go through the proxy, but the depot and CDN hosts carrying the multi-gigabyte payload resolve to their real addresses, so installs and updates run on the subscriber's own connection. ON: that payload is relayed too.
+            </p>
+            <div class="mt-3 rounded-lg border-s-2 border-amber-500 bg-amber-500/10 p-3 space-y-1.5">
+              <div class="flex items-center gap-1.5 text-[11px] font-bold text-amber-400">
+                <i data-feather="alert-triangle" class="w-3.5 h-3.5"></i>
+                <span>Read this before switching it on</span>
+              </div>
+              <ul class="text-[11px] text-slate-400 leading-relaxed space-y-1 list-none ps-0">
+                <li>A single 100 GB install crosses this server twice, in and out again. Most providers bill egress by the gigabyte.</li>
+                <li>Traffic quotas count those bytes and there is no per-domain accounting, so one subscriber can burn a monthly plan in an evening.</li>
+                <li>A relayed download is usually slower, not faster. The proxy adds a hop, and the CDN edge nearest the subscriber is closer than this server is.</li>
+                <li>Switch it on when a line cannot reach the CDN at all — a hard block, not a slow one. With it off those installs fail instead of crawling, and launchers retry forever without saying why.</li>
+                <li>Per-client scope: a plan has to select this category as well. The global switch is the ceiling, so off here overrides every plan.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
       </section>
 
       <!-- ============================================== -->
@@ -1165,16 +2002,26 @@
         <div class="glass-panel p-4 sm:p-5">
           
           <!-- Stream Controls Bar -->
-          <div class="flex flex-col sm:flex-row items-center justify-between gap-2.5 sm:gap-3 pb-3 sm:pb-4 border-b border-slate-800">
-            <div class="flex items-center gap-2 sm:gap-3 w-full sm:w-auto">
-              <div class="relative w-full sm:w-64">
-                <input type="text" id="stream-search" placeholder="Search domain or IP..." 
-                  class="w-full pl-8 pr-3 py-1.5 rounded-lg bg-slate-950 border border-slate-700 text-xs text-white focus:outline-none focus:border-cyan-400 font-mono">
-                <i data-feather="search" class="w-3.5 h-3.5 text-slate-500 absolute left-2.5 top-2.5"></i>
+          <!-- `flex-wrap` plus a flexible search box rather than a second breakpoint. The bar
+               used to be `flex-col sm:flex-row` with a fixed `sm:w-64` search, which fits the
+               viewport at 640px but not the panel: from 768px up a 256px sidebar appears, so
+               the panel's content box is 422px while the row wants 374 + 12 + 149 = 535px, and
+               the Clear button was pushed 68px off the start edge — clipped, unreachable, only
+               in the 768-1023 band. Wrapping fixes the whole band instead of one width: the
+               search group takes what is left with `sm:flex-1 sm:min-w-[180px]`, and the button
+               group drops to its own line whenever both cannot share one, kept at the end edge
+               by `sm:ms-auto` (with a single item on a wrapped line, `justify-between` would
+               otherwise pull it back to the start). -->
+          <div class="flex flex-col sm:flex-row flex-wrap items-center justify-between gap-2.5 sm:gap-3 pb-3 sm:pb-4 border-b border-slate-800">
+            <div class="flex items-center gap-2 sm:gap-3 w-full sm:w-auto sm:flex-1 sm:min-w-[180px]">
+              <div class="relative w-full sm:flex-1 sm:min-w-0">
+                <input type="text" id="stream-search" aria-label="Search live queries" placeholder="Search domain or IP..."
+                  class="w-full ps-8 pe-3 py-1.5 rounded-lg bg-slate-950 border border-slate-700 text-xs text-white focus:outline-none focus:border-cyan-400 font-mono">
+                <i data-feather="search" class="w-3.5 h-3.5 text-slate-500 absolute start-2.5 top-2.5"></i>
               </div>
 
               <!-- Filter Selector -->
-              <select id="stream-filter" class="bg-slate-950 border border-slate-700 text-xs text-slate-300 rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-cyan-400 font-mono">
+              <select id="stream-filter" aria-label="Filter live queries by action" class="shrink-0 bg-slate-950 border border-slate-700 text-xs text-slate-300 rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-cyan-400 font-mono">
                 <option value="ALL">All Actions</option>
                 <option value="PROXY">PROXY</option>
                 <option value="DIRECT">DIRECT</option>
@@ -1183,7 +2030,7 @@
               </select>
             </div>
 
-            <div class="flex items-center gap-2 w-full sm:w-auto justify-end">
+            <div class="flex items-center gap-2 w-full sm:w-auto sm:ms-auto sm:shrink-0 justify-end">
               <button id="stream-pause-btn" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-300 border border-slate-700 flex items-center gap-1.5 transition">
                 <i data-feather="pause" class="w-3.5 h-3.5"></i> <span>Pause</span>
               </button>
@@ -1194,22 +2041,48 @@
           </div>
 
           <!-- Live Log Stream Table -->
+          <!-- Seven monospace columns do not fit a 360px phone, and collapsing a live log to
+               stacked cards would cost the density that makes it worth watching. So the table
+               keeps its shape and scrolls sideways inside this wrapper, and the two columns
+               that answer the least on a phone — PROTO and RULE MATCHED — are dropped below
+               `sm`. That, plus tighter cell padding and a narrower domain clamp, takes the
+               resting width from 600px to 420px: about 126px of travel at 360px instead of
+               306px. queryRowHTML in app.js carries the same `hidden sm:table-cell` pair on
+               its third and fifth cells; the two must move together or the header and the
+               body will disagree about which column is which. The placeholder rows keep
+               colspan="7" — a colspan wider than the visible column count is harmless.
+
+               What sets the remaining travel is `min-w-[420px]`, NOT the column count.
+               Measured on a 360px viewport (294px of usable wrapper): hiding TIME as well
+               left the travel at exactly 126px and merely redistributed the freed 78px among
+               the four survivors, so it was rejected — it costs a column and buys nothing.
+               Dropping the min-width to ~294px instead would fit with no swipe at all, but
+               then the domain clamps to about twelve characters with no way to read the rest:
+               `title` needs a hover a touchscreen does not have, and with zero travel there
+               is nothing left to swipe. 420px is the compromise — the domain stays legible,
+               ACTION and LATENCY are one thumb-nudge away, and the page itself never
+               overflows (documentElement.scrollWidth stays 360). -->
           <div class="overflow-x-auto mt-3 max-h-[500px] overflow-y-auto">
-            <table class="w-full text-left border-collapse text-xs font-mono min-w-[600px]">
+            <table class="w-full text-start border-collapse text-xs font-mono min-w-[420px] sm:min-w-[600px]">
+              <caption class="sr-only">Live DNS query log</caption>
               <thead class="bg-slate-950/80 sticky top-0 text-slate-400 border-b border-slate-800 z-10">
                 <tr>
-                  <th class="py-2.5 px-3">TIME</th>
-                  <th class="py-2.5 px-3">CLIENT</th>
-                  <th class="py-2.5 px-3">PROTO</th>
-                  <th class="py-2.5 px-3">QUERY DOMAIN</th>
-                  <th class="py-2.5 px-3">RULE MATCHED</th>
-                  <th class="py-2.5 px-3">ACTION</th>
-                  <th class="py-2.5 px-3 text-right">LATENCY</th>
+                  <th class="py-2.5 px-2 sm:px-3">TIME</th>
+                  <th class="py-2.5 px-2 sm:px-3">CLIENT / ACCOUNT</th>
+                  <th class="py-2.5 px-2 sm:px-3 hidden sm:table-cell">PROTO</th>
+                  <th class="py-2.5 px-2 sm:px-3">QUERY DOMAIN</th>
+                  <th class="py-2.5 px-2 sm:px-3 hidden sm:table-cell">RULE MATCHED</th>
+                  <th class="py-2.5 px-2 sm:px-3">ACTION</th>
+                  <th class="py-2.5 px-2 sm:px-3 text-end">LATENCY</th>
                 </tr>
               </thead>
               <tbody id="stream-tbody" class="divide-y divide-slate-800/50 text-slate-300">
-                <!-- Dynamically populated via SSE -->
-                <tr>
+                <!-- Dynamically populated via SSE. stream-placeholder marks this row as the
+                     empty state: app.js recognises it by that class and replaces it with the
+                     first real query. It used to look for the word "Listening" in the row's
+                     text instead, so rewording this copy would have pinned the placeholder
+                     above every query for the life of the page. -->
+                <tr class="stream-placeholder">
                   <td colspan="7" class="py-12 text-center text-slate-500">
                     <div class="flex flex-col items-center gap-2">
                       <div class="pulse-dot"></div>
@@ -1225,30 +2098,455 @@
       </section>
 
       <!-- ============================================== -->
+      <!-- TAB: DEVELOPER REST API GATEWAY -->
+      <!-- ============================================== -->
+      <section id="tab-api" class="tab-content space-y-6 hidden">
+        
+        <!-- Header Banner -->
+        <div class="glass-panel p-5 sm:p-6 border border-cyan-500/30">
+          <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div class="flex items-center gap-3">
+              <div class="w-12 h-12 rounded-2xl bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 flex items-center justify-center">
+                <i data-feather="code" class="w-6 h-6"></i>
+              </div>
+              <div>
+                <h2 class="text-base sm:text-lg font-bold text-white tracking-wide font-heading">Developer REST API v1</h2>
+                <p class="text-xs text-slate-400">Automate client creation, whitelist sync, and dynamic IP updates</p>
+              </div>
+            </div>
+            <a href="/api/v1/docs" target="_blank" class="px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-onfill font-bold rounded-xl text-xs font-heading flex items-center gap-2 transition shadow-lg shadow-purple-500/20">
+              <i data-feather="book-open" class="w-4 h-4"></i>
+              <span>Interactive Swagger Docs</span>
+            </a>
+          </div>
+        </div>
+
+        <!-- API Security & Network Binding Configuration -->
+        <div class="glass-panel p-5 sm:p-6 border border-slate-800 space-y-4">
+          <div class="flex items-center justify-between border-b border-slate-800/80 pb-3">
+            <div class="flex items-center gap-2">
+              <span class="policy-icon"><i data-feather="lock" class="w-4 h-4"></i></span>
+              <div>
+                <h3 class="text-sm font-bold text-white font-heading">API Network Binding & Security</h3>
+                <p class="text-xs text-slate-400">Control interface exposure and remote API access</p>
+              </div>
+            </div>
+            <span id="api-bind-badge" class="px-2.5 py-1 rounded-full text-[10px] font-mono font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+              127.0.0.1 (Localhost Only)
+            </span>
+          </div>
+
+          <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 rounded-xl bg-slate-950/80 border border-slate-800">
+            <div>
+              <div class="text-xs font-bold text-white font-heading flex items-center gap-2">
+                <span>Expose API to Public (<code class="text-cyan-400">0.0.0.0</code>)</span>
+              </div>
+              <p class="text-[11px] text-slate-400 mt-1 leading-relaxed max-w-xl">
+                Allows external bots, web services, and billing systems to call REST API v1 directly. <strong class="text-amber-300">Security requirement:</strong> Requires an active custom domain and valid SSL/HTTPS on the server to prevent credential leakage.
+              </p>
+            </div>
+            <label class="switch">
+              <input type="checkbox" id="toggle-public-api">
+              <span class="slider"></span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Master API Key Card -->
+        <div class="glass-panel p-5 sm:p-6 border border-slate-800 space-y-4">
+          <div class="flex items-center justify-between border-b border-slate-800/80 pb-3">
+            <div class="flex items-center gap-2">
+              <span class="policy-icon"><i data-feather="key" class="w-4 h-4"></i></span>
+              <div>
+                <h3 class="text-sm font-bold text-white font-heading">Master API Authentication Key</h3>
+                <p class="text-xs text-slate-400">Full administrative access key for headers (<code class="text-cyan-400">X-API-Key: hdns_live_...</code>)</p>
+              </div>
+            </div>
+            <button id="regenerate-api-key-btn" class="px-3 py-1.5 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 text-xs font-bold font-heading flex items-center gap-1.5 transition">
+              <i data-feather="refresh-cw" class="w-3.5 h-3.5"></i>
+              <span>Regenerate Key</span>
+            </button>
+          </div>
+
+          <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+            <div class="flex-1 min-w-0 px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 flex items-center justify-between font-mono text-xs text-slate-300">
+              <span id="api-key-display" class="truncate">••••••••••••••••••••••••••••••••••••••••••••</span>
+              <button id="toggle-api-key-visibility" class="shrink-0 text-slate-500 hover:text-cyan-400 ms-2 p-1" title="Show/Hide Key">
+                <i data-feather="eye" class="w-4 h-4"></i>
+              </button>
+            </div>
+            <button id="copy-api-key-btn" class="shrink-0 px-4 py-2.5 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold rounded-xl text-xs font-heading flex items-center justify-center gap-2 transition whitespace-nowrap">
+              <i data-feather="copy" class="w-4 h-4"></i>
+              <span>Copy API Key</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Quick Code Integration Samples -->
+        <div class="glass-panel p-5 sm:p-6 border border-slate-800 space-y-4">
+          <div class="flex items-center justify-between border-b border-slate-800/80 pb-3">
+            <h3 class="text-sm font-bold text-white font-heading flex items-center gap-2">
+              <i data-feather="terminal" class="w-4 h-4 text-purple-400"></i>
+              <span>Quick Integration Code Snippets</span>
+            </h3>
+          </div>
+
+          <!-- Code Tabs -->
+          <div class="flex gap-2 border-b border-slate-800 pb-2">
+            <button class="api-snippet-tab px-3 py-1.5 rounded-lg text-xs font-bold font-heading bg-cyan-500/20 text-cyan-300 border border-cyan-500/30" data-snippet="curl">cURL</button>
+            <button class="api-snippet-tab px-3 py-1.5 rounded-lg text-xs font-bold font-heading bg-slate-900 text-slate-400 hover:text-white" data-snippet="python">Python (Requests)</button>
+            <button class="api-snippet-tab px-3 py-1.5 rounded-lg text-xs font-bold font-heading bg-slate-900 text-slate-400 hover:text-white" data-snippet="nodejs">Node.js / Telegram Bot</button>
+          </div>
+
+          <pre id="snippet-curl" class="api-snippet-content p-4 rounded-xl bg-slate-950 font-mono text-xs text-slate-300 overflow-x-auto border border-slate-800/80"># 1. Check Engine Health
+curl -X GET "http://127.0.0.1:8080/api/v1/status" \
+  -H "X-API-Key: hdns_live_your_key_here"
+
+# 2. Create User Account (30 Days)
+curl -X POST "http://127.0.0.1:8080/api/v1/clients" \
+  -H "X-API-Key: hdns_live_your_key_here" \
+  -H "Content-Type: application/json" \
+  -d '{"name":"Gamer-VIP","expires_days":30}'</pre>
+
+          <pre id="snippet-python" class="api-snippet-content p-4 rounded-xl bg-slate-950 font-mono text-xs text-slate-300 overflow-x-auto border border-slate-800/80 hidden">import requests
+
+API_URL = "http://127.0.0.1:8080/api/v1"
+HEADERS = {"X-API-Key": "hdns_live_your_key_here"}
+
+# Create subscriber account on plan purchase
+def create_smartdns_user(username, days=30):
+    res = requests.post(f"{API_URL}/clients", headers=HEADERS, json={
+        "name": username,
+        "expires_days": days
+    }).json()
+    if res.get("success"):
+        return res["data"]["register_url"]
+    return None</pre>
+
+          <pre id="snippet-nodejs" class="api-snippet-content p-4 rounded-xl bg-slate-950 font-mono text-xs text-slate-300 overflow-x-auto border border-slate-800/80 hidden">const axios = require('axios');
+
+const client = axios.create({
+  baseURL: 'http://127.0.0.1:8080/api/v1',
+  headers: { 'X-API-Key': 'hdns_live_your_key_here' }
+});
+
+// Example Telegram Bot Handler
+async function onBuySubscription(ctx, username) {
+  const { data } = await client.post('/clients', { name: username, expires_days: 30 });
+  if (data.success) {
+    ctx.reply(`🎉 SmartDNS Created!\n🔗 Register IP: ${data.data.register_url}`);
+  }
+}</pre>
+        </div>
+
+      </section>
+
+      <!-- ============================================== -->
       <!-- TAB 4: CUSTOM RULES, SSL & ACCESS CONTROL -->
       <!-- ============================================== -->
       <section id="tab-rules" class="tab-content space-y-6 hidden">
-        
-        <!-- Automated SSL Certificate Setup (Let's Encrypt / ACME) -->
+
+        <!-- v2.1 Phase 6: two-factor authentication. The secret is shown exactly
+             once, at enrollment; after that the server never returns it and the
+             page never asks for it. -->
+        <div class="glass-panel p-5 sm:p-6 border border-sky-500/30 space-y-4" id="twofa-card">
+          <div class="flex items-center gap-3">
+            <div class="p-2 rounded-xl bg-sky-500/20 text-sky-400">
+              <i data-feather="smartphone" class="w-5 h-5"></i>
+            </div>
+            <div>
+              <h3 class="text-xs sm:text-sm font-bold text-white font-heading">Two-Factor Authentication</h3>
+              <p class="text-[11px] text-slate-400">
+                Status: <span id="twofa-status" class="font-mono text-slate-300">checking…</span>
+                — a TOTP app (Google Authenticator, Aegis, …) generates the codes.
+              </p>
+            </div>
+          </div>
+
+          <div id="twofa-off-box" class="space-y-3">
+            <div class="flex flex-col sm:flex-row gap-2">
+              <input type="password" id="twofa-enable-password" aria-label="Current password, to enable two-factor" placeholder="Current password"
+                class="flex-1 min-w-0 px-3 py-2 rounded-lg bg-slate-950 border border-slate-700 text-xs font-mono text-white focus:outline-none focus:border-sky-400">
+              <button id="twofa-begin-btn" type="button"
+                class="px-4 py-2 bg-sky-600 hover:bg-sky-500 text-white font-bold rounded-lg text-xs font-heading transition whitespace-nowrap">
+                Start Enrollment
+              </button>
+            </div>
+            <div id="twofa-enroll-box" class="hidden space-y-3 border border-sky-500/30 rounded-lg p-3">
+              <!-- The confirm step re-asks the password on purpose — a hijacked
+                   session must not be able to finish an enrollment with the code
+                   alone — so the box carries its own password field rather than
+                   relying on the begin step's, which the begin handler clears.
+                   Without a visible field here the operator entered only the
+                   code and the server answered "Invalid credentials" on the
+                   empty password, which reads exactly like a wrong code. -->
+              <p class="text-[11px] text-slate-300">Add this secret to your authenticator app, then re-enter your password and the code it shows:</p>
+              <p id="twofa-secret-display" class="px-3 py-2 rounded bg-slate-950 border border-slate-700 text-xs font-mono text-sky-300 break-all select-all"></p>
+              <p id="twofa-uri-display" class="text-[11px] text-slate-500 font-mono break-all"></p>
+              <div class="flex flex-col sm:flex-row gap-2">
+                <input type="password" id="twofa-confirm-password" aria-label="Current password, to confirm enrollment" placeholder="Current password" autocomplete="current-password"
+                  class="flex-1 min-w-0 px-3 py-2 rounded-lg bg-slate-950 border border-slate-700 text-xs font-mono text-white focus:outline-none focus:border-sky-400">
+                <input type="text" id="twofa-enable-code" aria-label="Six-digit code, to enable two-factor" placeholder="6-digit code" inputmode="numeric" maxlength="6"
+                  class="flex-1 min-w-0 px-3 py-2 rounded-lg bg-slate-950 border border-slate-700 text-xs font-mono text-white focus:outline-none focus:border-sky-400">
+                <button id="twofa-confirm-btn" type="button"
+                  class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-lg text-xs font-heading transition whitespace-nowrap">
+                  Confirm & Enable
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div id="twofa-on-box" class="hidden space-y-3">
+            <div class="flex flex-col sm:flex-row gap-2">
+              <input type="password" id="twofa-disable-password" aria-label="Current password, to disable two-factor" placeholder="Current password"
+                class="flex-1 min-w-0 px-3 py-2 rounded-lg bg-slate-950 border border-slate-700 text-xs font-mono text-white focus:outline-none focus:border-red-400">
+              <input type="text" id="twofa-disable-code" aria-label="Six-digit code, to disable two-factor" placeholder="6-digit code" inputmode="numeric" maxlength="6"
+                class="flex-1 min-w-0 px-3 py-2 rounded-lg bg-slate-950 border border-slate-700 text-xs font-mono text-white focus:outline-none focus:border-red-400">
+              <button id="twofa-disable-btn" type="button"
+                class="px-4 py-2 bg-red-600 hover:bg-red-500 text-white font-bold rounded-lg text-xs font-heading transition whitespace-nowrap">
+                Disable 2FA
+              </button>
+            </div>
+            <p class="text-[11px] text-amber-300">Disabling removes the second factor and signs out every session.</p>
+          </div>
+        </div>
+
+        <!-- v2.1 Phase 6: LDAP directory login. The bind password never travels
+             back: the server stores it and the field stays write-only. -->
+        <div class="glass-panel p-5 sm:p-6 border border-indigo-500/30 space-y-4" id="ldap-card">
+          <div class="flex items-center gap-3">
+            <div class="p-2 rounded-xl bg-indigo-500/20 text-indigo-400">
+              <i data-feather="database" class="w-5 h-5"></i>
+            </div>
+            <div>
+              <h3 class="text-xs sm:text-sm font-bold text-white font-heading">LDAP Directory Login</h3>
+              <p class="text-[11px] text-slate-400">Authenticate operators against a directory (Active Directory, OpenLDAP)</p>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <label class="flex items-center gap-2 text-xs text-slate-300">
+              <input type="checkbox" id="ldap-enabled-input" class="accent-indigo-500 w-4 h-4">
+              LDAP enabled
+            </label>
+            <div>
+              <select id="ldap-mode-input" aria-label="LDAP login mode"
+                class="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-700 text-xs font-mono text-white focus:outline-none focus:border-indigo-400">
+                <option value="local">Local login only</option>
+                <option value="ldap">LDAP only</option>
+                <option value="both">LDAP with local fallback</option>
+              </select>
+            </div>
+            <input type="text" id="ldap-url-input" aria-label="LDAP server URL" placeholder="ldaps://dc.corp.local:636"
+              class="px-3 py-2 rounded-lg bg-slate-950 border border-slate-700 text-xs font-mono text-white focus:outline-none focus:border-indigo-400">
+            <input type="text" id="ldap-userattr-input" aria-label="LDAP user attribute" placeholder="User attribute (default uid)"
+              class="px-3 py-2 rounded-lg bg-slate-950 border border-slate-700 text-xs font-mono text-white focus:outline-none focus:border-indigo-400">
+            <input type="text" id="ldap-binddn-input" aria-label="LDAP bind DN" placeholder="Bind DN (e.g. cn=svc,dc=corp,dc=local)"
+              class="px-3 py-2 rounded-lg bg-slate-950 border border-slate-700 text-xs font-mono text-white focus:outline-none focus:border-indigo-400">
+            <input type="password" id="ldap-bindpw-input" aria-label="LDAP bind password" placeholder="Bind password (leave empty to keep)"
+              class="px-3 py-2 rounded-lg bg-slate-950 border border-slate-700 text-xs font-mono text-white focus:outline-none focus:border-indigo-400">
+            <input type="text" id="ldap-basedn-input" aria-label="LDAP base DN" placeholder="Base DN (e.g. ou=people,dc=corp,dc=local)"
+              class="px-3 py-2 rounded-lg bg-slate-950 border border-slate-700 text-xs font-mono text-white focus:outline-none focus:border-indigo-400 sm:col-span-2">
+          </div>
+          <p class="text-[11px] text-amber-300">Saving the directory settings signs out every session. ldaps:// is verified against the system certificate store.</p>
+
+          <!-- The directory IS the login path, so saving it re-authenticates the
+               operator: current password always, TOTP code when 2FA is on. -->
+          <div class="flex items-center gap-3 flex-wrap">
+            <input type="password" id="ldap-admin-password" aria-label="Current admin password" autocomplete="current-password"
+              placeholder="Current admin password"
+              class="px-3 py-2 rounded-lg bg-slate-950 border border-slate-700 text-xs font-mono text-white focus:outline-none focus:border-indigo-400">
+            <input type="text" id="ldap-totp-code" aria-label="Two-factor code (when 2FA is enabled)" placeholder="2FA code (if enabled)"
+              class="px-3 py-2 rounded-lg bg-slate-950 border border-slate-700 text-xs font-mono text-white focus:outline-none focus:border-indigo-400"
+              maxlength="6" inputmode="numeric" autocomplete="one-time-code">
+          </div>
+
+          <div class="flex items-center gap-3 flex-wrap">
+            <button id="ldap-save-btn" type="button"
+              class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-lg text-xs font-heading transition">
+              Save LDAP Settings
+            </button>
+            <span id="ldap-save-status" class="text-[11px] text-slate-400"></span>
+          </div>
+        </div>
+
+        <!-- v2.1: hidden admin namespace. The path is a locator, not a credential,
+             but the operator must be able to see and (deliberately) rotate it —
+             regeneration kills every session and every bookmark at once. -->
+        <div class="glass-panel p-5 sm:p-6 border border-fuchsia-500/30">
+          <div class="flex flex-col sm:flex-row sm:items-center gap-4 sm:justify-between">
+            <div class="flex items-center gap-3">
+              <div class="p-2 rounded-xl bg-fuchsia-500/20 text-fuchsia-400">
+                <i data-feather="eye-off" class="w-5 h-5"></i>
+              </div>
+              <div>
+                <h3 class="text-xs sm:text-sm font-bold text-white font-heading">Hidden Admin Path</h3>
+                <p class="text-[11px] text-slate-400">
+                  The panel lives at
+                  <span id="admin-path-display" class="text-fuchsia-300 font-mono">/…</span>
+                  — bookmarks and API clients use this prefix.
+                </p>
+              </div>
+            </div>
+            <button id="regen-admin-path-btn" type="button"
+              class="px-4 py-2 bg-fuchsia-600 hover:bg-fuchsia-500 text-white font-bold rounded-lg text-xs font-heading transition whitespace-nowrap">
+              Regenerate Path
+            </button>
+          </div>
+          <p id="admin-path-warn" class="hidden mt-3 text-[11px] text-amber-300">
+            Regenerating moves the panel immediately: every bookmark, integration and session under the old path stops working, and you will be signed out. Confirm to continue.
+          </p>
+        </div>
+
+        <!-- v2.1: subscription surface settings (3x-ui style, third tab group). -->
+        <div class="glass-panel p-5 sm:p-6 border border-emerald-500/30 space-y-4">
+          <div class="flex items-center gap-3">
+            <div class="p-2 rounded-xl bg-emerald-500/20 text-emerald-400">
+              <i data-feather="share-2" class="w-5 h-5"></i>
+            </div>
+            <div>
+              <h3 class="text-xs sm:text-sm font-bold text-white font-heading">Subscription Portal</h3>
+              <p class="text-[11px] text-slate-400">
+                The public pages your subscribers open. Links are built from
+                <span id="sub-origin-preview" class="text-emerald-300 font-mono">…</span>
+              </p>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <label class="flex items-center gap-2 text-xs text-slate-300">
+              <input type="checkbox" id="sub-enabled-input" class="accent-emerald-500 w-4 h-4">
+              Portal enabled
+            </label>
+            <input type="text" id="sub-domain-input" aria-label="Subscription domain" placeholder="Custom Subscription Domain (empty = panel domain)"
+              class="px-3 py-2 rounded-lg bg-slate-950 border border-slate-700 text-xs font-mono text-white focus:outline-none focus:border-emerald-400">
+            <input type="number" id="sub-port-input" aria-label="Subscription advertised port" min="0" max="65535" placeholder="Advertised port"
+              class="px-3 py-2 rounded-lg bg-slate-950 border border-slate-700 text-xs font-mono text-white focus:outline-none focus:border-emerald-400">
+            <input type="text" id="sub-title-input" aria-label="Subscription portal title" placeholder="Portal title (default HyperDNS)"
+              class="px-3 py-2 rounded-lg bg-slate-950 border border-slate-700 text-xs font-mono text-white focus:outline-none focus:border-emerald-400">
+          </div>
+
+          <!-- Automatic SSL for the subscription domain (v2.2.0). The
+               certificate comes from the daemon's built-in ACME client; the
+               domain is applied to the record, the links and the listener
+               only after the certificate exists, so the portal can never end
+               up serving a certificate for a name it no longer uses. -->
+          <div class="flex flex-col sm:flex-row sm:items-center gap-3">
+            <button id="sub-issue-ssl-btn" type="button"
+              class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-slate-950 font-bold rounded-lg text-xs font-heading transition disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap">
+              Let's Encrypt
+            </button>
+            <p class="text-[11px] text-slate-400 leading-relaxed flex-1">
+              Issue a certificate for the subscription domain above. Empty the domain field and click to go back to the panel's name.
+            </p>
+          </div>
+          <div id="sub-le-progress" class="hidden space-y-1.5">
+            <div class="h-2 rounded-full bg-slate-800 overflow-hidden" role="progressbar" aria-label="Certificate issuance progress">
+              <div id="sub-le-progress-bar" class="h-full bg-gradient-to-r from-emerald-500 to-teal-400 transition-all duration-300" style="width: 0%"></div>
+            </div>
+            <p id="sub-le-progress-text" class="text-[11px] text-slate-400 font-mono"></p>
+          </div>
+
+          <!-- The port above opens a real listener the moment it is saved, but a
+               listener on a closed port is still an unreachable link: nothing in
+               this panel can open a host firewall, so the one thing the operator
+               has to do by hand is named here rather than left to be discovered
+               by a subscriber whose link times out. -->
+          <p class="text-[11px] text-slate-400 leading-relaxed">
+            A port other than the panel's opens a dedicated public listener for the subscriber
+            pages. Open it in the host firewall too — on Ubuntu that is
+            <code class="text-emerald-300 font-mono">ufw allow &lt;port&gt;/tcp</code> — or the links in this
+            card will time out from outside even though the daemon is serving them.
+          </p>
+
+          <div class="flex items-center gap-3 flex-wrap">
+            <button id="save-subscription-btn" type="button"
+              class="px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold rounded-lg text-xs font-heading transition">
+              Save Subscription Settings
+            </button>
+            <span id="sub-save-status" class="text-[11px] text-slate-400"></span>
+          </div>
+        </div>
+
+        <!-- Administrator Credentials -->
+        <div class="glass-panel p-5 sm:p-6 border border-amber-500/30">
+          <div class="flex flex-col sm:flex-row sm:items-center gap-4 sm:justify-between">
+            <div class="flex items-center gap-3">
+              <div class="p-2 rounded-xl bg-amber-500/20 text-amber-400">
+                <i data-feather="user-check" class="w-5 h-5"></i>
+              </div>
+              <div>
+                <h3 class="text-xs sm:text-sm font-bold text-white font-heading">Administrator Credentials</h3>
+                <p class="text-[11px] text-slate-400">
+                  Dashboard login for <span id="current-admin-name" class="text-amber-300 font-mono">admin</span>.
+                  Changing the password signs out every other session.
+                </p>
+              </div>
+            </div>
+            <button id="open-change-pwd-btn" type="button"
+              class="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold rounded-lg text-xs font-heading transition whitespace-nowrap">
+              Change Username / Password
+            </button>
+          </div>
+        </div>
+
+        <!-- SSL / TLS Manager for DoH, DoT (Android Private DNS) (v2.2.0 renamed).
+             Two domains live here, ordered to match the section's name: the
+             DoH/DoT domain comes FIRST (it is what the title promises — the
+             name subscribers type into Android's Private DNS field), and the
+             panel domain second, under its own explicit heading. The original
+             order put the panel field first inside a DoH/DoT-titled section,
+             and an operator typing their DoH/DoT name into it silently
+             re-domained the whole dashboard — the ERR_CERT_COMMON_NAME_INVALID
+             field report. The subheadings make each field's blast radius
+             readable at a glance instead of inferred from position. -->
         <div class="glass-panel p-5 sm:p-6 border border-cyan-500/30">
           <div class="flex items-center gap-3 mb-3">
             <div class="p-2 rounded-xl bg-cyan-500/20 text-cyan-400">
               <i data-feather="lock" class="w-5 h-5"></i>
             </div>
             <div>
-              <h3 class="text-xs sm:text-sm font-bold text-white font-heading">Automated Let's Encrypt SSL / TLS Manager</h3>
-              <p class="text-[11px] text-slate-400">Issue trusted certificates for clean DoH, DoT (Android Private DNS), and HTTPS</p>
+              <h3 class="text-xs sm:text-sm font-bold text-white font-heading">SSL / TLS Manager for DoH, DoT (Android Private DNS)</h3>
+              <p class="text-[11px] text-slate-400">Trusted certificates for the DoH / DoT endpoints clients connect to, and for the panel itself</p>
             </div>
           </div>
+
+          <!-- Custom DoH/DoT domain (empty = panel domain) — first, matching the title -->
+          <p class="text-[11px] font-bold text-cyan-300 mb-1.5">DNS TRANSPORTS (DoT :853 / DoH :8443)</p>
           <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <input type="text" id="ssl-domain-input" placeholder="Domain name (e.g. dns.mygame.ir)"
+            <input type="text" id="dot-domain-input" aria-label="Custom DoH DoT domain" placeholder="Custom DoH, DoT domain (empty = panel domain)"
+              class="sm:col-span-2 px-3 py-2 rounded-lg bg-slate-950 border border-slate-700 text-xs font-mono text-white focus:outline-none focus:border-cyan-400">
+            <button id="issue-dot-ssl-btn" class="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 text-slate-950 font-bold rounded-lg text-xs font-heading transition disabled:opacity-50 disabled:cursor-not-allowed">
+              Let's Encrypt
+            </button>
+          </div>
+          <div id="dot-le-progress" class="hidden space-y-1.5">
+            <div class="h-2 rounded-full bg-slate-800 overflow-hidden" role="progressbar" aria-label="DoH DoT certificate issuance progress">
+              <div id="dot-le-progress-bar" class="h-full bg-gradient-to-r from-cyan-500 to-blue-400 transition-all duration-300" style="width: 0%"></div>
+            </div>
+            <p id="dot-le-progress-text" class="text-[11px] text-slate-400 font-mono"></p>
+          </div>
+          <p class="text-[10px] text-slate-500 mt-1">This is the hostname for DNS-over-TLS and DNS-over-HTTPS — what Android's Private DNS field expects. Leave empty to use the panel domain.</p>
+
+          <!-- Panel domain — second, under its own heading, so its wider
+               blast radius (the whole dashboard) is stated, not inferred -->
+          <p class="text-[11px] font-bold text-slate-300 mt-4 mb-1.5">ADMIN PANEL (the dashboard itself)</p>
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <input type="text" id="ssl-domain-input" aria-label="Panel domain name" placeholder="Panel domain — the dashboard's own name"
               class="px-3 py-2 rounded-lg bg-slate-950 border border-slate-700 text-xs font-mono text-white focus:outline-none focus:border-cyan-400">
-            <input type="email" id="ssl-email-input" placeholder="Admin Email (optional)"
+            <input type="email" id="ssl-email-input" aria-label="Certificate contact email" placeholder="Admin Email (optional)"
               class="px-3 py-2 rounded-lg bg-slate-950 border border-slate-700 text-xs font-mono text-white focus:outline-none focus:border-cyan-400">
-            <button id="issue-ssl-btn" class="px-4 py-2 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-bold rounded-lg text-xs font-heading transition">
+            <button id="issue-ssl-btn" class="px-4 py-2 bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-400 text-slate-950 font-bold rounded-lg text-xs font-heading transition disabled:opacity-50 disabled:cursor-not-allowed">
               Issue SSL Certificate
             </button>
           </div>
+          <div id="panel-le-progress" class="hidden space-y-1.5">
+            <div class="h-2 rounded-full bg-slate-800 overflow-hidden" role="progressbar" aria-label="Panel certificate issuance progress">
+              <div id="panel-le-progress-bar" class="h-full bg-gradient-to-r from-cyan-500 to-blue-400 transition-all duration-300" style="width: 0%"></div>
+            </div>
+            <p id="panel-le-progress-text" class="text-[11px] text-slate-400 font-mono"></p>
+          </div>
+          <p class="text-[10px] text-slate-500 mt-1">Changing this renames the dashboard itself — every panel link and the admin cert follow it. Not the field for your DoH/DoT hostname.</p>
         </div>
 
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -1262,13 +2560,24 @@
               <p class="text-[11px] text-slate-400 mt-0.5">Domains that will be spoofed to this server's SNI Proxy</p>
             </div>
 
+            <!-- Each of these four rows is `flex-1 min-w-0` input + `shrink-0` button. Both
+                 halves of that pair matter: a flex item's default `min-width: auto` resolves
+                 to a form control's intrinsic width (~170px), so without `min-w-0` the input
+                 refuses to shrink and pushes the button out of the panel instead — which is
+                 exactly what the Save button below did at 768px, where a 256px sidebar leaves
+                 the grid cell 207px wide. `shrink-0` then keeps the button's label from being
+                 squashed once the input is the only thing giving way. -->
             <div class="flex gap-2">
-              <input type="text" id="new-proxied-input" placeholder="e.g. *.newgame.com or api.target.com"
-                class="flex-1 px-3 py-2 rounded-lg bg-slate-950 border border-slate-700 text-xs font-mono text-white focus:outline-none focus:border-cyan-400">
-              <button id="add-proxied-btn" class="px-4 py-2 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold rounded-lg text-xs transition font-heading">Add</button>
+              <input type="text" id="new-proxied-input" aria-label="New proxied domain" placeholder="e.g. *.newgame.com or api.target.com"
+                class="flex-1 min-w-0 px-3 py-2 rounded-lg bg-slate-950 border border-slate-700 text-xs font-mono text-white focus:outline-none focus:border-cyan-400">
+              <button id="add-proxied-btn" class="shrink-0 px-4 py-2 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold rounded-lg text-xs transition font-heading">Add</button>
             </div>
 
-            <div id="custom-proxied-list" class="max-h-48 overflow-y-auto space-y-1.5 pr-1"></div>
+            <!-- The line inside is the pre-config state. renderList overwrites the container
+                 outright, so it survives exactly until the settings fetch lands — and an empty
+                 rules list is not a neutral thing to show while that is in flight: on a
+                 blocklist it reads as "nothing is blocked". -->
+            <div id="custom-proxied-list" class="max-h-48 overflow-y-auto space-y-1.5 pe-1"><div class="text-slate-500 text-xs py-1">Loading rules…</div></div>
           </div>
 
           <!-- Custom Blocklist (Sinkhole / Adblock) -->
@@ -1281,12 +2590,12 @@
             </div>
 
             <div class="flex gap-2">
-              <input type="text" id="new-blocked-input" placeholder="e.g. *.telemetry.com or ads.tracker.net"
-                class="flex-1 px-3 py-2 rounded-lg bg-slate-950 border border-slate-700 text-xs font-mono text-white focus:outline-none focus:border-red-400">
-              <button id="add-blocked-btn" class="px-4 py-2 bg-red-500 hover:bg-red-400 text-white font-bold rounded-lg text-xs transition font-heading">Block</button>
+              <input type="text" id="new-blocked-input" aria-label="New blocked domain" placeholder="e.g. *.telemetry.com or ads.tracker.net"
+                class="flex-1 min-w-0 px-3 py-2 rounded-lg bg-slate-950 border border-slate-700 text-xs font-mono text-white focus:outline-none focus:border-red-400">
+              <button id="add-blocked-btn" class="shrink-0 px-4 py-2 bg-red-600 hover:bg-red-700 text-onfill font-bold rounded-lg text-xs transition font-heading">Block</button>
             </div>
 
-            <div id="custom-blocked-list" class="max-h-48 overflow-y-auto space-y-1.5 pr-1"></div>
+            <div id="custom-blocked-list" class="max-h-48 overflow-y-auto space-y-1.5 pe-1"><div class="text-slate-500 text-xs py-1">Loading rules…</div></div>
           </div>
 
           <!-- Access Control: DoH Tokens -->
@@ -1299,12 +2608,12 @@
             </div>
 
             <div class="flex gap-2">
-              <input type="text" id="new-token-input" placeholder="Enter secure token (e.g. mysecretkey)"
-                class="flex-1 px-3 py-2 rounded-lg bg-slate-950 border border-slate-700 text-xs font-mono text-white focus:outline-none focus:border-purple-400">
-              <button id="add-token-btn" class="px-4 py-2 bg-purple-500 hover:bg-purple-400 text-white font-bold rounded-lg text-xs transition font-heading">Add Token</button>
+              <input type="text" id="new-token-input" aria-label="New DoH access token" placeholder="Enter secure token (e.g. mysecretkey)"
+                class="flex-1 min-w-0 px-3 py-2 rounded-lg bg-slate-950 border border-slate-700 text-xs font-mono text-white focus:outline-none focus:border-purple-400">
+              <button id="add-token-btn" class="shrink-0 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-onfill font-bold rounded-lg text-xs transition font-heading">Add Token</button>
             </div>
 
-            <div id="tokens-list" class="max-h-48 overflow-y-auto space-y-1.5 pr-1"></div>
+            <div id="tokens-list" class="max-h-48 overflow-y-auto space-y-1.5 pe-1"><div class="text-slate-500 text-xs py-1">Loading tokens…</div></div>
           </div>
 
           <!-- Custom DNS A/AAAA Records -->
@@ -1317,51 +2626,44 @@
             </div>
 
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              <input type="text" id="custom-record-domain" placeholder="hostname.com"
+              <input type="text" id="custom-record-domain" aria-label="Static record hostname" placeholder="hostname.com"
                 class="px-3 py-2 rounded-lg bg-slate-950 border border-slate-700 text-xs font-mono text-white focus:outline-none focus:border-emerald-400">
               <div class="flex gap-2">
-                <input type="text" id="custom-record-ip" placeholder="1.2.3.4"
-                  class="flex-1 px-3 py-2 rounded-lg bg-slate-950 border border-slate-700 text-xs font-mono text-white focus:outline-none focus:border-emerald-400">
-                <button id="add-custom-record-btn" class="px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold rounded-lg text-xs transition font-heading">Save</button>
+                <input type="text" id="custom-record-ip" aria-label="Static record IP address" placeholder="1.2.3.4"
+                  class="flex-1 min-w-0 px-3 py-2 rounded-lg bg-slate-950 border border-slate-700 text-xs font-mono text-white focus:outline-none focus:border-emerald-400">
+                <button id="add-custom-record-btn" class="shrink-0 px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold rounded-lg text-xs transition font-heading">Save</button>
               </div>
             </div>
 
-            <div id="custom-records-list" class="max-h-48 overflow-y-auto space-y-1.5 pr-1"></div>
+            <div id="custom-records-list" class="max-h-48 overflow-y-auto space-y-1.5 pe-1"><div class="text-slate-500 text-xs py-1">Loading records…</div></div>
           </div>
 
-          <!-- Developer & Bot REST API (v1) Gateway Card -->
-          <div class="glass-panel p-5 sm:p-6 space-y-4 border border-cyan-500/30 col-span-1 md:col-span-2">
-            <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-              <div>
-                <h3 class="text-xs sm:text-sm font-bold uppercase text-white flex items-center gap-2 font-heading">
-                  <i data-feather="code" class="w-4 h-4 text-cyan-400"></i> Developer & Bot REST API (v1)
-                </h3>
-                <p class="text-[11px] text-slate-400 mt-0.5">Programmatic API gateway for Telegram bots, accounting billing systems & webhooks</p>
-              </div>
-              <div class="flex items-center gap-2">
-                <a href="/api/v1/docs" target="_blank" class="px-3 py-1.5 rounded-lg bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 text-xs font-bold font-heading flex items-center gap-1.5 transition">
-                  <i data-feather="book-open" class="w-3.5 h-3.5"></i>
-                  <span>API Docs</span>
-                </a>
-                <button id="regen-api-key-btn" class="px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-amber-500/20 text-slate-300 hover:text-amber-300 border border-slate-700 text-xs font-bold font-heading flex items-center gap-1.5 transition">
-                  <i data-feather="refresh-cw" class="w-3.5 h-3.5"></i>
-                  <span>Regenerate Key</span>
-                </button>
-              </div>
-            </div>
 
-            <div class="space-y-1.5">
-              <div class="text-[11px] text-slate-400 font-semibold">Master API Key:</div>
-              <div class="code-box cursor-pointer flex items-center justify-between" onclick="copyText(document.getElementById('api-key-display').innerText, this)">
-                <span id="api-key-display" class="text-amber-300 font-bold select-all">Loading API Key...</span>
-                <i data-feather="copy" class="w-3.5 h-3.5 text-slate-400 hover:text-cyan-400 flex-shrink-0 ml-2"></i>
-              </div>
-            </div>
-          </div>
 
         </div>
 
-      </section>
+                <!-- Session idle window (Phase D): how long a dashboard session may sit
+               unused before the daemon revokes it. Applies live on save. -->
+          <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 rounded-xl bg-slate-950/80 border border-slate-800">
+            <div>
+              <div class="text-xs font-bold text-white font-heading flex items-center gap-2">
+                <span>Dashboard Session Idle Timeout</span>
+              </div>
+              <p class="text-[11px] text-slate-400 mt-1 leading-relaxed max-w-xl">
+                A dashboard session is revoked after this many minutes without use (absolute lifetime stays 24 h). Applies immediately on save; a shorter window means a tighter panel, but you can be logged out mid-task.
+              </p>
+            </div>
+            <div class="flex items-center gap-2 flex-none">
+              <input type="number" id="session-idle-minutes" min="5" max="1440" step="1"
+                class="w-20 px-3 py-2 rounded-lg bg-slate-950 border border-slate-700 text-white focus:outline-none focus:border-cyan-400 text-sm font-mono text-center"
+                aria-label="Session idle timeout in minutes">
+              <span class="text-[11px] text-slate-400">min</span>
+              <button type="button" id="session-idle-save"
+                class="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 text-slate-950 font-bold rounded-lg text-xs font-heading transition">Save</button>
+            </div>
+          </div>
+
+</section>
 
       <!-- ============================================== -->
       <!-- TAB 5: CLIENT SETUP & CONNECT GUIDE -->
@@ -1390,9 +2692,9 @@
                 <li>Click <strong>Edit DNS assignment</strong> &gt; Select <strong>Manual</strong>.</li>
                 <li>Turn on <strong>IPv4</strong> and enter your Server IP:</li>
               </ol>
-              <div class="code-box cursor-pointer" onclick="copyText(document.getElementById('guide-win-ip').innerText, this)">
+              <div class="code-box cursor-pointer" data-copy-target="guide-win-ip" role="button" tabindex="0" aria-label="Copy server IP address">
                 <span id="guide-win-ip">Loading IP...</span>
-                <i data-feather="copy" class="w-3.5 h-3.5 text-slate-400 hover:text-cyan-400 flex-shrink-0 ml-2"></i>
+                <i data-feather="copy" class="w-3.5 h-3.5 text-slate-400 hover:text-cyan-400 flex-shrink-0 ms-2"></i>
               </div>
             </div>
 
@@ -1407,9 +2709,9 @@
                 <li>Select Wi-Fi/LAN &gt; <strong>Advanced Settings</strong> &gt; <strong>DNS</strong>: Manual.</li>
                 <li>Set <strong>Primary DNS</strong> to your Server IP:</li>
               </ol>
-              <div class="code-box cursor-pointer" onclick="copyText(document.getElementById('guide-console-ip').innerText, this)">
+              <div class="code-box cursor-pointer" data-copy-target="guide-console-ip" role="button" tabindex="0" aria-label="Copy server IP address">
                 <span id="guide-console-ip">Loading IP...</span>
-                <i data-feather="copy" class="w-3.5 h-3.5 text-slate-400 hover:text-cyan-400 flex-shrink-0 ml-2"></i>
+                <i data-feather="copy" class="w-3.5 h-3.5 text-slate-400 hover:text-cyan-400 flex-shrink-0 ms-2"></i>
               </div>
             </div>
 
@@ -1423,9 +2725,9 @@
                 <li>Go to <strong>Settings</strong> &gt; <strong>Network & Internet</strong> &gt; <strong>Private DNS</strong>.</li>
                 <li>Select <strong>Private DNS provider hostname</strong> and enter:</li>
               </ol>
-              <div class="code-box cursor-pointer" onclick="copyText(document.getElementById('guide-dot-hostname').innerText, this)">
+              <div class="code-box cursor-pointer" data-copy-target="guide-dot-hostname" role="button" tabindex="0" aria-label="Copy DNS-over-TLS hostname">
                 <span id="guide-dot-hostname">dns.yourdomain.com</span>
-                <i data-feather="copy" class="w-3.5 h-3.5 text-slate-400 hover:text-cyan-400 flex-shrink-0 ml-2"></i>
+                <i data-feather="copy" class="w-3.5 h-3.5 text-slate-400 hover:text-cyan-400 flex-shrink-0 ms-2"></i>
               </div>
             </div>
 
@@ -1439,9 +2741,9 @@
                 <li>In Browser: <strong>Settings</strong> &gt; <strong>Privacy & Security</strong> &gt; <strong>Use secure DNS</strong>.</li>
                 <li>Choose <strong>Custom</strong> and paste your DoH URL:</li>
               </ol>
-              <div class="code-box cursor-pointer" onclick="copyText(document.getElementById('guide-doh-url').innerText, this)">
-                <span id="guide-doh-url">https://your-server-ip:8443/dns-query</span>
-                <i data-feather="copy" class="w-3.5 h-3.5 text-slate-400 hover:text-cyan-400 flex-shrink-0 ml-2"></i>
+              <div class="code-box cursor-pointer" data-copy-target="guide-doh-url" role="button" tabindex="0" aria-label="Copy DNS-over-HTTPS URL">
+                <span id="guide-doh-url">https://your-server-domain:8443/dns-query</span>
+                <i data-feather="copy" class="w-3.5 h-3.5 text-slate-400 hover:text-cyan-400 flex-shrink-0 ms-2"></i>
               </div>
             </div>
 
@@ -1449,44 +2751,55 @@
         </div>
       </section>
 
+    <!-- FOOTER (Clean desktop footer) -->
+    <footer class="hidden md:block border-t border-slate-800/60 bg-slate-950/40 py-4 text-center text-xs text-slate-500 font-mono">
+      <span>HyperDNS Smart Controller — Low-Latency SmartDNS Engine · <span id="app-version-footer">v2.1.0</span></span>
+    </footer>
     </main>
 
     <!-- MOBILE STICKY BOTTOM NAVIGATION BAR -->
-    <nav class="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-slate-950/95 backdrop-blur-xl border-t border-slate-800 px-2 py-2 flex items-center justify-around">
-      <button class="mobile-nav-item active flex flex-col items-center gap-1 text-[10px] font-semibold text-cyan-400 transition" data-tab="dashboard">
+    <nav class="md:hidden fixed bottom-0 inset-x-0 z-40 bg-slate-950/95 backdrop-blur-xl border-t border-slate-800 px-1 py-1 flex items-stretch justify-around">
+      <button class="mobile-nav-item active flex flex-col items-center gap-1 text-[10px] font-semibold text-cyan-400 transition" data-tab="dashboard" data-route="/home">
         <i data-feather="activity" class="w-4 h-4"></i>
         <span>Dash</span>
       </button>
-      <button class="mobile-nav-item flex flex-col items-center gap-1 text-[10px] font-semibold text-slate-400 hover:text-white transition" data-tab="clients">
+      <button class="mobile-nav-item flex flex-col items-center gap-1 text-[10px] font-semibold text-slate-400 hover:text-white transition" data-tab="clients" data-route="/clients">
         <i data-feather="users" class="w-4 h-4"></i>
         <span>Clients</span>
       </button>
-      <button class="mobile-nav-item flex flex-col items-center gap-1 text-[10px] font-semibold text-slate-400 hover:text-white transition" data-tab="policy">
+      <button class="mobile-nav-item flex flex-col items-center gap-1 text-[10px] font-semibold text-slate-400 hover:text-white transition" data-tab="policy" data-route="/rules">
         <i data-feather="layers" class="w-4 h-4"></i>
         <span>Policy</span>
       </button>
-      <button class="mobile-nav-item flex flex-col items-center gap-1 text-[10px] font-semibold text-slate-400 hover:text-white transition" data-tab="stream">
+      <button class="mobile-nav-item flex flex-col items-center gap-1 text-[10px] font-semibold text-slate-400 hover:text-white transition" data-tab="stream" data-route="/logs">
         <i data-feather="terminal" class="w-4 h-4"></i>
         <span>Logs</span>
       </button>
-      <button class="mobile-nav-item flex flex-col items-center gap-1 text-[10px] font-semibold text-slate-400 hover:text-white transition" data-tab="rules">
-        <i data-feather="sliders" class="w-4 h-4"></i>
-        <span>Rules</span>
+      <button class="mobile-nav-item flex flex-col items-center gap-1 text-[10px] font-semibold text-slate-400 hover:text-white transition" data-tab="api" data-route="/api">
+        <i data-feather="code" class="w-4 h-4"></i>
+        <span>API</span>
       </button>
-      <button class="mobile-nav-item flex flex-col items-center gap-1 text-[10px] font-semibold text-slate-400 hover:text-white transition" data-tab="connect">
+      <button class="mobile-nav-item flex flex-col items-center gap-1 text-[10px] font-semibold text-slate-400 hover:text-white transition" data-tab="rules" data-route="/settings">
+        <i data-feather="sliders" class="w-4 h-4"></i>
+        <span>SSL</span>
+      </button>
+      <button class="mobile-nav-item flex flex-col items-center gap-1 text-[10px] font-semibold text-slate-400 hover:text-white transition" data-tab="connect" data-route="/guide">
         <i data-feather="wifi" class="w-4 h-4"></i>
         <span>Guide</span>
       </button>
     </nav>
 
-    <!-- FOOTER (Clean desktop footer) -->
-    <footer class="hidden md:block border-t border-slate-800/60 bg-slate-950/40 py-4 text-center text-xs text-slate-500 font-mono">
-      <span>HyperDNS Smart Controller — High-Performance Zero-Loss Engine · beta 1.2.0</span>
-    </footer>
 
   </div>
 
   <!-- Custom JavaScript -->
   <script src="/js/app.js"></script>
+  <!-- Loaded after app.js on purpose: i18n.js redraws the icons it swaps through
+       window.safeFeatherReplace, which app.js defines, and its init() runs on
+       DOMContentLoaded — after both files have been evaluated either way. -->
+  <script src="/js/i18n.js"></script>
+  <!-- The v2.1 settings panels are ES modules: deferred, strict, and able to
+       read the app.js bridge (window.__hdns) at call time. -->
+  <script type="module" src="/js/modules/twofa.js"></script>
 </body>
 </html>

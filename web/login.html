@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="dark">
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2300f0ff' stroke-width='2'%3E%3Cpath d='M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z'/%3E%3C/svg%3E">
+  <title>HyperDNS — Sign in</title>
+  <!--
+    Standalone login document (v2.1.0 Phase A).
+
+    This page deliberately does NOT load the dashboard bundle: before it existed,
+    the sign-in route served the full SPA shell to every unauthenticated visitor,
+    so the whole admin front-end — its markup, its API surface, its JS — was
+    readable pre-auth by anyone holding the namespace. This document is
+    self-contained: inline CSS and one small inline script, no external asset
+    requests at all, so there is nothing to load, nothing to fingerprint, and
+    nothing that phones home before the operator signs in.
+
+    The server replaces the value of the ADMIN_BASE variable below with the
+    install's hidden namespace ("/<16-hex>") at serve time; every fetch is built
+    from it.
+  -->
+  <style>
+    :root {
+      --bg: #0b1220;
+      --panel: rgba(15, 23, 42, .82);
+      --border: #1e293b;
+      --border-focus: #00f0ff;
+      --text: #e2e8f0;
+      --muted: #94a3b8;
+      --accent: #00f0ff;
+      --accent-2: #6366f1;
+      --danger: #f87171;
+      --danger-bg: rgba(248, 113, 113, .08);
+      --field: rgba(2, 6, 23, .8);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; }
+    body {
+      font-family: ui-sans-serif, system-ui, "Segoe UI", Tahoma, Vazirmatn, sans-serif;
+      background:
+        radial-gradient(60rem 40rem at 85% -10%, rgba(99, 102, 241, .14), transparent 60%),
+        radial-gradient(50rem 35rem at -10% 110%, rgba(0, 240, 255, .10), transparent 60%),
+        var(--bg);
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1.25rem;
+    }
+    .card {
+      width: 100%;
+      max-width: 24.5rem;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 1.1rem;
+      padding: 1.75rem 1.6rem 1.5rem;
+      box-shadow: 0 24px 60px rgba(0, 0, 0, .45);
+      backdrop-filter: blur(8px);
+    }
+    .brand { display: flex; align-items: center; gap: .8rem; margin-bottom: 1.4rem; }
+    .brand-logo {
+      width: 2.6rem; height: 2.6rem; flex: none;
+      display: flex; align-items: center; justify-content: center;
+      border-radius: .8rem;
+      background: linear-gradient(135deg, rgba(0, 240, 255, .18), rgba(99, 102, 241, .18));
+      border: 1px solid rgba(0, 240, 255, .35);
+    }
+    .brand-logo svg { width: 1.3rem; height: 1.3rem; stroke: var(--accent); fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+    .brand-name { font-size: 1.25rem; font-weight: 800; letter-spacing: .01em; }
+    .brand-sub { font-size: .68rem; font-weight: 700; letter-spacing: .22em; color: var(--accent); text-transform: uppercase; }
+    label { display: block; font-size: .72rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: .95rem 0 .35rem; }
+    input {
+      width: 100%;
+      background: var(--field);
+      border: 1px solid var(--border);
+      border-radius: .6rem;
+      color: var(--text);
+      font-size: .95rem;
+      font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+      padding: .62rem .75rem;
+      outline: none;
+      transition: border-color .15s;
+    }
+    input:focus { border-color: var(--border-focus); box-shadow: 0 0 0 3px rgba(0, 240, 255, .12); }
+    input::placeholder { color: #475569; }
+    #login-code { letter-spacing: .35em; text-align: center; }
+    .hidden { display: none !important; }
+    .error {
+      display: none;
+      margin-top: .9rem;
+      padding: .55rem .75rem;
+      border: 1px solid rgba(248, 113, 113, .35);
+      background: var(--danger-bg);
+      border-radius: .55rem;
+      color: var(--danger);
+      font-size: .82rem;
+    }
+    .error.is-shown { display: block; }
+    button[type="submit"] {
+      width: 100%;
+      margin-top: 1.2rem;
+      padding: .72rem;
+      border: 0;
+      border-radius: .6rem;
+      font-size: .9rem;
+      font-weight: 800;
+      letter-spacing: .04em;
+      color: #04121a;
+      background: linear-gradient(90deg, var(--accent), var(--accent-2));
+      cursor: pointer;
+      transition: filter .15s, transform .05s;
+    }
+    button[type="submit"]:hover { filter: brightness(1.08); }
+    button[type="submit"]:active { transform: translateY(1px); }
+    button[type="submit"]:disabled { opacity: .6; cursor: wait; }
+    .foot {
+      margin-top: 1.15rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: .72rem;
+      color: var(--muted);
+    }
+    .foot .lang { background: none; border: 1px solid var(--border); color: var(--muted); border-radius: .5rem; padding: .25rem .6rem; cursor: pointer; font-size: .72rem; }
+    .foot .lang:hover { color: var(--accent); border-color: rgba(0, 240, 255, .4); }
+    [dir="rtl"] .brand-name, [dir="rtl"] label { letter-spacing: 0; }
+  </style>
+</head>
+<body>
+  <main class="card">
+    <div class="brand">
+      <div class="brand-logo" aria-hidden="true">
+        <svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+      </div>
+      <div>
+        <h1 class="brand-name">HyperDNS</h1>
+        <div class="brand-sub" data-i18n="sub">Standalone Controller</div>
+      </div>
+    </div>
+
+    <form id="login-form" novalidate>
+      <label for="login-username" data-i18n="username">Admin username</label>
+      <input type="text" id="login-username" name="username" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="admin" required>
+
+      <label for="login-password" data-i18n="password">Password</label>
+      <input type="password" id="login-password" name="password" autocomplete="current-password" placeholder="••••••••••••" required>
+
+      <div id="login-2fa-row" class="hidden">
+        <label for="login-code" data-i18n="twofa">Two-factor code</label>
+        <input type="text" id="login-code" name="code" inputmode="numeric" maxlength="6" autocomplete="one-time-code" placeholder="000000">
+      </div>
+
+      <div id="login-error" class="error" role="alert" aria-live="assertive"></div>
+
+      <button type="submit" id="login-submit" data-i18n="submit">Authenticate &amp; access</button>
+    </form>
+
+    <div class="foot">
+      <button type="button" class="lang" id="lang-btn">فارسی</button>
+      <span>HyperDNS Secure Panel</span>
+    </div>
+  </main>
+
+  <script>
+    (function () {
+      'use strict';
+
+      // The hidden namespace this install lives under: the server splices it in
+      // as the value of ADMIN_BASE below. Same shape the dashboard bundle
+      // derives from the address bar: exactly 16 lowercase hex characters.
+      var ADMIN_BASE = "__HDNS_ADMIN_BASE__";
+      var m = window.location.pathname.match(/^\/([0-9a-f]{16})(?=\/|$)/);
+      // The derived value wins when the page was reached at a matching path; the
+      // injected one covers odd proxy rewrites. An empty replacement (a root
+      // mount) degrades to the pre-v2.1 root paths.
+      var BASE = m ? '/' + m[1] : ADMIN_BASE;
+
+      /* --- i18n (fa/en, client-side; no server round trip) ------------------- */
+      var DICT = {
+        en: {
+          sub: 'Standalone Controller',
+          username: 'Admin username', password: 'Password', twofa: 'Two-factor code',
+          submit: 'Authenticate & access',
+          errGeneric: 'Invalid credentials', errNet: 'Server connection failed',
+          errWait: 'Too many attempts. Wait a few minutes and try again.',
+          errCode: 'Your password was accepted — enter the 6-digit code from your authenticator app.',
+          switchTo: 'فارسی'
+        },
+        fa: {
+          sub: 'کنترل‌پنل مستقل',
+          username: 'نام کاربری مدیر', password: 'رمز عبور', twofa: 'کد دو‌مرحله‌ای',
+          submit: 'ورود به پنل',
+          errGeneric: 'نام کاربری یا رمز عبور اشتباه است', errNet: 'اتصال به سرور برقرار نشد',
+          errWait: 'تلاش‌های ناموفق زیاد است. چند دقیقه بعد دوباره امتحان کنید.',
+          errCode: 'رمز شما تأیید شد — کد ۶ رقمی اپلیکیشن احراز هویت را وارد کنید.',
+          switchTo: 'English'
+        }
+      };
+      var lang = 'en';
+      try {
+        lang = new URLSearchParams(window.location.search).get('lang')
+          || localStorage.getItem('hdns_lang')
+          || (navigator.language && navigator.language.indexOf('fa') === 0 ? 'fa' : 'en');
+      } catch (e) { /* storage blocked — default en */ }
+      if (lang !== 'fa') lang = 'en';
+
+      function applyLang() {
+        var t = DICT[lang];
+        document.documentElement.lang = lang;
+        document.documentElement.dir = lang === 'fa' ? 'rtl' : 'ltr';
+        document.title = 'HyperDNS — ' + (lang === 'fa' ? 'ورود' : 'Sign in');
+        var nodes = document.querySelectorAll('[data-i18n]');
+        for (var i = 0; i < nodes.length; i++) {
+          var k = nodes[i].getAttribute('data-i18n');
+          if (t[k]) nodes[i].textContent = t[k];
+        }
+        document.getElementById('lang-btn').textContent = t.switchTo;
+      }
+      document.getElementById('lang-btn').addEventListener('click', function () {
+        lang = lang === 'fa' ? 'en' : 'fa';
+        try { localStorage.setItem('hdns_lang', lang); } catch (e) { /* private mode */ }
+        applyLang();
+      });
+      applyLang();
+
+      /* --- Submit ------------------------------------------------------------ */
+      var errBox = document.getElementById('login-error');
+      var codeRow = document.getElementById('login-2fa-row');
+      var submitBtn = document.getElementById('login-submit');
+
+      function showError(text) {
+        errBox.textContent = text;
+        errBox.classList.add('is-shown');
+      }
+
+      document.getElementById('login-form').addEventListener('submit', function (e) {
+        e.preventDefault();
+        var username = document.getElementById('login-username').value.trim();
+        var password = document.getElementById('login-password').value;
+        var code = document.getElementById('login-code').value.trim();
+        errBox.classList.remove('is-shown');
+
+        submitBtn.disabled = true;
+        fetch(BASE + '/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username: username, password: password, code: code })
+        }).then(function (res) {
+          return res.json().catch(function () { return {}; }).then(function (body) {
+            if (!res.ok) {
+              var t = DICT[lang];
+              if (res.status === 429) {
+                showError(t.errWait);
+              } else if (res.status === 401 && body && body.twofactor_required) {
+                // The password verified; the second factor is what failed. Reveal
+                // the code row and focus it — never shown on a plain wrong password.
+                codeRow.classList.remove('hidden');
+                document.getElementById('login-code').focus();
+                showError(t.errCode);
+              } else {
+                showError((body && body.error) ? String(body.error) : t.errGeneric);
+              }
+              return;
+            }
+            if (!body || !body.token) {
+              showError(DICT[lang].errNet);
+              return;
+            }
+            try { localStorage.setItem('hyperdns_token', body.token); } catch (e2) { /* private mode */ }
+            window.location.replace(BASE + '/dash/home');
+          });
+        }).catch(function () {
+          showError(DICT[lang].errNet);
+        }).then(function () {
+          submitBtn.disabled = false;
+        });
+      });
+
+      // Focus the first empty field, for keyboard operators.
+      var first = document.getElementById('login-username');
+      if (first && !first.value) first.focus();
+    })();
+  </script>
+</body>
+</html>

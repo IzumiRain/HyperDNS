@@ -1,11 +1,61 @@
+# HyperDNS — single-container deployment.
+#
+#   mkdir -p data certs && docker compose up -d
+#
+# config.json is optional: drop one into ./data to seed first-run defaults, or
+# leave the directory empty and let the daemon generate its own. Everything that
+# has to survive a rebuild — data.db, master.key, config.json — lives in ./data,
+# and the ENTRYPOINT names all three explicitly for that reason.
+
 services:
   hyperdns:
     build: .
+    image: hyperdns:local
     container_name: hyperdns
     restart: always
-    network_mode: "host" # Recommended for lowest UDP latency and direct port 53 binding
+
+    # Host networking, not a port list. Two reasons, and the first one is the
+    # project's whole purpose: a NAT hop on every UDP datagram is latency added
+    # to the query that starts a game. The second is that the daemon has to see
+    # the real client address — subscriber recognition, the per-source rate limit
+    # and the access list all key on it, and behind Docker's userland proxy every
+    # query would arrive from the same bridge address, so one client's flood
+    # would rate-limit the entire subnet and every subscriber would look like the
+    # same subscriber.
+    network_mode: "host"
+
     volumes:
       - ./data:/app/data
       - ./certs:/app/certs
+
     environment:
+      # Rendered expiry timestamps and quota-cycle boundaries follow this.
       - TZ=UTC
+      # Only the health check reads this; set it if web_port is not 8080.
+      - HYPERDNS_HEALTH_PORT=8080
+
+    # The systemd unit raises the file-descriptor limit to 65535 and this path
+    # has to match it. The daemon's stream listeners are capped at 512 (TCP),
+    # 1024 (DoT) and 512 (HTTPS/DoH) concurrent connections — 2048 sockets
+    # before UDP, the upstream pool or the SNI relay's two-per-session pairs are
+    # counted at all. Against a 1024 soft limit those caps are unreachable: the
+    # daemon runs out of descriptors first and fails accepts with "too many open
+    # files" instead of applying the limit that was designed to bound it.
+    ulimits:
+      nofile:
+        soft: 65535
+        hard: 65535
+
+    # Unbounded json-file logging is how a 1 GB VPS fills its disk. The daemon
+    # keeps query telemetry in memory and never writes it here, but startup,
+    # upstream and rate-limit lines accumulate for as long as the container runs.
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+    # Stop() drains every listener under one 3-second deadline and then severs
+    # what is left, so ten seconds is generous and a SIGKILL after it means
+    # something is genuinely wedged rather than merely busy.
+    stop_grace_period: 10s
