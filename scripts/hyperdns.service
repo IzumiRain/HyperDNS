@@ -1,0 +1,16 @@
+[Unit]
+Description=HyperDNS — High Performance SmartDNS & Gaming Gateway
+After=network.target network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/hyperdns
+ExecStart=/opt/hyperdns/hyperdns -config /opt/hyperdns/config.json
+Restart=always
+RestartSec=3s
+LimitNOFILE=65535
+
+[Install]
+WantedBy=multi-user.target

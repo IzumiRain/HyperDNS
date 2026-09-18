@@ -1,0 +1,11 @@
+services:
+  hyperdns:
+    build: .
+    container_name: hyperdns
+    restart: always
+    network_mode: "host" # Recommended for lowest UDP latency and direct port 53 binding
+    volumes:
+      - ./data:/app/data
+      - ./certs:/app/certs
+    environment:
+      - TZ=UTC
