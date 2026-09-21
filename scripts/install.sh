@@ -923,7 +923,7 @@ else
 fi
 echo ""
 echo -e "  ${BOLD}🎮 Dedicated Primary DNS IP:${NC} ${CYAN}${PUBLIC_IP}${NC}"
-echo -e "  ${BOLD}?? Terminal console:${NC}       run ${PURPLE}systemctl stop hyperdns && hdns${NC} ${YELLOW}(TUI and daemon cannot share the database at once)${NC}, then ${PURPLE}systemctl start hyperdns${NC}"
+echo -e "  ${BOLD}🖥️  Terminal console:${NC}       run ${PURPLE}hdns${NC} anytime — it talks to the running service over its control socket (live telemetry, stop/start/uninstall included); ${PURPLE}hdns status${NC} and ${PURPLE}hdns flush${NC} also work beside the daemon"
 echo -e "  ${BOLD}📂 Config File Location:${NC}   ${YELLOW}/opt/hyperdns/config.json${NC}"
 echo ""
 echo -e "${GREEN}${BOLD}══════════════════════════════════════════════════════════════════════${NC}"
