@@ -33,6 +33,13 @@ func NewHandler(ops Operations) http.Handler {
 		err := ops.DeleteClient(r.Context(), r.PathValue("id"))
 		respond(w, http.StatusNoContent, nil, err)
 	}))
+	mux.HandleFunc("POST /v1/presets/update", versioned(func(w http.ResponseWriter, r *http.Request) {
+		if !decodeEmptyRequest(w, r) {
+			return
+		}
+		value, err := ops.UpdatePresets(r.Context())
+		respond(w, http.StatusOK, value, err)
+	}))
 	mux.HandleFunc("POST /v1/cache/flush", versioned(func(w http.ResponseWriter, r *http.Request) {
 		if !decodeEmptyRequest(w, r) {
 			return

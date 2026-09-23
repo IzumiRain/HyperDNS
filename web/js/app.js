@@ -2609,6 +2609,98 @@ function initEventListeners() {
   });
 
   // Flush Cache
+  // Preset update channel (v2.3.0): check / apply / rollback.
+  const presetCheckBtn = document.getElementById('preset-check-btn');
+  const presetApplyBtn = document.getElementById('preset-apply-btn');
+  const presetRollbackBtn = document.getElementById('preset-rollback-btn');
+  const presetStatus = document.getElementById('preset-update-status');
+  const presetBadge = document.getElementById('preset-update-badge');
+
+  async function presetPost(path) {
+    const res = await fetch(api(path), {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${authToken}` }
+    });
+    return { ok: res.ok, data: await res.json().catch(() => ({})) };
+  }
+
+  if (presetCheckBtn) {
+    presetCheckBtn.onclick = async () => {
+      presetCheckBtn.disabled = true;
+      presetStatus.textContent = 'Checking the preset channel…';
+      try {
+        const { ok, data } = await presetPost('/api/presets/update/check');
+        if (!ok) {
+          presetStatus.textContent = `Channel check failed: ${data.error || 'unknown error'}`;
+          return;
+        }
+        if (data.up_to_date) {
+          presetStatus.textContent = 'Policy catalog is already up to date.';
+          presetBadge.classList.add('hidden');
+          presetApplyBtn.classList.add('hidden');
+        } else {
+          const parts = data.updates.map(u => `${u.name} v${u.from_version}→v${u.to_version}`);
+          presetStatus.textContent = `Update available: ${parts.join(', ')}`;
+          presetBadge.classList.remove('hidden');
+          presetApplyBtn.classList.remove('hidden');
+        }
+      } catch (e) {
+        presetStatus.textContent = 'Channel check failed: network error';
+      } finally {
+        presetCheckBtn.disabled = false;
+      }
+    };
+  }
+
+  if (presetApplyBtn) {
+    presetApplyBtn.onclick = async () => {
+      presetApplyBtn.disabled = true;
+      presetStatus.textContent = 'Downloading, verifying and applying…';
+      try {
+        const { ok, data } = await presetPost('/api/presets/update/apply');
+        if (!ok) {
+          presetStatus.textContent = `Apply failed (rolled back): ${data.error || 'unknown error'}`;
+          presetApplyBtn.classList.remove('hidden');
+          return;
+        }
+        presetStatus.textContent = `Catalog updated${data.applied ? `: ${data.applied} policy file(s)` : ''}. Flushing cache…`;
+        presetBadge.classList.add('hidden');
+        presetApplyBtn.classList.add('hidden');
+        presetRollbackBtn.classList.remove('hidden');
+        await fetch(api('/api/cache/flush'), {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${authToken}` }
+        });
+        presetStatus.textContent += ' done.';
+        showToast('Policy catalog updated', 'success');
+      } catch (e) {
+        presetStatus.textContent = 'Apply failed: network error';
+        presetApplyBtn.classList.remove('hidden');
+      } finally {
+        presetApplyBtn.disabled = false;
+      }
+    };
+  }
+
+  if (presetRollbackBtn) {
+    presetRollbackBtn.onclick = async () => {
+      presetRollbackBtn.disabled = true;
+      try {
+        const { ok } = await presetPost('/api/presets/update/rollback');
+        if (ok) {
+          presetStatus.textContent = 'Rolled back to the previous policy set.';
+          presetRollbackBtn.classList.add('hidden');
+          showToast('Policy catalog rolled back', 'success');
+        } else {
+          presetStatus.textContent = 'Rollback failed — see the daemon log.';
+          presetRollbackBtn.classList.remove('hidden');
+        }
+      } finally {
+        presetRollbackBtn.disabled = false;
+      }
+    };
+  }
+
   const flushBtn = document.getElementById('flush-cache-btn');
   if (flushBtn) {
     flushBtn.onclick = async () => {

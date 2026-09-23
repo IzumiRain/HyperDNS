@@ -1286,6 +1286,27 @@
           </div>
         </div>
 
+        <!-- Preset update channel (v2.3.0): signed catalog from the Pages host.
+             Check lists what changed, Apply downloads+verifies+swaps+health-checks
+             in one call (any failure rolls back), Rollback restores the previous set. -->
+        <div id="preset-update-card" class="glass-panel p-4 mb-6 border border-slate-800">
+          <div class="flex flex-col sm:flex-row sm:items-center gap-3">
+            <div class="flex-1">
+              <div class="flex items-center gap-2">
+                <i data-feather="download-cloud" class="w-4 h-4 text-cyan-400"></i>
+                <h3 class="text-xs sm:text-sm font-bold text-white font-heading">Policy Catalog Updates</h3>
+                <span id="preset-update-badge" class="hidden text-[9px] font-bold px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/30">UPDATE AVAILABLE</span>
+              </div>
+              <p id="preset-update-status" class="text-[10px] text-slate-500 mt-1" data-i18n="presetUpdateHint">Checks the signed preset channel for newer routing lists.</p>
+            </div>
+            <div class="flex items-center gap-2 shrink-0">
+              <button id="preset-check-btn" class="px-3 py-2 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-700 text-[11px] font-semibold transition">Check</button>
+              <button id="preset-apply-btn" class="hidden px-3 py-2 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-slate-950 text-[11px] font-bold transition">Apply</button>
+              <button id="preset-rollback-btn" class="hidden px-3 py-2 rounded-lg bg-slate-900 hover:bg-red-500/20 text-slate-400 hover:text-red-400 border border-slate-700 text-[11px] font-semibold transition">Rollback</button>
+            </div>
+          </div>
+        </div>
+
         <!-- SECTION 1: GAMING POLICIES -->
         <div class="space-y-4">
           <div class="flex items-center gap-2 border-b border-slate-800/80 pb-3">

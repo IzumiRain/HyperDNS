@@ -35,6 +35,7 @@ type Operations interface {
 	CreateClient(context.Context, CreateClientRequest) (ClientView, error)
 	DeleteClient(context.Context, string) error
 	FlushCache(context.Context) error
+	UpdatePresets(context.Context) (UpdatePresetsResult, error)
 	StartBenchmark(context.Context) error
 	Settings(context.Context) (SettingsView, error)
 	RotateAPIKey(context.Context, RotateAPIKeyRequest) (RotateAPIKeyResult, error)
@@ -42,6 +43,15 @@ type Operations interface {
 	ClearLockouts(context.Context, ClearLockoutsRequest) (int, error)
 	ChangeAdmin(context.Context, ChangeAdminRequest) error
 	ResetAdmin(context.Context, ResetAdminRequest) error
+}
+
+// UpdatePresetsResult is the outcome of one channel check-and-apply driven
+// from the console. Fields mirror the dashboard's JSON shape so the two
+// surfaces read the same.
+type UpdatePresetsResult struct {
+	Applied   int    `json:"applied"`
+	Message   string `json:"message"`
+	LastError string `json:"last_error,omitempty"`
 }
 
 type Status struct {

@@ -38,10 +38,12 @@ func storageInitializationAllowed(state bootstrap.PathsState, stateErr error, da
 // prevents it from constructing a second, process-local cache.
 type preDBControlClient interface {
 	FlushCache() error
+	UpdatePresets() (control.UpdatePresetsResult, error)
 }
 
 type contextualFlushClient interface {
 	FlushCache(context.Context) error
+	UpdatePresets(context.Context) (control.UpdatePresetsResult, error)
 }
 
 type preDBControlAdapter struct {
@@ -55,7 +57,18 @@ func (c preDBControlAdapter) FlushCache() error {
 	return c.client.FlushCache(context.Background())
 }
 
+func (c preDBControlAdapter) UpdatePresets() (control.UpdatePresetsResult, error) {
+	if c.client == nil {
+		return control.UpdatePresetsResult{}, errors.New("daemon control client is unavailable")
+	}
+	return c.client.UpdatePresets(context.Background())
+}
+
 type unavailablePreDBControlClient struct{}
+
+func (unavailablePreDBControlClient) UpdatePresets() (control.UpdatePresetsResult, error) {
+	return control.UpdatePresetsResult{}, fmt.Errorf("daemon cache control is unavailable until the local control transport is configured")
+}
 
 func (unavailablePreDBControlClient) FlushCache() error {
 	return fmt.Errorf("daemon cache control is unavailable until the local control transport is configured")
@@ -125,6 +138,7 @@ func dispatchPreDBCommand(args []string, cfgPath string, out, errOut io.Writer) 
 		fmt.Fprintln(out, "Subcommands:")
 		fmt.Fprintln(out, "  status      live service report (no database needed; works beside the daemon)")
 		fmt.Fprintln(out, "  flush       ask the running daemon to flush its DNS cache")
+	fmt.Fprintln(out, "  update-presets  fetch, verify and apply the signed preset catalog")
 		fmt.Fprintln(out, "  uninstall   interactive uninstaller")
 		return true, nil
 	case "version", "-version", "-v", "--version":
@@ -132,6 +146,21 @@ func dispatchPreDBCommand(args []string, cfgPath string, out, errOut io.Writer) 
 		return true, nil
 	case "status":
 		return true, preDBStatusCommand(cfgPath, out)
+	case "update-presets":
+		client := newPreDBControlClient()
+		res, err := client.UpdatePresets()
+		if err != nil {
+			return true, fmt.Errorf("update presets: %w", err)
+		}
+		if res.Applied > 0 {
+			fmt.Fprintf(out, "Preset catalog updated: %d policy file(s) applied. %s\n", res.Applied, res.Message)
+		} else {
+			fmt.Fprintf(out, "Preset catalog is already up to date. %s\n", res.Message)
+		}
+		if res.LastError != "" {
+			fmt.Fprintf(out, "Warning: %s\n", res.LastError)
+		}
+		return true, nil
 	case "flush":
 		if err := newPreDBControlClient().FlushCache(); err != nil {
 			return true, fmt.Errorf("flush daemon cache: %w", err)

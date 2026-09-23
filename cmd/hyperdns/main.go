@@ -21,12 +21,15 @@ import (
 	"hyperdns/internal/control"
 	"hyperdns/internal/core/cache"
 	"hyperdns/internal/core/dns"
+	"context"
+
 	"hyperdns/internal/core/matcher"
 	"hyperdns/internal/core/proxy"
 	"hyperdns/internal/core/upstream"
 	"hyperdns/internal/crypto"
 	"hyperdns/internal/database"
 	"hyperdns/internal/netutil"
+	"hyperdns/internal/presetupd"
 	"hyperdns/internal/service"
 	"hyperdns/internal/service/acme"
 	"hyperdns/internal/tui"
@@ -219,6 +222,10 @@ func main() {
 	if fileAccess != nil && fileAccess.PresentAllowAll {
 		allowAll = fileAccess.AllowAll
 	}
+	var presetUpdateSettings struct {
+		PresetsURL string `json:"presets_url"`
+		AutoApply  bool   `json:"auto_apply"`
+	}
 	var accessSettings struct {
 		DoHTokens []string `json:"doh_tokens"`
 	}
@@ -231,6 +238,7 @@ func main() {
 		bootstrap.SettingSpec{Key: "auth", Target: authSettings},
 		bootstrap.SettingSpec{Key: "allow_all", Target: &allowAll},
 		bootstrap.SettingSpec{Key: "access", Target: &accessSettings},
+		bootstrap.SettingSpec{Key: "preset_updates", Target: &presetUpdateSettings},
 	); err != nil {
 		log.Fatalf("[Main] Refusing to start with unreadable persisted settings: %v", err)
 	}
@@ -448,6 +456,17 @@ func main() {
 	}
 	loadPersistedRules(db, m)
 
+	// The preset-update channel (v2.3.0): the embedded baseline is permanent;
+	// a signed channel override is re-applied at boot and updated from the
+	// dashboard or the console. Constructed here so both the dashboard and the
+	// control socket share one updater state.
+	presetUpdater := presetupd.New(
+		presetUpdateSettings.PresetsURL, nil, m, db, log.Printf)
+	if err := presetUpdater.LoadPersisted(); err != nil {
+		log.Printf("[Main] preset channel override load failed: %v", err)
+	}
+	presetUpdater.SetAutoApply(presetUpdateSettings.AutoApply)
+
 	// Phase D: the operator's configured idle window wins when present, and it
 	// is re-applied live from the dashboard (SessionManager.SetIdleTimeout).
 	// 24h absolute lifetime is unchanged: the idle window is what the flowchart
@@ -536,6 +555,7 @@ func main() {
 		dnsSettings,
 		sessionManager,
 		webAssets.StaticFS,
+		presetUpdater,
 	)
 	webServer.SetSubscriptionSettings(subscriptionSettings)
 	webServer.SetAuthSettings(authSettings)
@@ -588,12 +608,16 @@ func main() {
 		tlsCfg:    tlsSettings,
 		subs:      subscriptionSettings,
 	}
+	// The console's update-presets verb drives the same updater the dashboard
+	// uses: check-and-apply in one call, with the updater's own rollback.
+	presetsSource := controlPresetSource{updater: presetUpdater}
 	controlOps := control.NewDaemonOperations(control.DaemonDependencies{
 		Status:    controlAdapter,
 		Clients:   controlAdapter,
 		Cache:     c,
 		Benchmark: benchmarkRunner,
 		Settings:  controlAdapter,
+		Presets:   presetsSource,
 	})
 
 	// 6. Handle the one remaining pre-listener local utility. Informational and
@@ -800,6 +824,25 @@ func isLockTimeout(err error) bool {
 // re-open, so it answers false there and a NUL stdin would still read as
 // interactive; that is the safe direction (a desktop console keeps its menu), and
 // no HyperDNS service runs headless on Windows.
+// controlPresetSource adapts the preset-updater for the control socket: the
+// boundary returns DTOs, so a network failure surfaces as LastError text rather
+// than a wrapped error type crossing the socket.
+type controlPresetSource struct {
+	updater *presetupd.Updater
+}
+
+func (s controlPresetSource) UpdatePresets(ctx context.Context) control.UpdatePresetsResult {
+	res, err := s.updater.Apply(ctx)
+	if err != nil {
+		return control.UpdatePresetsResult{LastError: err.Error()}
+	}
+	out := control.UpdatePresetsResult{Message: res.Message}
+	if res.Applied != nil {
+		out.Applied = len(res.Applied)
+	}
+	return out
+}
+
 func stdinIsInteractive(f *os.File) bool {
 	if f == nil {
 		return false

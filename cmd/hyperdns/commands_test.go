@@ -27,6 +27,10 @@ func (c *flushClientStub) FlushCache() error {
 	return c.err
 }
 
+func (c *flushClientStub) UpdatePresets() (control.UpdatePresetsResult, error) {
+	return control.UpdatePresetsResult{}, nil
+}
+
 type contextFlushClientStub struct {
 	calls int
 	err   error
@@ -35,6 +39,10 @@ type contextFlushClientStub struct {
 func (c *contextFlushClientStub) FlushCache(context.Context) error {
 	c.calls++
 	return c.err
+}
+
+func (c *contextFlushClientStub) UpdatePresets(context.Context) (control.UpdatePresetsResult, error) {
+	return control.UpdatePresetsResult{}, nil
 }
 
 func TestDefaultPreDBControlClientUsesRootLocalSocket(t *testing.T) {

@@ -117,7 +117,7 @@ module.exports = {
     'text-slate-400', 'text-slate-500', 'text-amber-400', 'font-bold', 'text-red-400',
     'text-lg', 'sm:text-xl', 'font-extrabold', 'font-mono', 'text-cyan-400',
     'px-2.5', 'py-0.5', 'rounded-full', 'bg-cyan-500/10', 'border-cyan-500/30',
-    'flex', 'items-center', 'gap-1.5', 'text-[10px]', 'bg-amber-500/10', 'border-amber-500/30',
+    'flex', 'items-center', 'gap-1.5', 'text-[10px]', 'bg-amber-500/10', 'bg-amber-500/15', 'border-amber-500/30',
     'pulse-dot', 'is-stale',
     'bg-purple-500/20', 'text-purple-300', 'border-purple-500/30', 'text-[9px]',
     'text-emerald-400/80', 'text-[9px]', 'inline-flex', 'gap-1',

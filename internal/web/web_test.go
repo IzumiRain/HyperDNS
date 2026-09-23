@@ -92,7 +92,7 @@ func setupTestWebServer(t *testing.T) (*WebServer, *database.DB, func()) {
 	tlsSettings := &database.TLSSettings{}
 
 	sessions := service.NewSessionManager(time.Hour)
-	ws := NewWebServer(db, clients, stats, c, m, u, nil, settings, tlsSettings, nil, sessions, webAssets.StaticFS)
+	ws := NewWebServer(db, clients, stats, c, m, u, nil, settings, tlsSettings, nil, sessions, webAssets.StaticFS, nil)
 
 	cleanup := func() {
 		// Everything with a background goroutine gets stopped, not just the session

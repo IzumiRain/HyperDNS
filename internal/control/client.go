@@ -60,6 +60,12 @@ func (c *Client) DeleteClient(ctx context.Context, id string) error {
 	return c.do(ctx, http.MethodDelete, "/v1/clients/"+id, nil, nil)
 }
 
+func (c *Client) UpdatePresets(ctx context.Context) (UpdatePresetsResult, error) {
+	var out UpdatePresetsResult
+	err := c.do(ctx, http.MethodPost, "/v1/presets/update", struct{}{}, &out)
+	return out, err
+}
+
 func (c *Client) FlushCache(ctx context.Context) error {
 	return c.do(ctx, http.MethodPost, "/v1/cache/flush", struct{}{}, nil)
 }

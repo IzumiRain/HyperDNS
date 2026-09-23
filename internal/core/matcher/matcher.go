@@ -330,6 +330,11 @@ type Matcher struct {
 	proxied       *ruleSet
 	downloads     *ruleSet
 	customRecords map[string]string // domain -> IP override
+
+	// catalog is the active preset data: nil means the embedded baseline
+	// (presets.NameMap). The preset-update channel swaps it in whole — never
+	// mutating — so readers under the read lock always see one coherent catalog.
+	catalog map[string][]string
 }
 
 func NewMatcher() *Matcher {
@@ -361,6 +366,39 @@ func GetAllPresets() map[string][]string {
 	return presets.NameMap()
 }
 
+// activeCatalog is the catalog the matcher indexes: the channel-applied
+// override when one is installed, otherwise the embedded baseline.
+// Caller holds mu (rebuild) or is in a read path that took it.
+func (m *Matcher) activeCatalog() map[string][]string {
+	if m.catalog != nil {
+		return m.catalog
+	}
+	return GetAllPresets()
+}
+
+// SetCatalog installs a channel-delivered preset catalog and reindexes. Pass
+// nil to return to the embedded baseline. The map is adopted as-is — the
+// updater builds a fresh one per apply and never mutates it afterwards.
+func (m *Matcher) SetCatalog(catalog map[string][]string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.catalog = catalog
+	m.rebuildPresetsLocked()
+}
+
+// CatalogVersion reports how many domains each active preset carries, so the
+// updater can health-check a swap without exposing internals.
+func (m *Matcher) CatalogSize() map[string]int {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	cat := m.activeCatalog()
+	out := make(map[string]int, len(cat))
+	for name, domains := range cat {
+		out[name] = len(domains)
+	}
+	return out
+}
+
 // LoadDefaultPresets rebuilds the built-in preset indexes. It discards custom rule
 // lists; a caller holding both should use SetCustomRules, which restores the
 // presets and the custom rules together.
@@ -376,7 +414,7 @@ func (m *Matcher) rebuildPresetsLocked() {
 	m.blocked = newRuleSet()
 	m.downloads = newRuleSet()
 
-	presets := GetAllPresets()
+	presets := m.activeCatalog()
 	names := make([]string, 0, len(presets))
 	for name := range presets {
 		names = append(names, name)

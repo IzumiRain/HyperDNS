@@ -26,6 +26,7 @@ import (
 	"hyperdns/internal/core/upstream"
 	"hyperdns/internal/database"
 	"hyperdns/internal/httpx"
+	"hyperdns/internal/presetupd"
 	"hyperdns/internal/service"
 	"hyperdns/internal/service/acme"
 	"hyperdns/internal/version"
@@ -37,6 +38,7 @@ type WebServer struct {
 	stats          *service.StatsService
 	cache          *cache.Cache
 	matcher        *matcher.Matcher
+	presetUpdater  *presetupd.Updater
 	upstreams      *upstream.UpstreamPool
 	dohHandler     http.Handler
 	settings       *database.ServerSettings
@@ -154,27 +156,29 @@ func NewWebServer(
 	dnsCfg *database.DNSSettings,
 	sessions *service.SessionManager,
 	staticFS fs.FS,
+	presetUpdater *presetupd.Updater,
 ) *WebServer {
 	apiInst := api.NewAPI(db, clients, stats, cache, matcher, upstreams, settings, tlsSettings, sessions)
 
 	ws := &WebServer{
-		db:          db,
-		clients:     clients,
-		stats:       stats,
-		cache:       cache,
-		matcher:     matcher,
-		upstreams:   upstreams,
-		dohHandler:  dohHandler,
-		settings:    settings,
-		tlsSettings: tlsSettings,
-		dnsCfg:      dnsCfg,
-		sessions:    sessions,
-		staticFS:    staticFS,
-		api:         apiInst,
-		sseTickets:  newSSETicketStore(),
-		ldapAuth:    auth.GoLDAPAuthenticator{},
-		kdfGate:     make(chan struct{}, kdfConcurrency()),
-		totpReplay:  newTOTPReplayGuard(),
+		db:            db,
+		clients:       clients,
+		stats:         stats,
+		cache:         cache,
+		matcher:       matcher,
+		upstreams:     upstreams,
+		dohHandler:    dohHandler,
+		settings:      settings,
+		tlsSettings:   tlsSettings,
+		dnsCfg:        dnsCfg,
+		sessions:      sessions,
+		staticFS:      staticFS,
+		presetUpdater: presetUpdater,
+		api:           apiInst,
+		sseTickets:    newSSETicketStore(),
+		ldapAuth:      auth.GoLDAPAuthenticator{},
+		kdfGate:       make(chan struct{}, kdfConcurrency()),
+		totpReplay:    newTOTPReplayGuard(),
 	}
 	ws.loginLimiter = service.NewLoginAttemptTracker()
 	ws.benchmark = service.NewBenchmarkRunner(func() {
@@ -668,6 +672,10 @@ func (ws *WebServer) buildAdminMux() *http.ServeMux {
 	mux.HandleFunc("/api/clients/", ws.requireAuth(ws.handleClientAction))
 	mux.HandleFunc("/api/policies", ws.requireAuth(ws.handlePolicies))
 	mux.HandleFunc("/api/cache/flush", ws.requireAuth(ws.handleFlushCache))
+	mux.HandleFunc("/api/presets/update", ws.requireAuth(ws.handlePresetUpdateStatus))
+	mux.HandleFunc("/api/presets/update/check", ws.requireAuth(ws.handlePresetUpdateCheck))
+	mux.HandleFunc("/api/presets/update/apply", ws.requireAuth(ws.handlePresetUpdateApply))
+	mux.HandleFunc("/api/presets/update/rollback", ws.requireAuth(ws.handlePresetUpdateRollback))
 	mux.HandleFunc("/api/settings", ws.requireAuth(ws.handleSettings))
 	mux.HandleFunc("/api/settings/regenerate-api-key", ws.requireAuth(ws.handleRegenerateAPIKey))
 	mux.HandleFunc("/api/settings/regenerate-admin-path", ws.requireAuth(ws.handleRegenerateAdminPath))

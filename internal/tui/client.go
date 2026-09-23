@@ -26,6 +26,7 @@ type ControlClient interface {
 	CreateClient(context.Context, control.CreateClientRequest) (control.ClientView, error)
 	DeleteClient(context.Context, string) error
 	FlushCache(context.Context) error
+	UpdatePresets(context.Context) (control.UpdatePresetsResult, error)
 	StartBenchmark(context.Context) error
 	Settings(context.Context) (control.SettingsView, error)
 	RotateAPIKey(context.Context, control.RotateAPIKeyRequest) (control.RotateAPIKeyResult, error)
@@ -224,11 +225,11 @@ func printMenu(ctx context.Context, out io.Writer, p palette, client ControlClie
 	fmt.Fprintln(out, "  [8] 🗑️  Delete subscriber")
 	fmt.Fprintln(out, p.Bold(" 🌐 Engine & Network"))
 	fmt.Fprintln(out, "  [9] ⚡ Benchmark DNS upstreams   [10] 🧹 Flush DNS cache")
-	fmt.Fprintln(out, "  [11] 🔌 Change dashboard panel port")
+	fmt.Fprintln(out, "  [11] 📥 Update policy catalog    [12] 🔌 Change dashboard panel port")
 	fmt.Fprintln(out, p.Bold(" 🔒 Security & System"))
-	fmt.Fprintln(out, "  [12] 🔑 View / rotate API key    [13] 🔓 Clear login lockouts")
-	fmt.Fprintln(out, "  [14] 🛡️  Change admin credentials [15] 🚨 Emergency admin reset")
-	fmt.Fprintln(out, "  [16] 💣 Uninstall HyperDNS")
+	fmt.Fprintln(out, "  [13] 🔑 View / rotate API key    [14] 🔓 Clear login lockouts")
+	fmt.Fprintln(out, "  [15] 🛡️  Change admin credentials [16] 🚨 Emergency admin reset")
+	fmt.Fprintln(out, "  [17] 💣 Uninstall HyperDNS")
 	fmt.Fprintln(out, p.Faint(strings.Repeat("─", 64)))
 	fmt.Fprintln(out, "  [0] 🚪 Exit console (daemon keeps running)")
 }
@@ -338,18 +339,31 @@ func runChoice(ctx context.Context, choice string, scanner *bufio.Scanner, out, 
 		}
 		fmt.Fprintln(out, "Panel port saved; restart the service to apply it.")
 	case "12":
-		return apiKeyFlow(ctx, scanner, out, client)
+		res, err := client.UpdatePresets(ctx)
+		if err != nil {
+			return err
+		}
+		if res.Applied > 0 {
+			fmt.Fprintf(out, "Policy catalog updated: %d file(s). %s\n", res.Applied, res.Message)
+		} else {
+			fmt.Fprintf(out, "Policy catalog is up to date.\n")
+		}
+		if res.LastError != "" {
+			fmt.Fprintf(out, "Warning: %s\n", res.LastError)
+		}
 	case "13":
+		return apiKeyFlow(ctx, scanner, out, client)
+	case "14":
 		cleared, err := client.ClearLockouts(ctx, control.ClearLockoutsRequest{})
 		if err != nil {
 			return err
 		}
 		fmt.Fprintf(out, "Cleared %d lockout record(s).\n", cleared)
-	case "14":
-		return changeAdminFlow(ctx, scanner, out, client)
 	case "15":
-		return resetAdminFlow(ctx, scanner, out, client)
+		return changeAdminFlow(ctx, scanner, out, client)
 	case "16":
+		return resetAdminFlow(ctx, scanner, out, client)
+	case "17":
 		if system == nil {
 			return errors.New("system controller is unavailable")
 		}
