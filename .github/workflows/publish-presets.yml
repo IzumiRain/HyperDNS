@@ -1,0 +1,72 @@
+name: Publish Preset Channel
+
+# Builds the signed channel from the merged preset tree and deploys it to
+# GitHub Pages at https://izumirain.github.io/HyperDNS/presets/ — the URL the
+# daemon's preset-update channel fetches. Only a push to main that actually
+# changed presets/ (or this workflow) republishes, so the channel and the
+# repository revision that was reviewed stay in lockstep.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'presets/**'
+      - 'tools/presetchannel/**'
+      - '.github/workflows/publish-presets.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build signed channel
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          check-latest: true
+
+      # The signing key is an Actions secret and exists nowhere in the tree;
+      # the daemon embeds only the matching public half. A run without the
+      # secret fails here rather than publishing an unsigned channel.
+      - name: Build channel
+        env:
+          PRESET_SIGNING_KEY: ${{ secrets.PRESET_SIGNING_KEY }}
+          PRESET_BASE_URL: https://izumirain.github.io/HyperDNS/presets/
+        run: go run ./tools/presetchannel -in presets -out _site/presets build
+
+      - name: Verify the built channel
+        run: go run ./tools/presetchannel -in _site/presets verify
+
+      # The landing page (docs/) rides along so one deployment serves both the
+      # project page and the channel.
+      - name: Assemble site
+        run: |
+          cp -r docs/. _site/
+          rm -f _site/manifest.json
+          ls -la _site
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    name: Deploy to Pages
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

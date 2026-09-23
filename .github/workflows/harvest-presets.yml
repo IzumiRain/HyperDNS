@@ -1,0 +1,89 @@
+name: Harvest Preset Domains
+
+# Weekly Certificate-Transparency sweep: enumerate subdomains of the zones the
+# catalog already carries, append the well-formed newcomers under the change
+# caps, regenerate the golden snapshot, and open a PR. Tier-1 runs (within the
+# caps, every addition under an existing zone) enable auto-merge so the required
+# validation check merges them without human involvement; anything larger parks
+# for review.
+#
+# The tool never invents a policy and never leaves a zone the catalog already
+# lists — the blast radius of a fully automatic merge is "one more hostname
+# under a publisher we already route".
+
+on:
+  schedule:
+    - cron: '17 3 * * 1' # Mondays 03:17 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: preset-harvest
+  cancel-in-progress: false
+
+jobs:
+  harvest:
+    name: Sweep crt.sh and open PR
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          check-latest: true
+
+      - name: Harvest candidate subdomains
+        id: harvest
+        run: |
+          go run ./tools/presetharvest -in presets -max-per-policy 8 -max-total 20 -deadline 8m \
+            | tee harvest-summary.json
+          echo "tier=$(python3 -c "import json;print(json.load(open('harvest-summary.json'))['tier'])")" >> "$GITHUB_OUTPUT"
+          echo "added=$(python3 -c "import json;print(json.load(open('harvest-summary.json'))['total_added'])")" >> "$GITHUB_OUTPUT"
+
+      # The golden snapshot pins what the matcher serves; a data change without
+      # it keeps the PR failing by design.
+      - name: Regenerate golden snapshot
+        run: go run ./tools/genpresets > /dev/null
+
+      - name: Validate the result
+        run: |
+          go run ./tools/presetchannel -in presets validate
+          go test -count=1 ./presets/ ./internal/core/matcher/ ./internal/presetupd/
+
+      - name: Open or update the PR
+        if: steps.harvest.outputs.added != '0'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TIER: ${{ steps.harvest.outputs.tier }}
+          ADDED: ${{ steps.harvest.outputs.added }}
+        run: |
+          if git diff --quiet; then
+            echo "no changes to commit"
+            exit 0
+          fi
+          branch="preset-harvest/$(date -u +%Y%m%d)"
+          git config user.name "hyperdns-preset-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git checkout -b "$branch"
+          git add presets/ internal/core/matcher/testdata/presets_golden.json
+          git commit -m "chore(presets): weekly CT harvest — ${ADDED} domain(s) added"
+          git push --force-with-lease -u origin "$branch"
+
+          # Reuse the open PR for this week's branch when the run repeats.
+          if gh pr view "$branch" --json number >/dev/null 2>&1; then
+            echo "PR already open for $branch"
+          else
+            body="$(printf 'Automated Certificate-Transparency sweep.\n\n```json\n%s\n```\n\nTier: %s (1 = eligible for auto-merge, 2 = needs human review).\n' "$(cat harvest-summary.json)" "$TIER")"
+            gh pr create --title "chore(presets): weekly CT harvest (${ADDED} domains)" \
+              --body "$body" --base main --head "$branch"
+          fi
+
+          if [ "$TIER" = "1" ]; then
+            # The required check is preset-validate.yml; auto-merge fires when it
+            # goes green. A Tier-2 run simply stays open.
+            gh pr merge "$branch" --auto --squash || echo "auto-merge could not be enabled (branch protection?)"
+          fi

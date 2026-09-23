@@ -1,0 +1,57 @@
+name: Preset Channel Validate
+
+# PR gate for the preset data. The harvest automation opens these PRs and, for
+# Tier-1 changes (subdomains of zones the catalog already carries, under the
+# change cap), enables auto-merge — this workflow is the required check that
+# lets it merge without a human. A failing check parks the PR for review.
+
+on:
+  pull_request:
+    paths:
+      - 'presets/**'
+      - 'tools/presetchannel/**'
+      - 'internal/presetupd/**'
+      - '.github/workflows/preset-validate.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: preset-validate-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Validate policy files
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          check-latest: true
+
+      - name: gofmt
+        run: |
+          unformatted="$(gofmt -l . | grep -v '^\.idea/' || true)"
+          if [ -n "$unformatted" ]; then
+            echo "::error::not gofmt-clean:"
+            echo "$unformatted"
+            exit 1
+          fi
+
+      # Data checks: parse, identity, domain syntax, in-file duplicates.
+      - name: Validate preset files
+        run: go run ./tools/presetchannel -in presets validate
+
+      # Behavior checks: the golden snapshot pins the catalog to what the
+      # previous revision served, and the matcher suite proves the loader still
+      # answers identically. A data PR updates the snapshot via
+      # `go run ./tools/genpresets` — that is what makes the diff reviewable.
+      - name: Golden snapshot and matcher behavior
+        run: go test -count=1 ./presets/ ./internal/core/matcher/ ./internal/presetupd/
+
+      - name: Vet
+        run: go vet ./...

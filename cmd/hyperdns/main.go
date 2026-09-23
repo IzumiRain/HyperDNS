@@ -17,11 +17,11 @@ import (
 	"syscall"
 	"time"
 
+	"context"
 	"hyperdns/internal/bootstrap"
 	"hyperdns/internal/control"
 	"hyperdns/internal/core/cache"
 	"hyperdns/internal/core/dns"
-	"context"
 
 	"hyperdns/internal/core/matcher"
 	"hyperdns/internal/core/proxy"
