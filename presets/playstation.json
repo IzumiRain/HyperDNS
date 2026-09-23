@@ -1,0 +1,32 @@
+{
+  "id": "playstation",
+  "name": "PlayStation Network (PSN)",
+  "key": "enable_playstation",
+  "category": "platforms",
+  "kind": "proxy",
+  "icon": "icons/playstation.svg",
+  "homepage": "https://www.playstation.com",
+  "default_enabled": true,
+  "sort_order": 16,
+  "version": 1,
+  "updated_at": "2026-09-23T00:00:00Z",
+  "domains": [
+    "playstation.com",
+    "*.playstation.com",
+    "playstation.net",
+    "*.playstation.net",
+    "playstationnetwork.com",
+    "*.playstationnetwork.com",
+    "sonyentertainmentnetwork.com",
+    "*.sonyentertainmentnetwork.com",
+    "playstation.com.cn",
+    "*.playstation.com.cn",
+    "sie.com",
+    "*.sie.com",
+    "psn.dl.playstation.net",
+    "*.psn.dl.playstation.net",
+    "account.np.ac.playstation.net",
+    "auth.np.ac.playstation.net"
+  ],
+  "notes": "PlayStation: PSN, PlayStation Store, Sony Network, PS5, SIE"
+}

@@ -1,0 +1,24 @@
+{
+  "id": "twitch",
+  "name": "Twitch Streaming",
+  "key": "enable_twitch",
+  "category": "streaming",
+  "kind": "proxy",
+  "icon": "icons/twitch.svg",
+  "homepage": "https://www.twitch.tv",
+  "default_enabled": true,
+  "sort_order": 19,
+  "version": 1,
+  "updated_at": "2026-09-23T00:00:00Z",
+  "domains": [
+    "twitch.tv",
+    "*.twitch.tv",
+    "ttvnw.net",
+    "*.ttvnw.net",
+    "jtvnw.net",
+    "*.jtvnw.net",
+    "twitchcdn.net",
+    "*.twitchcdn.net"
+  ],
+  "notes": "Twitch: Live Streams & Chat"
+}

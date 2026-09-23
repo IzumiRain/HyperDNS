@@ -1,0 +1,26 @@
+{
+  "id": "spotify",
+  "name": "Spotify Music",
+  "key": "enable_spotify",
+  "category": "streaming",
+  "kind": "proxy",
+  "icon": "icons/spotify.svg",
+  "homepage": "https://www.spotify.com",
+  "default_enabled": true,
+  "sort_order": 21,
+  "version": 1,
+  "updated_at": "2026-09-23T00:00:00Z",
+  "domains": [
+    "spotify.com",
+    "*.spotify.com",
+    "scdn.co",
+    "*.scdn.co",
+    "spotifycdn.com",
+    "*.spotifycdn.com",
+    "spoti.fi",
+    "*.spoti.fi",
+    "audio-ak-spotify-com.akamaized.net",
+    "*.audio-ak-spotify-com.akamaized.net"
+  ],
+  "notes": "Spotify: Music streaming anti-sanction"
+}

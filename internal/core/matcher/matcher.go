@@ -4,6 +4,8 @@ import (
 	"slices"
 	"strings"
 	"sync"
+
+	"hyperdns/presets"
 )
 
 type Action int
@@ -67,10 +69,15 @@ var acceptAll = policyFilter{}
 // operator's own SNI proxy — paying VPS bandwidth to deliver the ads it was meant
 // to remove — and "FamilySafe Protection" routed adult sites through that proxy
 // instead of blocking them.
-var blockPresets = map[string]bool{
-	"AdBlock & Tracker Sinkhole": true,
-	"FamilySafe Protection":      true,
-}
+var blockPresets = func() map[string]bool {
+	m := make(map[string]bool)
+	for _, p := range presets.All() {
+		if p.Kind == presets.KindBlock {
+			m[p.Name] = true
+		}
+	}
+	return m
+}()
 
 // defaultOffPresets names every category that ships disabled — the two sinkholes
 // plus the download veto, which has the same "surprising if it fired on its own"
@@ -83,11 +90,13 @@ var blockPresets = map[string]bool{
 // variable initialisation by dependency, so reading blockPresets here is safe
 // regardless of declaration order.
 var defaultOffPresets = func() map[string]bool {
-	off := map[string]bool{RuleDownloads: true}
-	for name := range blockPresets {
-		off[name] = true
+	m := make(map[string]bool)
+	for _, p := range presets.All() {
+		if !p.DefaultEnabled {
+			m[p.Name] = true
+		}
 	}
-	return off
+	return m
 }()
 
 // ruleSet indexes rule domains for one action. exact holds names that match
@@ -343,6 +352,13 @@ func NewMatcher() *Matcher {
 	}
 	m.LoadDefaultPresets()
 	return m
+}
+
+// GetAllPresets returns the built-in preset catalog as display-name → domains.
+// The data lives in presets/*.json (embedded by the presets package); this shim
+// keeps every existing caller working while the channel format owns the truth.
+func GetAllPresets() map[string][]string {
+	return presets.NameMap()
 }
 
 // LoadDefaultPresets rebuilds the built-in preset indexes. It discards custom rule
@@ -631,38 +647,16 @@ func (m *Matcher) SetCustomRules(customProxied, customBlocked, customDirect []st
 // preset with no key cannot be toggled from the config file or the dashboard, and
 // cannot be selected as a per-client policy. "SoundCloud Music" was missing, so
 // config.json's enable_soundcloud was read and silently discarded.
-var PresetRuleKeys = map[string]string{
-	"enable_riot":            "Riot Games & Valorant",
-	"enable_epic":            "Epic Games & Fortnite",
-	"enable_steam":           "Steam & Valve (CS2, Dota 2)",
-	"enable_pubg":            "PUBG & Krafton",
-	"enable_call_of_duty":    "Call of Duty & Activision",
-	"enable_supercell":       "Supercell (Clash & Brawl Stars)",
-	"enable_discord":         "Discord Voice & RTC",
-	"enable_ea":              "EA & Origin (FC, Apex Legends)",
-	"enable_blizzard":        "Blizzard & Battle.net (WoW, Overwatch)",
-	"enable_ubisoft":         "Ubisoft & Rainbow Six",
-	"enable_rockstar":        "Rockstar Games & GTA V",
-	"enable_xbox":            "Xbox Live & Game Pass",
-	"enable_playstation":     "PlayStation Network (PSN)",
-	"enable_roblox":          "Roblox Gaming Platform",
-	"enable_shooters_extra":  "Tactical & Shooters Extra (Escape from Tarkov, Rust)",
-	"enable_anime_gacha":     "Anime, Gacha & Eastern RPGs (Genshin, Honkai)",
-	"enable_sports_racing":   "Sports, Racing & Simulators (Forza, Rocket League)",
-	"enable_coop_survival":   "Co-op, Survival & MMOs (Warframe, DayZ, ESO)",
-	"enable_platforms_extra": "Platforms & Tools (GeForce NOW, GOG, GameLoop)",
-	"enable_spotify":         "Spotify Music",
-	"enable_soundcloud":      "SoundCloud Music",
-	"enable_twitch":          "Twitch Streaming",
-	"enable_kick":            "Kick Streaming",
-	"enable_google":          "Google Services (Search, Gmail, YouTube)",
-	"enable_ai":              "AI Assistants & Platforms (Copilot, Gemini, Perplexity)",
-	"enable_social":          "Social & Messaging (X, Instagram, Telegram)",
-	"enable_dev403":          "Developer 403 Bypass (Docker, AWS, npm, OpenAI)",
-	"enable_downloads":       RuleDownloads,
-	"enable_adblock":         "AdBlock & Tracker Sinkhole",
-	"enable_familysafe":      "FamilySafe Protection",
-}
+// PresetRuleKeys maps dashboard/frontend policy keys (enable_*) to the built-in
+// preset rule names. Derived from the embedded preset files (presets/*.json) —
+// adding a preset file is all it takes for the key to exist everywhere.
+var PresetRuleKeys = func() map[string]string {
+	m := make(map[string]string, len(presets.All()))
+	for _, p := range presets.All() {
+		m[p.Key] = p.Name
+	}
+	return m
+}()
 
 // presetKeyByName is the inverse of PresetRuleKeys, built once so a matched rule
 // can be tested against a client's policy list without allocating.
@@ -686,42 +680,13 @@ var presetKeyByName = func() map[string]string {
 // enforces that, because the failure otherwise is silent in the direction that
 // matters: a preset added to PresetRuleKeys and forgotten here simply cannot be
 // selected as a per-client policy, and nothing in the UI says the list is short.
-var policyCatalogOrder = []string{
-	"enable_riot",
-	"enable_epic",
-	"enable_steam",
-	"enable_pubg",
-	"enable_call_of_duty",
-	"enable_supercell",
-	"enable_ea",
-	"enable_blizzard",
-	"enable_ubisoft",
-	"enable_rockstar",
-	"enable_roblox",
-	"enable_shooters_extra",
-	"enable_anime_gacha",
-	"enable_sports_racing",
-	"enable_coop_survival",
-
-	"enable_xbox",
-	"enable_playstation",
-	"enable_platforms_extra",
-
-	"enable_discord",
-	"enable_twitch",
-	"enable_kick",
-	"enable_spotify",
-	"enable_soundcloud",
-
-	"enable_google",
-	"enable_ai",
-	"enable_social",
-
-	"enable_dev403",
-	"enable_downloads",
-	"enable_adblock",
-	"enable_familysafe",
-}
+var policyCatalogOrder = func() []string {
+	out := make([]string, 0, len(presets.All()))
+	for _, p := range presets.All() {
+		out = append(out, p.Key)
+	}
+	return out
+}()
 
 // PolicyCatalogEntry is one selectable policy as a front-end has to list it.
 type PolicyCatalogEntry struct {

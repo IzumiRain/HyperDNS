@@ -1,0 +1,31 @@
+{
+  "id": "familysafe",
+  "name": "FamilySafe Protection",
+  "key": "enable_familysafe",
+  "category": "filters",
+  "kind": "block",
+  "icon": "icons/familysafe.svg",
+  "default_enabled": false,
+  "sort_order": 29,
+  "version": 1,
+  "updated_at": "2026-09-23T00:00:00Z",
+  "domains": [
+    "pornhub.com",
+    "*.pornhub.com",
+    "xvideos.com",
+    "*.xvideos.com",
+    "xnxx.com",
+    "*.xnxx.com",
+    "xhamster.com",
+    "*.xhamster.com",
+    "redtube.com",
+    "*.redtube.com",
+    "youporn.com",
+    "*.youporn.com",
+    "chaturbate.com",
+    "*.chaturbate.com",
+    "onlyfans.com",
+    "*.onlyfans.com"
+  ],
+  "notes": "Family Friendly & Adult Content Protection. Sinkholed like the adblock list; routing adult sites through the proxy instead of blocking them was the failure this category exists to prevent."
+}

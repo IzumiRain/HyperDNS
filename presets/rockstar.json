@@ -1,0 +1,30 @@
+{
+  "id": "rockstar",
+  "name": "Rockstar Games & GTA V",
+  "key": "enable_rockstar",
+  "category": "gaming",
+  "kind": "proxy",
+  "icon": "icons/rockstar.svg",
+  "homepage": "https://www.rockstargames.com",
+  "default_enabled": true,
+  "sort_order": 9,
+  "version": 1,
+  "updated_at": "2026-09-23T00:00:00Z",
+  "domains": [
+    "rockstargames.com",
+    "*.rockstargames.com",
+    "rockstarnorth.com",
+    "*.rockstarnorth.com",
+    "rsg.sc",
+    "*.rsg.sc",
+    "socialclub.rockstargames.com",
+    "*.socialclub.rockstargames.com",
+    "gtaonline.com",
+    "*.gtaonline.com",
+    "reddeadonline.com",
+    "*.reddeadonline.com",
+    "rockstargames.statuspage.io",
+    "prod.ros.rockstargames.com"
+  ],
+  "notes": "Rockstar Games: GTA V / GTA Online, GTA VI, Red Dead Redemption 2, Social Club, Rockstar Launcher"
+}

@@ -1,0 +1,32 @@
+{
+  "id": "google",
+  "name": "Google Services (Search, Gmail, YouTube)",
+  "key": "enable_google",
+  "category": "services",
+  "kind": "proxy",
+  "icon": "icons/google.svg",
+  "homepage": "https://www.google.com",
+  "default_enabled": true,
+  "sort_order": 23,
+  "version": 1,
+  "updated_at": "2026-09-23T00:00:00Z",
+  "domains": [
+    "google.com",
+    "*.google.com",
+    "gmail.com",
+    "*.gmail.com",
+    "youtube.com",
+    "*.youtube.com",
+    "youtube-nocookie.com",
+    "*.youtube-nocookie.com",
+    "ytimg.com",
+    "*.ytimg.com",
+    "googlevideo.com",
+    "*.googlevideo.com",
+    "youtu.be",
+    "*.youtu.be",
+    "gg.gg",
+    "*.gg.gg"
+  ],
+  "notes": "selling YouTube accepts the video-byte bandwidth that comes with it."
+}

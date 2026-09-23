@@ -1,0 +1,28 @@
+{
+  "id": "roblox",
+  "name": "Roblox Gaming Platform",
+  "key": "enable_roblox",
+  "category": "gaming",
+  "kind": "proxy",
+  "icon": "icons/roblox.svg",
+  "homepage": "https://www.roblox.com",
+  "default_enabled": true,
+  "sort_order": 10,
+  "version": 1,
+  "updated_at": "2026-09-23T00:00:00Z",
+  "domains": [
+    "roblox.com",
+    "*.roblox.com",
+    "rbxcdn.com",
+    "*.rbxcdn.com",
+    "roblox.cn",
+    "*.roblox.cn",
+    "robloxlabs.com",
+    "*.robloxlabs.com",
+    "rbx.com",
+    "*.rbx.com",
+    "setup.rbxcdn.com",
+    "versioncompatibility.api.roblox.com"
+  ],
+  "notes": "Roblox: Game Client, Studio, RBXCDN, Physics, Assets"
+}

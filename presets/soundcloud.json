@@ -1,0 +1,20 @@
+{
+  "id": "soundcloud",
+  "name": "SoundCloud Music",
+  "key": "enable_soundcloud",
+  "category": "streaming",
+  "kind": "proxy",
+  "icon": "icons/soundcloud.svg",
+  "homepage": "https://soundcloud.com",
+  "default_enabled": true,
+  "sort_order": 22,
+  "version": 1,
+  "updated_at": "2026-09-23T00:00:00Z",
+  "domains": [
+    "soundcloud.com",
+    "*.soundcloud.com",
+    "sndcdn.com",
+    "*.sndcdn.com"
+  ],
+  "notes": "SoundCloud: Music streaming"
+}
