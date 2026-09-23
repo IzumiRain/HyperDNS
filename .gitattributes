@@ -47,3 +47,7 @@
 *.woff    binary
 *.ttf     binary
 *.otf     binary
+
+# Preset data is hashed (sha256) for channel verification; the bytes embedded in
+# the binary must equal the bytes the Pages channel publishes, so pin LF.
+presets/*.json text eol=lf
