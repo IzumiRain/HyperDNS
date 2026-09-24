@@ -13,11 +13,12 @@ import (
 )
 
 var (
-	bucketClients   = []byte("clients")
-	bucketPolicies  = []byte("policies")
-	bucketLogs      = []byte("logs")
-	bucketSettings  = []byte("settings")
-	bucketUpstreams = []byte("upstreams")
+	bucketClients      = []byte("clients")
+	bucketPolicies     = []byte("policies")
+	bucketLogs         = []byte("logs")
+	bucketSettings     = []byte("settings")
+	bucketUpstreams    = []byte("upstreams")
+	bucketCustomGroups = []byte("custom_groups")
 )
 
 // bucketsInUse is everything a v1.5.0 database actually holds.
@@ -30,7 +31,7 @@ var (
 // daemon does not make; they are dropped rather than carried forward and audited
 // again at every release.
 var (
-	bucketsInUse   = [][]byte{bucketClients, bucketPolicies, bucketSettings}
+	bucketsInUse   = [][]byte{bucketClients, bucketPolicies, bucketSettings, bucketCustomGroups}
 	bucketsRetired = [][]byte{bucketLogs, bucketUpstreams}
 )
 

@@ -335,6 +335,28 @@ type Matcher struct {
 	// (presets.NameMap). The preset-update channel swaps it in whole — never
 	// mutating — so readers under the read lock always see one coherent catalog.
 	catalog map[string][]string
+
+	// The operator's custom rule state, held so it survives a catalog swap or a
+	// group change: rebuildLocked re-applies presets, then groups, then these.
+	// Before this was stored, SetCatalog (the preset channel) rebuilt only the
+	// presets and silently dropped the custom lists until the next SetCustomRules.
+	customProxied []string
+	customBlocked []string
+	customDirect  []string
+	customGroups  []CustomGroup
+}
+
+// CustomGroup is an operator-defined named policy: a bundle of domains that
+// resolve to one action, toggled as a unit. It is the structured form of the
+// flat Custom Proxied/Blocked/Direct lists — same precedence tier as its action,
+// but named, individually switchable, and (unlike a preset) editable at runtime.
+// It is decoupled from the database row on purpose, so the matcher package keeps
+// no storage dependency.
+type CustomGroup struct {
+	Name    string
+	Action  Action
+	Domains []string
+	Enabled bool
 }
 
 func NewMatcher() *Matcher {
@@ -446,6 +468,69 @@ func (m *Matcher) rebuildPresetsLocked() {
 		for _, d := range g.domains {
 			m.realtime.index(d, g.rule, true)
 		}
+	}
+
+	// Custom groups and the flat custom lists are re-applied from stored state on
+	// every rebuild, so a catalog swap (the preset channel) or a group edit never
+	// drops the operator's own rules. Groups first, then the flat lists, so a bare
+	// Custom Proxied/Blocked/Direct entry the operator typed still wins over a
+	// group — the flat lists are the most specific statement of intent.
+	m.applyCustomGroupsLocked()
+	m.applyCustomListsLocked()
+}
+
+// applyCustomGroupsLocked indexes every enabled custom group into the ruleset for
+// its action. Caller holds mu and has already rebuilt the preset indexes.
+func (m *Matcher) applyCustomGroupsLocked() {
+	for _, g := range m.customGroups {
+		if !g.Enabled {
+			continue
+		}
+		name := "Custom Group: " + g.Name
+		var target *ruleSet
+		switch g.Action {
+		case ActionBlock:
+			target = m.blocked
+		case ActionDirect:
+			target = m.direct
+		default:
+			target = m.proxied
+		}
+		for _, d := range g.Domains {
+			target.index(d, name, true)
+			if g.Action == ActionProxy {
+				// Same override the flat Custom Proxied list performs: a proxied
+				// group name must beat the forced-direct guard and the download veto.
+				m.realtime.unindex(d)
+				m.downloads.unindex(d)
+			}
+		}
+	}
+}
+
+// applyCustomListsLocked indexes the flat Custom Proxied/Blocked/Direct lists.
+// Caller holds mu; direct is reset here because rebuildPresetsLocked does not own
+// it.
+func (m *Matcher) applyCustomListsLocked() {
+	m.direct = newRuleSet()
+	for _, d := range m.customDirect {
+		m.direct.index(d, RuleCustomDirect, true)
+	}
+	// Re-index the enabled direct groups the reset above just cleared.
+	for _, g := range m.customGroups {
+		if g.Enabled && g.Action == ActionDirect {
+			for _, d := range g.Domains {
+				m.direct.index(d, "Custom Group: "+g.Name, true)
+			}
+		}
+	}
+	for _, d := range m.customBlocked {
+		m.blocked.index(d, RuleCustomBlock, true)
+	}
+	for _, d := range m.customProxied {
+		m.proxied.index(d, RuleCustomProxy, true)
+		m.realtime.unindex(d)
+		m.downloads.unindex(d)
 	}
 }
 
@@ -643,30 +728,11 @@ func (m *Matcher) SetCustomRules(customProxied, customBlocked, customDirect []st
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	m.rebuildPresetsLocked()
+	m.customProxied = slices.Clone(customProxied)
+	m.customBlocked = slices.Clone(customBlocked)
+	m.customDirect = slices.Clone(customDirect)
 
-	m.direct = newRuleSet()
-	for _, d := range customDirect {
-		m.direct.index(d, RuleCustomDirect, true)
-	}
-	// Custom entries overwrite a preset covering the same domain: the operator
-	// typed this one in, so it must win even when the preset it collides with is
-	// currently switched off.
-	for _, d := range customBlocked {
-		m.blocked.index(d, RuleCustomBlock, true)
-	}
-	for _, d := range customProxied {
-		m.proxied.index(d, RuleCustomProxy, true)
-		// Same reasoning applied to the forced-direct real-time set: an operator who
-		// types one of those names into the proxy list has overridden the guard
-		// knowingly, and the guard exists to correct the presets, not the operator.
-		m.realtime.unindex(d)
-		// And to the download veto, for the operator who wants one CDN relayed while
-		// the rest stay on the subscriber's line — the reason Custom Proxy exists.
-		// Without this, typing a download host into that list saved cleanly and
-		// changed nothing, because the veto is consulted before the proxy index.
-		m.downloads.unindex(d)
-	}
+	m.rebuildPresetsLocked()
 
 	m.customRecords = make(map[string]string, len(customRecords))
 	for d, ip := range customRecords {
@@ -678,6 +744,24 @@ func (m *Matcher) SetCustomRules(customProxied, customBlocked, customDirect []st
 			m.customRecords[d] = ip
 		}
 	}
+}
+
+// SetCustomGroups replaces the operator's named custom policy groups and
+// reindexes. Groups persist across a preset-channel catalog swap because
+// rebuildPresetsLocked re-applies them from this stored state.
+func (m *Matcher) SetCustomGroups(groups []CustomGroup) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.customGroups = make([]CustomGroup, len(groups))
+	for i, g := range groups {
+		m.customGroups[i] = CustomGroup{
+			Name:    g.Name,
+			Action:  g.Action,
+			Domains: slices.Clone(g.Domains),
+			Enabled: g.Enabled,
+		}
+	}
+	m.rebuildPresetsLocked()
 }
 
 // PresetRuleKeys maps dashboard/frontend policy keys (enable_*) to the built-in

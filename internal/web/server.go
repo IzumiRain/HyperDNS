@@ -39,6 +39,7 @@ type WebServer struct {
 	cache          *cache.Cache
 	matcher        *matcher.Matcher
 	presetUpdater  *presetupd.Updater
+	customGroups   *service.CustomGroupService
 	upstreams      *upstream.UpstreamPool
 	dohHandler     http.Handler
 	settings       *database.ServerSettings
@@ -213,6 +214,13 @@ func (ws *WebServer) SetControlState(benchmark *service.BenchmarkRunner, lockout
 // record; main passes it in through the same call.
 func (ws *WebServer) SetSubscriptionSettings(s *database.SubscriptionSettings) {
 	ws.subSettings = s
+}
+
+// SetCustomGroupService wires the named-custom-policy-group manager. Set by the
+// daemon after construction, like the subscription and auth settings, so the
+// zero WebServer used in the lighter tests carries no dependency on it.
+func (ws *WebServer) SetCustomGroupService(s *service.CustomGroupService) {
+	ws.customGroups = s
 }
 
 // serverSettingsView is the shape of ServerSettings that leaves the process.
@@ -671,6 +679,8 @@ func (ws *WebServer) buildAdminMux() *http.ServeMux {
 	mux.HandleFunc("/api/access/mode", ws.requireAuth(ws.handleAccessMode))
 	mux.HandleFunc("/api/clients/", ws.requireAuth(ws.handleClientAction))
 	mux.HandleFunc("/api/policies", ws.requireAuth(ws.handlePolicies))
+	mux.HandleFunc("/api/custom-groups", ws.requireAuth(ws.handleCustomGroups))
+	mux.HandleFunc("/api/custom-groups/", ws.requireAuth(ws.handleCustomGroupByID))
 	mux.HandleFunc("/api/cache/flush", ws.requireAuth(ws.handleFlushCache))
 	mux.HandleFunc("/api/presets/update", ws.requireAuth(ws.handlePresetUpdateStatus))
 	mux.HandleFunc("/api/presets/update/check", ws.requireAuth(ws.handlePresetUpdateCheck))

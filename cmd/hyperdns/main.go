@@ -456,6 +456,11 @@ func main() {
 	}
 	loadPersistedRules(db, m)
 
+	// Named custom policy groups (v2.3): loaded after the flat rules so the
+	// matcher's stored custom state is complete before the first query. The
+	// service keeps the matcher and the database in sync on every edit.
+	customGroupService := service.NewCustomGroupService(db, m)
+
 	// The preset-update channel (v2.3.0): the embedded baseline is permanent;
 	// a signed channel override is re-applied at boot and updated from the
 	// dashboard or the console. Constructed here so both the dashboard and the
@@ -559,6 +564,7 @@ func main() {
 	)
 	webServer.SetSubscriptionSettings(subscriptionSettings)
 	webServer.SetAuthSettings(authSettings)
+	webServer.SetCustomGroupService(customGroupService)
 
 	// v2.2.0: the embedded ACME client replaces certbot/acme.sh. It ships in
 	// the binary (an offline install can issue the moment it has internet,

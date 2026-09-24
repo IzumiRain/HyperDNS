@@ -899,6 +899,7 @@ function renderConfig(cfg) {
   renderList('custom-blocked-list', cfg.rules?.custom_blocked || [], 'remove-blocked');
   renderList('tokens-list', cfg.access?.doh_tokens || [], 'remove-token');
   renderCustomRecords(cfg.rules?.custom_records || {});
+  loadCustomGroups();
 }
 
 function setSwitch(id, val) {
@@ -937,7 +938,113 @@ function renderList(containerId, items, removeClass) {
   safeFeatherReplace();
 }
 
-function renderCustomRecords(records) {
+// ---- Named custom policy groups (v2.3) --------------------------------------
+
+let customGroupsCache = [];
+
+async function loadCustomGroups() {
+  const container = document.getElementById('custom-groups-list');
+  if (!container) return;
+  try {
+    const res = await fetch(api('/api/custom-groups'), {
+      headers: { 'Authorization': `Bearer ${authToken}` }
+    });
+    if (!res.ok) throw new Error('load failed');
+    const data = await res.json();
+    customGroupsCache = data.groups || [];
+    renderCustomGroups();
+  } catch (e) {
+    container.innerHTML = '<div class="text-red-400 text-xs py-1">Failed to load custom groups</div>';
+  }
+}
+
+function renderCustomGroups() {
+  const container = document.getElementById('custom-groups-list');
+  if (!container) return;
+  container.innerHTML = '';
+  if (!customGroupsCache.length) {
+    container.innerHTML = '<div class="text-slate-500 text-xs py-1">No custom groups yet</div>';
+    return;
+  }
+  const actionColor = { proxy: 'text-cyan-300', direct: 'text-emerald-300', block: 'text-red-300' };
+  customGroupsCache.forEach((g) => {
+    const row = document.createElement('div');
+    row.className = 'flex items-center justify-between py-2 px-3 rounded-lg bg-slate-950/60 border border-slate-800 text-xs';
+    const state = g.enabled ? '' : ' <span class="text-slate-500">(disabled)</span>';
+    const actionCls = actionColor[g.action] || 'text-slate-400';
+    row.innerHTML = `
+      <div class="min-w-0">
+        <div class="font-bold text-white truncate">${escapeHTML(g.name)}${state}</div>
+        <div class="font-mono ${actionCls}">${escapeHTML(g.action)} · ${g.domains.length} domain(s)</div>
+      </div>
+      <div class="flex items-center gap-1.5 shrink-0">
+        <button class="edit-group-btn px-2.5 py-1 rounded bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-700 transition" data-id="${escapeHTML(g.id)}">Edit</button>
+        <button class="delete-group-btn inline-flex items-center justify-center w-6 h-6 rounded text-slate-500 hover:text-red-400 hover:bg-red-500/10 transition" data-id="${escapeHTML(g.id)}" aria-label="Delete group ${escapeHTML(g.name)}">
+          <i data-feather="trash-2" class="w-3.5 h-3.5"></i>
+        </button>
+      </div>
+    `;
+    container.appendChild(row);
+  });
+  safeFeatherReplace();
+}
+
+function openCustomGroupEditor(group) {
+  const ed = document.getElementById('custom-group-editor');
+  if (!ed) return;
+  document.getElementById('custom-group-id').value = group ? group.id : '';
+  document.getElementById('custom-group-name').value = group ? group.name : '';
+  document.getElementById('custom-group-action').value = group ? group.action : 'proxy';
+  document.getElementById('custom-group-domains').value = group ? group.domains.join('\n') : '';
+  document.getElementById('custom-group-enabled').checked = group ? group.enabled : true;
+  document.getElementById('custom-group-status').textContent = '';
+  ed.classList.remove('hidden');
+}
+
+async function saveCustomGroup() {
+  const id = document.getElementById('custom-group-id').value.trim();
+  const status = document.getElementById('custom-group-status');
+  const body = {
+    name: document.getElementById('custom-group-name').value.trim(),
+    action: document.getElementById('custom-group-action').value,
+    domains: document.getElementById('custom-group-domains').value
+      .split('\n').map((d) => d.trim().toLowerCase()).filter(Boolean),
+    enabled: document.getElementById('custom-group-enabled').checked
+  };
+  const path = id ? `/api/custom-groups/${encodeURIComponent(id)}` : '/api/custom-groups';
+  const method = id ? 'PUT' : 'POST';
+  status.textContent = 'Saving…';
+  try {
+    const res = await fetch(api(path), {
+      method,
+      headers: { 'Authorization': `Bearer ${authToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      status.textContent = data.error || 'Save failed';
+      return;
+    }
+    document.getElementById('custom-group-editor').classList.add('hidden');
+    showToast('Custom group saved', 'success');
+    loadCustomGroups();
+  } catch (e) {
+    status.textContent = 'Network error';
+  }
+}
+
+async function deleteCustomGroup(id) {
+  try {
+    const res = await fetch(api(`/api/custom-groups/${encodeURIComponent(id)}`), {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${authToken}` }
+    });
+    if (res.ok) {
+      showToast('Custom group deleted', 'success');
+      loadCustomGroups();
+    }
+  } catch (e) { /* ignore */ }
+}
   const container = document.getElementById('custom-records-list');
   if (!container) return;
   container.innerHTML = '';
@@ -2749,9 +2856,25 @@ function initEventListeners() {
     };
   }
 
+  // Custom policy groups (v2.3)
+  document.getElementById('add-custom-group-btn')?.addEventListener('click', () => openCustomGroupEditor(null));
+  document.getElementById('cancel-custom-group-btn')?.addEventListener('click', () => {
+    document.getElementById('custom-group-editor')?.classList.add('hidden');
+  });
+  document.getElementById('save-custom-group-btn')?.addEventListener('click', saveCustomGroup);
+  document.getElementById('custom-groups-list')?.addEventListener('click', (e) => {
+    const editBtn = e.target.closest('.edit-group-btn');
+    if (editBtn) {
+      const g = customGroupsCache.find((x) => x.id === editBtn.dataset.id);
+      if (g) openCustomGroupEditor(g);
+      return;
+    }
+    const delBtn = e.target.closest('.delete-group-btn');
+    if (delBtn) deleteCustomGroup(delBtn.dataset.id);
+  });
+
   // Add Custom Proxied
-  document.getElementById('add-proxied-btn')?.addEventListener('click', () => {
-    const input = document.getElementById('new-proxied-input');
+  document.getElementById('add-proxied-btn')?.addEventListener('click', () => {    const input = document.getElementById('new-proxied-input');
     const val = input ? input.value.trim().toLowerCase() : '';
     if (!val || !currentConfig) return;
     if (!currentConfig.rules.custom_proxied.includes(val)) {

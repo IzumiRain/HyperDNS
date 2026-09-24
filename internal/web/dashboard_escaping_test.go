@@ -46,6 +46,7 @@ var safeAttrInterp = map[string]string{
 	"dotClass":    "a CSS class name computed from a latency number, in renderUpstreams",
 	"latTitle":    "one of two literals in renderUpstreams, chosen by whether the latency was measured",
 	"usedClass":   "a CSS class name computed from a traffic percentage, in the client card",
+	"actionCls":   "a CSS class name from renderCustomGroups' fixed proxy/direct/block colour map",
 	"tone.icon":   "a Feather icon name, a literal in showDialog's tone table",
 	"icon":        "a Feather icon name, a literal at each of clientsPanelMessage's call sites",
 	"titleClass":  "a CSS class name, a literal at each of clientsPanelMessage's call sites",

@@ -2663,6 +2663,54 @@ async function onBuySubscription(ctx, username) {
 
         </div>
 
+        <!-- Named custom policy groups (v2.3): operator-defined bundles of
+             domains with one action, toggled as a unit and selectable later. -->
+        <div class="glass-panel p-5 sm:p-6 space-y-4">
+          <div class="flex items-center justify-between gap-2">
+            <div>
+              <h3 class="text-xs sm:text-sm font-bold uppercase text-white flex items-center gap-2 font-heading">
+                <i data-feather="layers" class="w-4 h-4 text-violet-400"></i> Custom Policy Groups
+              </h3>
+              <p class="text-[11px] text-slate-400 mt-0.5">Named bundles of domains with one action (proxy / direct / block), switchable as a unit.</p>
+            </div>
+            <button id="add-custom-group-btn" class="shrink-0 px-4 py-2 bg-violet-500 hover:bg-violet-400 text-slate-950 font-bold rounded-lg text-xs transition font-heading">New Group</button>
+          </div>
+          <div id="custom-groups-list" class="space-y-2"><div class="text-slate-500 text-xs py-1">Loading groups…</div></div>
+
+          <!-- Inline editor, hidden until New Group / Edit -->
+          <div id="custom-group-editor" class="hidden space-y-3 border-t border-slate-800 pt-4">
+            <input type="hidden" id="custom-group-id">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label for="custom-group-name" class="block text-[11px] font-semibold text-slate-400 mb-1">Group name</label>
+                <input type="text" id="custom-group-name" placeholder="e.g. My Streaming Bundle"
+                  class="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-700 text-xs text-white focus:outline-none focus:border-violet-400">
+              </div>
+              <div>
+                <label for="custom-group-action" class="block text-[11px] font-semibold text-slate-400 mb-1">Action</label>
+                <select id="custom-group-action" class="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-700 text-xs text-white focus:outline-none focus:border-violet-400">
+                  <option value="proxy">Proxy (SNI)</option>
+                  <option value="direct">Direct</option>
+                  <option value="block">Block</option>
+                </select>
+              </div>
+            </div>
+            <div>
+              <label for="custom-group-domains" class="block text-[11px] font-semibold text-slate-400 mb-1">Domains (one per line; <code>*.example.com</code> covers subdomains)</label>
+              <textarea id="custom-group-domains" rows="4" placeholder="example.com&#10;*.example.com"
+                class="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-700 text-xs font-mono text-white focus:outline-none focus:border-violet-400"></textarea>
+            </div>
+            <label class="flex items-center gap-2 text-xs text-slate-300">
+              <input type="checkbox" id="custom-group-enabled" checked class="accent-violet-500"> Enabled
+            </label>
+            <div class="flex items-center gap-2">
+              <button id="save-custom-group-btn" class="px-4 py-2 bg-violet-500 hover:bg-violet-400 text-slate-950 font-bold rounded-lg text-xs transition font-heading">Save Group</button>
+              <button id="cancel-custom-group-btn" class="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-700 rounded-lg text-xs transition">Cancel</button>
+              <span id="custom-group-status" class="text-[11px] text-slate-400"></span>
+            </div>
+          </div>
+        </div>
+
                 <!-- Session idle window (Phase D): how long a dashboard session may sit
                unused before the daemon revokes it. Applies live on save. -->
           <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 rounded-xl bg-slate-950/80 border border-slate-800">
