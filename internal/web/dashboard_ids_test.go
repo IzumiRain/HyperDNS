@@ -241,8 +241,10 @@ func TestDashboardCleanURLsAreServed(t *testing.T) {
 	// strips <admin-path>/dash, "/" is the dashboard document itself. It is
 	// checked by the admin-namespace tests (landing_test.go), not here, and the
 	// public root is the Matrix landing page.
+	docCookie := &http.Cookie{Name: documentSessionCookie, Value: ws.sessions.Create()}
 	for _, path := range paths {
 		req := httptest.NewRequest(http.MethodGet, path, nil)
+		req.AddCookie(docCookie)
 		w := httptest.NewRecorder()
 		handler.ServeHTTP(w, req)
 
@@ -323,8 +325,10 @@ func TestDashboardCleanURLsToleratePathVariants(t *testing.T) {
 
 	handler := ws.buildAdminHandler()
 
+	docCookie := &http.Cookie{Name: documentSessionCookie, Value: ws.sessions.Create()}
 	for _, path := range []string{"/clients/", "/Clients", "/CLIENTS/", "/policy/", "/home/", "/Settings"} {
 		req := httptest.NewRequest(http.MethodGet, path, nil)
+		req.AddCookie(docCookie)
 		w := httptest.NewRecorder()
 		handler.ServeHTTP(w, req)
 		if w.Code != http.StatusOK {

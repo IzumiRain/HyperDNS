@@ -196,6 +196,59 @@ func (ws *WebServer) sessionValid(token string) bool {
 	return ws.sessions != nil && ws.sessions.Validate(token)
 }
 
+// documentSessionCookie is the name of the HttpOnly cookie that gates the SPA
+// document (not the APIs). The dashboard is a bearer-token app — the JS keeps a
+// token in memory and sends it as Authorization on every /api/* call — but a
+// browser *navigation* to /<admin>/dash/ carries no header, so before this
+// cookie the shell HTML was served to anyone who knew the path and only then did
+// the JS notice there was no token and redirect to /login. That pre-auth render
+// is the flash this cookie removes: the document route now redirects server-side
+// when the cookie is missing or dead, so the shell never reaches an
+// unauthenticated browser. It authorizes nothing else — every state-changing
+// call still requires the bearer header, so adding a cookie introduces no CSRF
+// surface on the API.
+const documentSessionCookie = "hdns_doc_session"
+
+// setDocumentSessionCookie records the freshly minted session as the document
+// gate. Scoped to the admin path so it is never sent to the public root or the
+// subscriber portal; HttpOnly so script cannot read it; Secure whenever the
+// request arrived over TLS (the panel's normal mode) so it is not echoed on a
+// plaintext downgrade.
+func (ws *WebServer) setDocumentSessionCookie(w http.ResponseWriter, r *http.Request, token string) {
+	http.SetCookie(w, &http.Cookie{
+		Name:     documentSessionCookie,
+		Value:    token,
+		Path:     "/" + ws.adminPath(),
+		HttpOnly: true,
+		Secure:   r.TLS != nil,
+		SameSite: http.SameSiteStrictMode,
+	})
+}
+
+// clearDocumentSessionCookie expires the document gate at logout, so a back
+// button after sign-out lands on the login page rather than the shell.
+func (ws *WebServer) clearDocumentSessionCookie(w http.ResponseWriter, r *http.Request) {
+	http.SetCookie(w, &http.Cookie{
+		Name:     documentSessionCookie,
+		Value:    "",
+		Path:     "/" + ws.adminPath(),
+		HttpOnly: true,
+		Secure:   r.TLS != nil,
+		SameSite: http.SameSiteStrictMode,
+		MaxAge:   -1,
+	})
+}
+
+// documentSessionValid reports whether the request carries a live document-gate
+// cookie. It gates only the SPA shell; API authorization is unchanged.
+func (ws *WebServer) documentSessionValid(r *http.Request) bool {
+	c, err := r.Cookie(documentSessionCookie)
+	if err != nil || c.Value == "" {
+		return false
+	}
+	return ws.sessionValid(c.Value)
+}
+
 func (ws *WebServer) handleAuthLogin(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	// POST only, checked ahead of the lockout counter. Logging in is not idempotent and the
@@ -336,6 +389,11 @@ func (ws *WebServer) handleAuthLogin(w http.ResponseWriter, r *http.Request) {
 
 	needsAttention := weak || ws.adminPasswordNeedsAttention()
 
+	// The document-gate cookie rides alongside the JSON token: the JS uses the
+	// token for API calls, the cookie lets the server refuse the shell to an
+	// unauthenticated navigation without a flash.
+	ws.setDocumentSessionCookie(w, r, token)
+
 	_ = json.NewEncoder(w).Encode(map[string]any{
 		"token":    token,
 		"username": adminUser,
@@ -387,6 +445,7 @@ func (ws *WebServer) handleAuthLogout(w http.ResponseWriter, r *http.Request) {
 	if ws.sessions != nil {
 		ws.sessions.Delete(token)
 	}
+	ws.clearDocumentSessionCookie(w, r)
 	_ = json.NewEncoder(w).Encode(map[string]any{"ok": true})
 }
 

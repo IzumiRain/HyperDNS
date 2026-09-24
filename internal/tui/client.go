@@ -90,7 +90,17 @@ func (s ExecSystemController) Uninstall(ctx context.Context) error {
 		// interactive dead-weight on a pipe. -y still writes the /root
 		// backup archive — only --purge skips that, and nothing in this
 		// console passes --purge.
-		args = []string{"/opt/hyperdns/scripts/uninstall.sh", "-y"}
+		scriptPath := "/opt/hyperdns/scripts/uninstall.sh"
+		// An install that never wrote the script (the piped curl|bash path
+		// before the installer downloaded it — GitHub issue #1) must not leave
+		// the operator staring at a bare "not found": fall back to the built-in
+		// cleanup, which retires the resolver override and the firewall rules
+		// the same way the script would.
+		if _, err := os.Stat(scriptPath); err != nil {
+			UninstallHyperDNS()
+			return nil
+		}
+		args = []string{scriptPath, "-y"}
 	}
 	return runInteractive(ctx, args)
 }

@@ -84,6 +84,7 @@ func TestAdminPathFallbackIsStableAndValid(t *testing.T) {
 	h1 := ws.BuildHandler()
 	h2 := ws.BuildHandler()
 	req := httptest.NewRequest(http.MethodGet, "/"+first+"/dash/", nil)
+	req.AddCookie(&http.Cookie{Name: documentSessionCookie, Value: ws.sessions.Create()})
 	w := httptest.NewRecorder()
 	h2.ServeHTTP(w, req)
 	if w.Code != http.StatusOK {
@@ -165,10 +166,24 @@ func TestAdminPathRegeneration(t *testing.T) {
 		t.Error("the retired path is distinguishable from a random miss — that is an oracle for the old namespace")
 	}
 
-	// The new namespace serves the dashboard without a restart.
-	if w := miss("/" + newPath + "/dash/"); w.Code != http.StatusOK {
-		t.Errorf("GET /%s/dash/ = %d, want 200", newPath, w.Code)
+	// The new namespace is live, but every session died with the old path, so an
+	// unauthenticated navigation there redirects to the sign-in page rather than
+	// rendering the shell — the operator must log in again on the new
+	// coordinates. (A live document cookie would serve 200; the point here is
+	// that the route exists and gates, not 404s.)
+	if w := miss("/" + newPath + "/dash/"); w.Code != http.StatusFound {
+		t.Errorf("GET /%s/dash/ = %d, want 302 (re-login after regeneration)", newPath, w.Code)
 	}
+	authed := httptest.NewRequest(http.MethodGet, "/"+newPath+"/dash/", nil)
+	authed.AddCookie(&http.Cookie{Name: documentSessionCookie, Value: ws.sessions.Create()})
+	aw := httptest.NewRecorder()
+	h.ServeHTTP(aw, authed)
+	if aw.Code != http.StatusOK {
+		t.Errorf("GET /%s/dash/ with a fresh session = %d, want 200", newPath, aw.Code)
+	}
+	// Drop the probe session so the count assertion below reflects only the
+	// regeneration's own effect.
+	ws.sessions.DeleteAll()
 
 	// Every session died with the old path.
 	if ws.sessions.Count() != 0 {

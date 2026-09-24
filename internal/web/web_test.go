@@ -119,15 +119,40 @@ func TestWebServer_SPARoutingAndAssets(t *testing.T) {
 
 	handler := ws.buildAdminHandler()
 
-	// 1. Verify Clean SPA Paths
+	// 1. SPA routes are gated: without the document-session cookie an
+	//    unauthenticated navigation is redirected to the sign-in page, so the
+	//    dashboard shell never renders pre-auth (no content flash). /login is
+	//    the one route served unauthenticated.
 	routes := []string{"/home", "/clients", "/logs", "/rules", "/api", "/guide", "/settings", "/dashboard", "/panel"}
 	for _, route := range routes {
 		req := httptest.NewRequest(http.MethodGet, route, nil)
 		w := httptest.NewRecorder()
 		handler.ServeHTTP(w, req)
 
+		if w.Code != http.StatusFound {
+			t.Errorf("expected 302 redirect for unauthenticated SPA route %s, got %d", route, w.Code)
+		}
+	}
+
+	// /login serves the shell without a session — it is the page the redirect
+	// above points at.
+	loginReq := httptest.NewRequest(http.MethodGet, "/login", nil)
+	loginRec := httptest.NewRecorder()
+	handler.ServeHTTP(loginRec, loginReq)
+	if loginRec.Code != http.StatusOK {
+		t.Errorf("expected 200 OK for /login, got %d", loginRec.Code)
+	}
+
+	// With a live document-session cookie every SPA route serves the shell.
+	token := ws.sessions.Create()
+	for _, route := range routes {
+		req := httptest.NewRequest(http.MethodGet, route, nil)
+		req.AddCookie(&http.Cookie{Name: documentSessionCookie, Value: token})
+		w := httptest.NewRecorder()
+		handler.ServeHTTP(w, req)
+
 		if w.Code != http.StatusOK {
-			t.Errorf("expected 200 OK for SPA route %s, got %d", route, w.Code)
+			t.Errorf("expected 200 OK for authenticated SPA route %s, got %d", route, w.Code)
 		}
 	}
 

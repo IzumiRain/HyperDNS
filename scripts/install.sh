@@ -223,6 +223,17 @@ if ! curl -fsL --retry 3 "${RAW_BASE}/scripts/restore.sh" -o "${ONLINE_RESTORE}"
     exit 1
 fi
 
+# The uninstaller is not optional: the TUI's "Uninstall" runs
+# /opt/hyperdns/scripts/uninstall.sh, and a piped curl|bash install has no
+# local scripts/ directory to copy it from — so an online install that never
+# fetched it left the console pointing at a file that was never written
+# (GitHub issue #1). Download it the same way restore.sh is fetched.
+ONLINE_UNINSTALL="$(mktemp /tmp/hyperdns-uninstall.XXXXXX)"
+if ! curl -fsL --retry 3 "${RAW_BASE}/scripts/uninstall.sh" -o "${ONLINE_UNINSTALL}" || [ ! -s "${ONLINE_UNINSTALL}" ]; then
+    echo -e "${RED}[Error] Could not download uninstall.sh from ${HYPERDNS_REF}.${NC}"
+    exit 1
+fi
+
 ONLINE_VERSION_JSON="$(mktemp /tmp/hyperdns-ver.XXXXXX)"
 curl -fsL --retry 3 "${RAW_BASE}/offline-bundle/version.json" -o "${ONLINE_VERSION_JSON}" 2>/dev/null || true
 
@@ -321,6 +332,12 @@ if [ -f "${SCRIPT_DIR}/scripts/uninstall.sh" ]; then
 elif [ -f "./scripts/uninstall.sh" ]; then
     cp -f ./scripts/uninstall.sh "${INSTALL_DIR}/scripts/uninstall.sh"
     chmod +x "${INSTALL_DIR}/scripts/uninstall.sh"
+elif [ -n "${ONLINE_UNINSTALL:-}" ] && [ -s "${ONLINE_UNINSTALL}" ]; then
+    # The piped curl|bash path: no local scripts/ dir, so the copy above finds
+    # nothing and the console's Uninstall would break (issue #1). Install the
+    # copy downloaded above.
+    install -o root -g root -m 0755 "${ONLINE_UNINSTALL}" "${INSTALL_DIR}/scripts/uninstall.sh"
+    rm -f "${ONLINE_UNINSTALL}"
 fi
 
 install -o root -g root -m 0755 "${ONLINE_RESTORE}" "${INSTALL_DIR}/scripts/restore.sh"

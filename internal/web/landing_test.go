@@ -151,6 +151,7 @@ func TestAdminNamespaceServesDashboardUnderGeneratedPath(t *testing.T) {
 	}
 
 	// The dashboard document, every clean route under the mount, and the assets.
+	docCookie := &http.Cookie{Name: documentSessionCookie, Value: ws.sessions.Create()}
 	for _, path := range []string{
 		"/" + ap + "/dash/",
 		"/" + ap + "/dash/home",
@@ -160,6 +161,7 @@ func TestAdminNamespaceServesDashboardUnderGeneratedPath(t *testing.T) {
 		"/" + ap + "/css/style.css",
 	} {
 		req := httptest.NewRequest(http.MethodGet, path, nil)
+		req.AddCookie(docCookie)
 		w := httptest.NewRecorder()
 		h.ServeHTTP(w, req)
 		if w.Code != http.StatusOK {

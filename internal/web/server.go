@@ -751,6 +751,17 @@ func (ws *WebServer) buildAdminMux() *http.ServeMux {
 				http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 				return
 			}
+			// The shell is served only to an authenticated navigation. /login is
+			// the one exception — it is the page an unauthenticated operator is
+			// meant to reach — and it renders the standalone sign-in document, not
+			// the dashboard bundle. Every other SPA route redirects to /login when
+			// the document-gate cookie is missing or dead, so the dashboard shell
+			// never reaches an unauthenticated browser and there is no pre-auth
+			// flash of panel content.
+			if spaLookup(r.URL.Path) != "/login" && !ws.documentSessionValid(r) {
+				http.Redirect(w, r, "/"+ws.adminPath()+"/login", http.StatusFound)
+				return
+			}
 			if !assets.serveIndex(w, r, ws.adminPath()) {
 				http.Error(w, "index.html not found", http.StatusNotFound)
 			}

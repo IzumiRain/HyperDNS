@@ -367,9 +367,11 @@ func TestSPARoutesRevalidateThroughTheAssetServer(t *testing.T) {
 	defer cleanup()
 	h := ws.buildAdminHandler()
 
+	docCookie := &http.Cookie{Name: documentSessionCookie, Value: ws.sessions.Create()}
 	for _, route := range []string{"/dashboard", "/panel", "/settings", "/clients"} {
 		req := httptest.NewRequest(http.MethodGet, route, nil)
 		req.Header.Set("Accept-Encoding", "gzip")
+		req.AddCookie(docCookie)
 		w := httptest.NewRecorder()
 		h.ServeHTTP(w, req)
 
@@ -391,6 +393,7 @@ func TestSPARoutesRevalidateThroughTheAssetServer(t *testing.T) {
 		req = httptest.NewRequest(http.MethodGet, route, nil)
 		req.Header.Set("Accept-Encoding", "gzip")
 		req.Header.Set("If-None-Match", etag)
+		req.AddCookie(docCookie)
 		w = httptest.NewRecorder()
 		h.ServeHTTP(w, req)
 

@@ -169,6 +169,7 @@ func TestRewrittenReferencesAreFetchableBelowThePrefix(t *testing.T) {
 
 	// Serve the document the way the browser gets it.
 	req := httptest.NewRequest(http.MethodGet, "/"+ws.AdminPath()+"/dash/", nil)
+	req.AddCookie(&http.Cookie{Name: documentSessionCookie, Value: ws.sessions.Create()})
 	w := httptest.NewRecorder()
 	h.ServeHTTP(w, req)
 	if w.Code != http.StatusOK {
