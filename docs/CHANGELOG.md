@@ -6,6 +6,27 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## 🔵 [v2.3.0-beta.1] — Auto-Updating Presets, Custom Policy Groups, Installer & Login Fixes
+
+Codename **HyperFORGE**. A feature release (new user-facing surface, so a MINOR bump per the project's tag policy).
+
+### ✨ Added
+- **A signed preset-update channel.** The 171+ built-in policy presets moved from hard-coded Go slices to embedded JSON data files (`presets/<id>.json`), and the daemon can now pull newer routing lists from a signed channel served over GitHub Pages. Every update is an ed25519-signed manifest (the public key is baked into the binary; the private half lives only in the release workflow's secrets) with a sha256 for each policy file. The daemon downloads only what changed, swaps it in atomically, health-checks the result (probe queries + a minimum-size floor) and **rolls straight back on any failure**; a stale mirror can never downgrade a running catalog, and only domains of policies the binary already knows are updated. Drive it from **Policy Presets → Policy Catalog Updates** in the dashboard, `hdns update-presets`, or menu item 12 in the console. Auto-apply is opt-in per server, with the same health-check and rollback.
+- **Named custom policy groups.** Define a named bundle of domains with one action — proxy, direct, or block — and toggle or edit it as a unit, the structured evolution of the flat Custom Proxied/Blocked/Direct lists. Managed from a new **Custom Policy Groups** card in the dashboard and the `/api/custom-groups` endpoints; stored in their own database bucket and re-applied to the resolver on every edit and at startup.
+
+### 🖼 Fixed
+- **The console's Uninstall no longer points at a missing script (GitHub issue #1).** A piped `curl | bash` install had no local `scripts/` directory to copy `uninstall.sh` from, so `/opt/hyperdns/scripts/uninstall.sh` was never written and the console's Uninstall failed with a bare *not found*. The installer now downloads `uninstall.sh` the same way it already fetches `restore.sh`, and the console falls back to the built-in cleanup (which also retires the resolver override and firewall rules) when the script is absent.
+- **No more pre-login flash of the dashboard.** The panel is a bearer-token SPA, so a browser navigation to the dashboard carried no credential and the shell HTML rendered for a few hundred milliseconds before the JS noticed there was no token and redirected — a pre-auth flash of panel chrome to anyone who knew the admin path. Login now also sets an HttpOnly, admin-path-scoped, `SameSite=Strict` document cookie, and the SPA document route redirects to the sign-in page server-side when it is missing or dead, so the shell never reaches an unauthenticated browser. The cookie gates only the document; every `/api/*` call still requires the bearer header, so no CSRF surface is added.
+
+### 🧪 Quality gates this release passed
+- `go build ./...`, `go vet ./...`, gofmt clean; all packages green with `-count=1`.
+- New tests: preset channel (sign/verify/apply/rollback/downgrade/restart), custom-group matcher precedence and catalog-swap survival, custom-group service CRUD + validation + restart reload, the login document gate, and the installer download path.
+
+### ⚠️ Upgrade notes
+- Existing presets keep working unchanged — the embedded baseline is the permanent offline fallback, and the channel is opt-in. No data migration is required; the new `custom_groups` bucket is created on first write.
+
+---
+
 ## 🔐 [v2.2.0-beta.1] — Whitelist by Default, Built-In ACME, API v2, Google/AI Presets & a Real Console
 
 ### ✨ Added

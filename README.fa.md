@@ -1,7 +1,7 @@
 # ⚡ هایپردی‌ان‌اس (HyperDNS) — گیت‌وی گیمینگ و اسمارت دی‌ان‌اس مستقل HyperRAIN
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Release-v2.2.0-00f0ff?style=for-the-badge&logo=rocket" alt="نسخه v2.2.0">
+  <img src="https://img.shields.io/badge/Release-v2.3.0-00f0ff?style=for-the-badge&logo=rocket" alt="نسخه v2.2.0">
   <img src="https://img.shields.io/badge/Status-Production--Ready%20Beta-amber?style=for-the-badge" alt="وضعیت">
   <img src="https://img.shields.io/badge/Language-Go%201.26-00ADD8?style=for-the-badge&logo=go" alt="Go 1.26">
   <img src="https://img.shields.io/badge/Architecture-Single%20Binary%20(Zero%20CGO)-a855f7?style=for-the-badge" alt="تک‌باینری بدون CGO">
@@ -84,7 +84,7 @@ HyperDNS یک فایل باینری استاتیک و بدون وابستگی ب
 <div dir="ltr">
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/IzumiRain/HyperDNS/v2.2.0-beta.1/scripts/install.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/IzumiRain/HyperDNS/v2.3.0-beta.1/scripts/install.sh | sudo bash
 ```
 
 </div>
