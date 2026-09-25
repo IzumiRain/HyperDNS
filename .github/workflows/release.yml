@@ -122,3 +122,16 @@ jobs:
           files: |
             dist/*
           generate_release_notes: true
+          # A "-beta" tag is a development build: publish it as a prerelease and
+          # never let it take the "Latest" badge, so the pinned stable line (the
+          # README's install one-liner) stays the default a new user lands on.
+          # A tag without "-beta" (a future stable cut) publishes normally.
+          prerelease: ${{ contains(github.ref_name, 'beta') }}
+          make_latest: ${{ contains(github.ref_name, 'beta') && 'false' || 'legacy' }}
+          body: |
+            > ⚠️ **UNSTABLE — development pre-release (${{ github.ref_name }}).**
+            > This build is a work in progress and is **not** recommended for production.
+            > New installs should use the current stable line the README points at
+            > (`v2.2.0-beta.1`); this tag exists for testing the features in flight.
+            > Full list of changes: [docs/CHANGELOG.md](https://github.com/IzumiRain/HyperDNS/blob/${{ github.ref_name }}/docs/CHANGELOG.md).
+
