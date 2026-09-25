@@ -284,6 +284,18 @@ type SubscriptionSettings struct {
 	// CSS. Bounded and sanitised on save (Phase 7); empty means none.
 	ThemeCSS string `json:"theme_css"`
 
+	// ThemeCSSSource selects where the portal's custom CSS comes from (v2.4):
+	// "" or "inline" uses ThemeCSS above; "local" reads ThemeCSSPath off the
+	// server's disk and inlines it; "url" emits a <link> to ThemeCSSURL that the
+	// subscriber's browser fetches. The three are mutually exclusive.
+	ThemeCSSSource string `json:"theme_css_source"`
+	// ThemeCSSPath is a server-local CSS file (e.g. /root/css/sub.css), read
+	// only, used when ThemeCSSSource is "local".
+	ThemeCSSPath string `json:"theme_css_path"`
+	// ThemeCSSURL is an http(s) stylesheet URL the browser loads directly, used
+	// when ThemeCSSSource is "url".
+	ThemeCSSURL string `json:"theme_css_url"`
+
 	// CertPath/KeyPath name the certificate pair for a subscription origin that
 	// is NOT the panel's. Ignored while UsePanelCertificate is true.
 	CertPath string `json:"cert_path"`

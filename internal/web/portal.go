@@ -15,6 +15,7 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -522,6 +523,45 @@ func wrapThemeCSS(css string) template.CSS {
 	return template.CSS("<style>\n" + css + "\n</style>")
 }
 
+// maxLocalThemeCSSBytes bounds a server-local CSS file. A real stylesheet is
+// larger than the hand-typed inline box, but a file past this is either a paste
+// accident or an attempt to bloat every subscriber's page; 256 KiB is generous.
+const maxLocalThemeCSSBytes = 256 * 1024
+
+// resolvePortalThemeCSS turns the operator's CSS-source choice (v2.4) into the
+// markup the portal injects: inline text and a local file both become a
+// sanitised <style>, while a URL becomes a <link> the subscriber's browser
+// loads. The daemon never fetches the URL itself — that keeps the resolver off
+// the hook for SSRF and latency, and matches how panels like 3x-ui do it.
+func resolvePortalThemeCSS(snap database.SubscriptionSnapshot) template.CSS {
+	switch snap.ThemeCSSSource {
+	case "url":
+		if snap.ThemeCSSURL == "" {
+			return ""
+		}
+		// The value was validated to be an absolute http(s) URL on save;
+		// escape it for the attribute regardless, so a stored value that
+		// somehow carries a quote cannot break out of the href.
+		return template.CSS(`<link rel="stylesheet" href="` + template.HTMLEscapeString(snap.ThemeCSSURL) + `">`)
+	case "local":
+		if snap.ThemeCSSPath == "" {
+			return ""
+		}
+		data, err := os.ReadFile(snap.ThemeCSSPath)
+		if err != nil {
+			log.Printf("[Portal] custom CSS file %q could not be read: %v (serving portal without it)", snap.ThemeCSSPath, err)
+			return ""
+		}
+		if len(data) > maxLocalThemeCSSBytes {
+			log.Printf("[Portal] custom CSS file %q is %d bytes, over the %d limit — ignored", snap.ThemeCSSPath, len(data), maxLocalThemeCSSBytes)
+			return ""
+		}
+		return wrapThemeCSS(SanitizeThemeCSS(string(data)))
+	default: // "", "inline"
+		return wrapThemeCSS(SanitizeThemeCSS(snap.ThemeCSS))
+	}
+}
+
 // renderIPResultPage writes either the subscriber portal or the error page.
 //
 // Language and theme are resolved here, before either template runs, because the error
@@ -563,11 +603,11 @@ func (ws *WebServer) renderIPResultPage(w http.ResponseWriter, r *http.Request, 
 		Version:   version.Display(),
 		DoHPort:   dohPortForDisplay(ws.dnsCfg),
 		DoTPort:   dotPortForDisplay(ws.dnsCfg),
-		// The operator's stylesheet lands after the built-in one, pre-sanitised:
-		// <style>/<script> tags escaped, @import and external url() stripped, so
-		// the page a subscriber loads cannot be turned into a data-exfiltration
-		// surface by a reseller's "branding". Empty renders nothing.
-		ThemeCSS: wrapThemeCSS(SanitizeThemeCSS(ws.subSettings.Snapshot().ThemeCSS)),
+		// The operator's stylesheet lands after the built-in one. Depending on
+		// the configured source it is the inline text, a sanitised server-local
+		// file, or a <link> to a URL the browser loads (v2.4). Empty renders
+		// nothing.
+		ThemeCSS: resolvePortalThemeCSS(ws.subSettings.Snapshot()),
 	}
 	if data.ServerDNS == "" {
 		data.ServerDNS = "127.0.0.1"

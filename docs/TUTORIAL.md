@@ -74,13 +74,13 @@
 ### 1a. One-line online install
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/IzumiRain/HyperDNS/v2.3.0-beta.1/scripts/install.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/IzumiRain/HyperDNS/v2.4.0-beta.1/scripts/install.sh | sudo bash
 ```
 
 The installer is interactive when a TTY is present. To fully script it:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/IzumiRain/HyperDNS/v2.3.0-beta.1/scripts/install.sh \
+curl -fsSL https://raw.githubusercontent.com/IzumiRain/HyperDNS/v2.4.0-beta.1/scripts/install.sh \
   -o install.sh
 
 # Required: the panel domain, and an email for the certificate authority

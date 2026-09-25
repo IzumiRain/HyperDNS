@@ -25,6 +25,9 @@ type SubscriptionSnapshot struct {
 	URIPath             string `json:"uri_path"`
 	Title               string `json:"title"`
 	ThemeCSS            string `json:"theme_css"`
+	ThemeCSSSource      string `json:"theme_css_source"`
+	ThemeCSSPath        string `json:"theme_css_path"`
+	ThemeCSSURL         string `json:"theme_css_url"`
 	CertPath            string `json:"cert_path"`
 	KeyPath             string `json:"key_path"`
 	UsePanelCertificate bool   `json:"use_panel_certificate"`
@@ -55,6 +58,9 @@ func (s *SubscriptionSettings) Snapshot() SubscriptionSnapshot {
 		URIPath:             s.URIPath,
 		Title:               s.Title,
 		ThemeCSS:            s.ThemeCSS,
+		ThemeCSSSource:      s.ThemeCSSSource,
+		ThemeCSSPath:        s.ThemeCSSPath,
+		ThemeCSSURL:         s.ThemeCSSURL,
 		CertPath:            s.CertPath,
 		KeyPath:             s.KeyPath,
 		UsePanelCertificate: s.UsePanelCertificate,
@@ -172,6 +178,9 @@ func (s *SubscriptionSettings) Apply(next SubscriptionSnapshot, persist func(*Su
 		URIPath:             s.URIPath,
 		Title:               s.Title,
 		ThemeCSS:            s.ThemeCSS,
+		ThemeCSSSource:      s.ThemeCSSSource,
+		ThemeCSSPath:        s.ThemeCSSPath,
+		ThemeCSSURL:         s.ThemeCSSURL,
 		CertPath:            s.CertPath,
 		KeyPath:             s.KeyPath,
 		UsePanelCertificate: s.UsePanelCertificate,
@@ -185,6 +194,9 @@ func (s *SubscriptionSettings) Apply(next SubscriptionSnapshot, persist func(*Su
 	s.URIPath = next.URIPath
 	s.Title = next.Title
 	s.ThemeCSS = next.ThemeCSS
+	s.ThemeCSSSource = next.ThemeCSSSource
+	s.ThemeCSSPath = next.ThemeCSSPath
+	s.ThemeCSSURL = next.ThemeCSSURL
 	s.CertPath = next.CertPath
 	s.KeyPath = next.KeyPath
 	s.UsePanelCertificate = next.UsePanelCertificate
@@ -201,6 +213,9 @@ func (s *SubscriptionSettings) Apply(next SubscriptionSnapshot, persist func(*Su
 		s.URIPath = before.URIPath
 		s.Title = before.Title
 		s.ThemeCSS = before.ThemeCSS
+		s.ThemeCSSSource = before.ThemeCSSSource
+		s.ThemeCSSPath = before.ThemeCSSPath
+		s.ThemeCSSURL = before.ThemeCSSURL
 		s.CertPath = before.CertPath
 		s.KeyPath = before.KeyPath
 		s.UsePanelCertificate = before.UsePanelCertificate

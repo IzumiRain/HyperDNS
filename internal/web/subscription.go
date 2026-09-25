@@ -2,6 +2,7 @@ package web
 
 import (
 	"fmt"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -292,6 +293,41 @@ func (ws *WebServer) sanitizeSubscriptionSnapshot(in SubscriptionSettingsInput) 
 		return in, "the port must be between 0 and 65535"
 	}
 
+	// Custom-CSS source (v2.4): the portal's stylesheet can come from the inline
+	// textbox, a server-local file, or an http(s) URL the browser loads. Validate
+	// the selector and the value that goes with it; the local file's existence is
+	// checked at render time, not here, so an operator can point at a path they
+	// are about to create.
+	out.ThemeCSSSource = strings.ToLower(strings.TrimSpace(out.ThemeCSSSource))
+	switch out.ThemeCSSSource {
+	case "", "inline":
+		out.ThemeCSSSource = "inline"
+		out.ThemeCSSPath = ""
+		out.ThemeCSSURL = ""
+	case "local":
+		out.ThemeCSSPath = strings.TrimSpace(out.ThemeCSSPath)
+		out.ThemeCSSURL = ""
+		if out.ThemeCSSPath == "" {
+			return in, "choose a CSS file path, or switch the source away from local"
+		}
+		// The daemon runs on Linux, so an absolute path starts with "/". Check
+		// the byte rather than filepath.IsAbs, whose answer is host-OS dependent
+		// (a "/root/..." path is not "absolute" to a Windows test runner).
+		if !strings.HasPrefix(out.ThemeCSSPath, "/") {
+			return in, "the CSS file path must be absolute (e.g. /root/css/sub.css)"
+		}
+	case "url":
+		out.ThemeCSSURL = strings.TrimSpace(out.ThemeCSSURL)
+		out.ThemeCSSPath = ""
+		u, err := url.Parse(out.ThemeCSSURL)
+		if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
+			return in, "the CSS URL must be an absolute http:// or https:// address"
+		}
+		out.ThemeCSSURL = u.String()
+	default:
+		return in, "the CSS source must be inline, local or url"
+	}
+
 	// A subscription domain that is not the panel's own name is served by its
 	// own ACME pair on a dedicated listener — and bindSubscriberListener only
 	// binds that listener on a port that differs from the panel's. An equal
@@ -348,6 +384,9 @@ type SubscriptionSettingsInput struct {
 	URIPath             string `json:"uri_path"`
 	Title               string `json:"title"`
 	ThemeCSS            string `json:"theme_css"`
+	ThemeCSSSource      string `json:"theme_css_source"`
+	ThemeCSSPath        string `json:"theme_css_path"`
+	ThemeCSSURL         string `json:"theme_css_url"`
 	CertPath            string `json:"cert_path"`
 	KeyPath             string `json:"key_path"`
 	UsePanelCertificate bool   `json:"use_panel_certificate"`

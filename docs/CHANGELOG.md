@@ -6,6 +6,26 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## 🎨 [v2.4.0-beta.1] — Custom Portal CSS from a File or URL
+
+Codename **HyperFORGE**. Adds a way to brand the subscriber portal beyond the inline CSS box.
+
+### ✨ Added
+- **The subscriber portal's custom CSS can now come from a server-local file or an online URL,** not just the inline textbox — inspired by how panels like 3x-ui let an operator point at a stylesheet. Choose the source under **Settings → Subscription Portal → Portal custom CSS**:
+  - **Inline** — paste CSS as before.
+  - **Local file** — an absolute path on the server (e.g. `/root/css/sub.css`); the daemon reads it (read-only, capped at 256 KiB), runs it through the same sanitiser as the inline box (`<style>`/`<script>` defanged, `@import` and external `url()` stripped), and inlines it.
+  - **URL** — an `http(s)` stylesheet address emitted as a `<link>` the subscriber's browser loads directly. The daemon never fetches the URL itself, so the resolver takes on no SSRF or latency risk.
+  Only the field for the selected source is stored; a missing local file or a bad value renders the portal with no custom CSS and logs why, rather than failing the page.
+
+### 🧪 Quality gates this release passed
+- `go build ./...`, `go vet ./...`, gofmt clean; all packages green with `-count=1`.
+- New tests: source resolution for inline/local/url (including sanitisation of a local file's `@import` and a missing-file no-op) and save-time validation of the source selector, the absolute-path rule and the http(s) URL rule.
+
+### ⚠️ Upgrade notes
+- Existing inline CSS keeps working unchanged: a record with no source set resolves as `inline`, exactly as before.
+
+---
+
 ## 🔵 [v2.3.0-beta.1] — Auto-Updating Presets, Custom Policy Groups, Installer & Login Fixes
 
 Codename **HyperFORGE**. A feature release (new user-facing surface, so a MINOR bump per the project's tag policy).

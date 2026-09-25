@@ -260,10 +260,24 @@ function initSubscriptionSettings() {
   const domain = document.getElementById('sub-domain-input');
   const port = document.getElementById('sub-port-input');
   const title = document.getElementById('sub-title-input');
+  const cssSource = document.getElementById('sub-css-source');
+  const cssInline = document.getElementById('sub-css-inline');
+  const cssPath = document.getElementById('sub-css-path');
+  const cssUrl = document.getElementById('sub-css-url');
   const saveBtn = document.getElementById('save-subscription-btn');
   const statusEl = document.getElementById('sub-save-status');
   const originPreview = document.getElementById('sub-origin-preview');
   const leBtn = document.getElementById('sub-issue-ssl-btn');
+
+  // Show only the input that matches the selected CSS source.
+  function syncCSSSourceFields() {
+    if (!cssSource) return;
+    const v = cssSource.value;
+    if (cssInline) cssInline.classList.toggle('hidden', v !== 'inline');
+    if (cssPath) cssPath.classList.toggle('hidden', v !== 'local');
+    if (cssUrl) cssUrl.classList.toggle('hidden', v !== 'url');
+  }
+  if (cssSource) cssSource.addEventListener('change', syncCSSSourceFields);
 
   // Render the record into the form. Called from renderConfig as well, so a
   // save elsewhere cannot leave the form describing a stale state.
@@ -274,6 +288,11 @@ function initSubscriptionSettings() {
     domain.value = sub.domain || '';
     port.value = sub.port || '';
     title.value = sub.title || '';
+    if (cssSource) cssSource.value = sub.theme_css_source || 'inline';
+    if (cssInline) cssInline.value = sub.theme_css || '';
+    if (cssPath) cssPath.value = sub.theme_css_path || '';
+    if (cssUrl) cssUrl.value = sub.theme_css_url || '';
+    syncCSSSourceFields();
     renderSubOriginPreview();
   };
 
@@ -308,7 +327,10 @@ function initSubscriptionSettings() {
       port: parseInt(port ? port.value : '0', 10) || 0,
       uri_path: '/sub',
       title: (title ? title.value.trim() : ''),
-      theme_css: ''
+      theme_css_source: (cssSource ? cssSource.value : 'inline'),
+      theme_css: (cssInline ? cssInline.value : ''),
+      theme_css_path: (cssPath ? cssPath.value.trim() : ''),
+      theme_css_url: (cssUrl ? cssUrl.value.trim() : '')
     };
     saveBtn.disabled = true;
     if (statusEl) statusEl.textContent = 'Saving…';

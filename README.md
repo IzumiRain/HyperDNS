@@ -1,7 +1,7 @@
 # ⚡ HyperDNS — HyperRAIN Standalone SmartDNS & Gaming Gateway
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Release-v2.3.0-00f0ff?style=for-the-badge&logo=rocket" alt="Version">
+  <img src="https://img.shields.io/badge/Release-v2.4.0-00f0ff?style=for-the-badge&logo=rocket" alt="Version">
   <img src="https://img.shields.io/badge/Status-Production--Ready%20Beta-amber?style=for-the-badge" alt="Status">
   <img src="https://img.shields.io/badge/Language-Go%201.26-00ADD8?style=for-the-badge&logo=go" alt="Go">
   <img src="https://img.shields.io/badge/Architecture-Single%20Binary%20(Zero%20CGO)-a855f7?style=for-the-badge" alt="Single Binary">
@@ -91,7 +91,7 @@ and 8443 (DoH).
 ### Option 1: One-Line Linux Installer (Recommended)
 Run as `root` on Ubuntu 20.04+, Debian 11+, or AlmaLinux/Rocky 8+:
 ```bash
-curl -fsSL https://raw.githubusercontent.com/IzumiRain/HyperDNS/v2.3.0-beta.1/scripts/install.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/IzumiRain/HyperDNS/v2.4.0-beta.1/scripts/install.sh | sudo bash
 ```
 
 > [!IMPORTANT]

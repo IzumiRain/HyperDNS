@@ -196,7 +196,7 @@ echo -e "  ${GREEN}✓ Architecture detected: ${ARCH} (${BIN_ARCH})${NC}"
 # beta installer pulling from it silently fetches the older stable binary and
 # the install fails deep in the v2.2.0 flow. Both URLs derive from the single
 # ref so the binary and the auxiliary files can never disagree.
-HYPERDNS_REF="${HYPERDNS_REF:-v2.3.0-beta.1}"
+HYPERDNS_REF="${HYPERDNS_REF:-v2.4.0-beta.1}"
 RAW_BASE="https://raw.githubusercontent.com/IzumiRain/HyperDNS/${HYPERDNS_REF}"
 RELEASE_BASE="https://github.com/IzumiRain/HyperDNS/releases/download/${HYPERDNS_REF}"
 

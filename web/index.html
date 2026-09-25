@@ -2447,6 +2447,26 @@ async function onBuySubscription(ctx, username) {
               class="px-3 py-2 rounded-lg bg-slate-950 border border-slate-700 text-xs font-mono text-white focus:outline-none focus:border-emerald-400">
           </div>
 
+          <!-- Custom portal CSS (v2.4): inline text, a server-local file, or an
+               online URL the subscriber's browser loads. Only the field for the
+               selected source is shown. -->
+          <div class="space-y-2 border-t border-slate-800 pt-4">
+            <label for="sub-css-source" class="block text-[11px] font-semibold text-slate-400">Portal custom CSS</label>
+            <select id="sub-css-source" aria-label="Custom CSS source"
+              class="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-700 text-xs text-white focus:outline-none focus:border-emerald-400">
+              <option value="inline">Inline CSS (paste below)</option>
+              <option value="local">Local file on the server</option>
+              <option value="url">Online URL</option>
+            </select>
+            <textarea id="sub-css-inline" rows="4" aria-label="Inline portal CSS" placeholder=".portal { --accent: #00f0ff; }"
+              class="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-700 text-xs font-mono text-white focus:outline-none focus:border-emerald-400"></textarea>
+            <input type="text" id="sub-css-path" aria-label="Local CSS file path" placeholder="/root/css/sub.css"
+              class="hidden w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-700 text-xs font-mono text-white focus:outline-none focus:border-emerald-400">
+            <input type="text" id="sub-css-url" aria-label="Online CSS URL" placeholder="https://example.com/portal/sub.css"
+              class="hidden w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-700 text-xs font-mono text-white focus:outline-none focus:border-emerald-400">
+            <p class="text-[10px] text-slate-500">A local file is read from the server's disk and inlined; a URL is loaded by the subscriber's browser. Inline and local CSS are sanitised (no <code>@import</code> or external <code>url()</code>).</p>
+          </div>
+
           <!-- Automatic SSL for the subscription domain (v2.2.0). The
                certificate comes from the daemon's built-in ACME client; the
                domain is applied to the record, the links and the listener
