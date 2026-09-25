@@ -22,6 +22,12 @@ type Client struct {
 	Note             string    `json:"note"`
 	CustomPolicies   []string  `json:"custom_policies"` // empty = inherit global policies
 
+	// MaxDevices is how many source IPs this subscription may hold at once
+	// (v2.5). The registration path evicts the oldest bound address when a new
+	// one arrives past this limit. 0 means the default of one device; the
+	// service clamps operator input to 1..MaxDevicesCeiling.
+	MaxDevices int `json:"max_devices,omitempty"`
+
 	// RegisterSecret is the second credential the subscriber's IP-registration
 	// API (/ip/<token>) demands on top of the token in the path (v2.1.0 Phase B,
 	// Mantis C-03). The token travels inside a link that gets pasted into group
@@ -98,7 +104,12 @@ type ServerSettings struct {
 	// encoding/json skips it and it never reaches the database record.
 	mu sync.RWMutex
 
-	PublicIP      string `json:"public_ip"`
+	PublicIP string `json:"public_ip"`
+	// PublicIPv6 is the server's reachable IPv6, used for proxied AAAA answers
+	// (v2.5). Empty keeps the IPv4-forcing behaviour: AAAA on a proxied name is
+	// sunk so the client uses the A record. Set it only when the SNI proxy is
+	// actually reachable over IPv6.
+	PublicIPv6    string `json:"public_ipv6"`
 	BindHost      string `json:"bind_host"`
 	WebPort       int    `json:"web_port"`
 	AdminUsername string `json:"admin_username"`

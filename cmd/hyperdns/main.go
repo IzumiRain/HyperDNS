@@ -483,6 +483,9 @@ func main() {
 	_ = sessionManager
 
 	dnsHandler := dns.NewHandler(clientService, c, m, u, statsService, serverSettings.PublicIP)
+	// v2.5: publish the server's IPv6 for proxied AAAA when one is configured, so
+	// IPv6 clients reach the SNI proxy over v6 instead of being forced to IPv4.
+	dnsHandler.SetPublicIPv6(serverSettings.PublicIPv6)
 	dohHandler := dns.NewDoHHandler(dnsHandler)
 
 	// DoH bearer tokens (v2.1.0 B-07 remediation): config.json's access block

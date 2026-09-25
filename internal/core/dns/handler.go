@@ -41,6 +41,7 @@ type Handler struct {
 	upstreams    *upstream.UpstreamPool
 	telemetry    TelemetrySink
 	publicIP     string
+	publicIPv6   string
 	totalQueries atomic.Uint64
 
 	quota QuotaEnforcer
@@ -136,6 +137,25 @@ func (h *Handler) SetPublicIP(ip string) {
 		}
 	}
 	h.publicIP = strings.TrimSpace(ip)
+}
+
+// SetPublicIPv6 installs the address proxied AAAA answers point at (v2.5). Only
+// a usable IPv6 literal is accepted; anything else clears it, and with it clear
+// the resolver keeps the older behaviour of sinking AAAA on proxied names so an
+// IPv4 client is forced onto the A record. Set it only when the server actually
+// has a reachable IPv6 on which the SNI proxy listens, or IPv6 clients would be
+// handed an address that answers nothing.
+func (h *Handler) SetPublicIPv6(ip string) {
+	ip = strings.TrimSpace(ip)
+	if ip != "" {
+		parsed := net.ParseIP(ip)
+		if parsed == nil || parsed.To4() != nil {
+			log.Printf("[DNS] Warning: public IPv6 %q is not a usable IPv6 address; proxied AAAA stays sunk (IPv4 forced)", ip)
+			h.publicIPv6 = ""
+			return
+		}
+	}
+	h.publicIPv6 = ip
 }
 
 // TotalQueries is the number of questions this handler has processed since start,
@@ -491,10 +511,20 @@ func (h *Handler) ProcessQuery(r *dns.Msg, clientIP string, protocol ...string) 
 			return m
 		}
 		if q.Qtype == dns.TypeAAAA {
-			// Prevent IPv6 leak bypass: Return clean NOERROR without AAAA answer,
-			// forcing client operating systems to use the proxied IPv4 A record.
+			// A proxied name's AAAA: if the operator has published a reachable
+			// server IPv6 (v2.5), answer it so an IPv6 client reaches the SNI
+			// proxy over v6 (which binds dual-stack). Otherwise keep the leak
+			// guard — an empty NOERROR — so an IPv4 client is forced onto the
+			// proxied A record instead of escaping to the real host over v6.
 			m := new(dns.Msg)
 			m.SetReply(r)
+			if h.publicIPv6 != "" {
+				if rr, err := dns.NewRR(fmt.Sprintf("%s 60 IN AAAA %s", q.Name, h.publicIPv6)); err == nil {
+					m.Answer = append(m.Answer, rr)
+					h.logQuery(start, clientIP, accountName, proto, domain, ruleName, "PROXY", false)
+					return m
+				}
+			}
 			h.logQuery(start, clientIP, accountName, proto, domain, ruleName, "PROXY_IPV6_SINK", false)
 			return m
 		}

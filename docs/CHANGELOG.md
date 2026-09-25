@@ -6,6 +6,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## 🌐 [v2.5.0-beta.1] — Per-Subscriber Device Limit & IPv6 for Proxied Names
+
+Codename **HyperFORGE**. Two networking features that had been on the roadmap since the fork feedback.
+
+### ✨ Added
+- **Per-subscriber device limit (1–5).** Each account can now hold more than one bound source IP. Set **Max Devices** on the add/edit client form (or `max_devices` in REST v2); a new address past the limit evicts the oldest, LRU-style. The default is 1, so accounts created before this change behave exactly as before. The cross-account address guard (Mantis C-04) is unchanged: an address already bound to a *different* subscription is still refused, so a device limit is not a way to share one paid account across households.
+- **IPv6 answers for proxied names.** When the server has a reachable IPv6, set it as **`public_ipv6`** and proxied names answer `AAAA` with it, so an IPv6 client reaches the SNI proxy over v6 instead of being pushed onto IPv4. With `public_ipv6` empty the previous behaviour stands — `AAAA` on a proxied name is withheld so the client uses the proxied `A` record and cannot leak past the proxy over v6. Direct (non-proxied) names already return their real `AAAA`, and the DNS and SNI listeners already bind dual-stack, so this closes the remaining gap for the proxied path.
+
+### 🧪 Quality gates this release passed
+- `go build ./...`, `go vet ./...`, gofmt clean; all packages green with `-count=1`.
+- New tests: `MaxDevices` clamp (1..5), multi-device LRU eviction, the default single-device path, and the C-04 conflict still refused under a multi-device account; the client codec and settings round-trip guards updated for the new fields.
+
+### ⚠️ Upgrade notes
+- No migration: `max_devices` defaults to 1 and `public_ipv6` to empty, so an upgraded install behaves identically until an operator opts in.
+
+---
+
 ## 🎨 [v2.4.0-beta.1] — Custom Portal CSS from a File or URL
 
 Codename **HyperFORGE**. Adds a way to brand the subscriber portal beyond the inline CSS box.

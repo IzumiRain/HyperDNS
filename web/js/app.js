@@ -3731,6 +3731,7 @@ function initClientEventListeners() {
       // with the wrong rules for the whole gap between the two writes.
       const trafficGB = parseFloat(document.getElementById('client-traffic-input')?.value) || 0;
       const cycle = document.getElementById('client-traffic-cycle')?.value || '';
+      const maxDevices = parseInt(document.getElementById('client-max-devices')?.value, 10) || 0;
 
       // The exact moment the picker answered, sent as RFC 3339 like the edit form
       // sends its expiry. An empty field is a lifetime plan and omits the key, which
@@ -3752,6 +3753,7 @@ function initClientEventListeners() {
             initial_ip: initIP,
             traffic_limit_gb: trafficGB,
             traffic_reset_cycle: cycle,
+            max_devices: maxDevices,
             custom_policies: addPolicyPicker.get()
           })
         });
@@ -4990,6 +4992,7 @@ function showToast(msg, type = 'info') {
       document.getElementById('edit-client-secret').value = client.register_secret || '';
       document.getElementById('edit-client-ip').value = (client.allowed_ips && client.allowed_ips.length > 0) ? client.allowed_ips[0] : '';
       document.getElementById('edit-client-traffic').value = client.traffic_limit_gb || '';
+      document.getElementById('edit-client-max-devices').value = client.max_devices || '';
       // The stored cycle, normalised to the empty option when the record predates
       // cycles or carries a name this build does not offer. A <select> handed an
       // unknown value silently shows its first option, so reopening the modal on such
@@ -5108,6 +5111,7 @@ function showToast(msg, type = 'info') {
       const ip = document.getElementById('edit-client-ip').value.trim();
       const trafficGB = parseFloat(document.getElementById('edit-client-traffic').value) || 0;
       const cycle = document.getElementById('edit-client-traffic-cycle')?.value || '';
+      const maxDevices = parseInt(document.getElementById('edit-client-max-devices')?.value, 10) || 0;
       const expiryVal = document.getElementById('edit-client-expiry').value;
       const note = document.getElementById('edit-client-note').value.trim();
       const isEnabled = enabledCheckbox ? enabledCheckbox.checked : true;
@@ -5125,6 +5129,7 @@ function showToast(msg, type = 'info') {
         uuid: uuid,
         allowed_ip: ip,
         traffic_limit_gb: trafficGB,
+        max_devices: maxDevices,
         // Sent on every save, including as "" — the field is a pointer on the server,
         // so omitting it means "leave the cycle alone" and there would then be no way
         // to turn a cycle back off from this form.

@@ -291,6 +291,7 @@ func (s *ServerSettings) PersistWebPort(port int, persist func(*ServerSettings) 
 
 	return persist(&ServerSettings{
 		PublicIP:           s.PublicIP,
+		PublicIPv6:         s.PublicIPv6,
 		BindHost:           s.BindHost,
 		WebPort:            port,
 		AdminUsername:      s.AdminUsername,

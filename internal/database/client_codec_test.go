@@ -54,6 +54,11 @@ func fillClient(t *testing.T, c *Client) {
 			fv.SetString(fmt.Sprintf("%s-%d", strings.ToLower(f.Name), n))
 		case f.Type.Kind() == reflect.Uint64:
 			fv.SetUint(uint64(n) * 1_000)
+		case f.Type.Kind() == reflect.Int:
+			// MaxDevices is the first plain int on the record. Keep the value in
+			// the field's real range (1..MaxDevicesCeiling) so a round-trip that
+			// clamps on read still equals what was written.
+			fv.SetInt(int64((n % MaxDevicesCeiling) + 1))
 		case f.Type.Kind() == reflect.Float64:
 			fv.SetFloat(float64(n) + 0.25)
 		case f.Type.Kind() == reflect.Bool:

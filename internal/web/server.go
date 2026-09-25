@@ -1634,6 +1634,7 @@ func (ws *WebServer) handleClients(w http.ResponseWriter, r *http.Request) {
 			TrafficLimitGB    float64  `json:"traffic_limit_gb"`
 			TrafficResetCycle string   `json:"traffic_reset_cycle"`
 			CustomPolicies    []string `json:"custom_policies"`
+			MaxDevices        int      `json:"max_devices"`
 			Note              string   `json:"note"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.Name == "" {
@@ -1666,6 +1667,7 @@ func (ws *WebServer) handleClients(w http.ResponseWriter, r *http.Request) {
 			TrafficLimitGB:    req.TrafficLimitGB,
 			TrafficResetCycle: req.TrafficResetCycle,
 			CustomPolicies:    req.CustomPolicies,
+			MaxDevices:        req.MaxDevices,
 
 			Note: req.Note,
 		})

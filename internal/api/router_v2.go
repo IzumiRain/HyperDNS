@@ -24,6 +24,7 @@ import (
 	"strings"
 
 	"hyperdns/internal/core/matcher"
+	"hyperdns/internal/database"
 	"hyperdns/internal/httpx"
 	"hyperdns/internal/service"
 	"hyperdns/internal/version"
@@ -86,6 +87,7 @@ type v2ClientDTO struct {
 	PolicyIDs       []string `json:"policy_ids"`
 	Note            string   `json:"note,omitempty"`
 	Enabled         bool     `json:"enabled"`
+	MaxDevices      int      `json:"max_devices"`
 	// Admin-only credential surfaces, exactly as /api/clients v1 exposes them
 	// (never on any public route; the portal's public view is a different,
 	// smaller struct).
@@ -206,6 +208,7 @@ func (a *API) handleV2Clients(w http.ResponseWriter, r *http.Request) {
 			QuotaResetCycle string   `json:"quota_reset_cycle"`
 			PolicyIDs       []string `json:"policy_ids"`
 			Note            string   `json:"note"`
+			MaxDevices      int      `json:"max_devices"`
 		}
 		if !decodeStrict(w, r, &req) {
 			return
@@ -225,6 +228,7 @@ func (a *API) handleV2Clients(w http.ResponseWriter, r *http.Request) {
 			TrafficResetCycle: req.QuotaResetCycle,
 			Note:              req.Note,
 			CustomPolicies:    req.PolicyIDs,
+			MaxDevices:        req.MaxDevices,
 		})
 		if err != nil {
 			httpx.WriteClientError(w, err)
@@ -298,6 +302,7 @@ type v2PatchRequest struct {
 	Note            *string   `json:"note"`
 	Enabled         *bool     `json:"enabled"`
 	ValidityDaysAdd *int      `json:"validity_days_add"`
+	MaxDevices      *int      `json:"max_devices"`
 }
 
 func (p v2PatchRequest) toService() service.UpdateClientRequest {
@@ -322,6 +327,9 @@ func (p v2PatchRequest) toService() service.UpdateClientRequest {
 	}
 	if p.ValidityDaysAdd != nil {
 		req.DaysToAdd = p.ValidityDaysAdd
+	}
+	if p.MaxDevices != nil {
+		req.MaxDevices = p.MaxDevices
 	}
 	return req
 }
@@ -384,6 +392,7 @@ func v2ViewToDTO(c service.ClientView) v2ClientDTO {
 		PolicyIDs:       c.CustomPolicies,
 		Note:            c.Note,
 		Enabled:         c.Enabled,
+		MaxDevices:      database.NormalizeMaxDevices(c.MaxDevices),
 		RegisterSecret:  c.RegisterSecret,
 	}
 	if !c.ExpiresAt.IsZero() {

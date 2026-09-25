@@ -1,6 +1,7 @@
 {
   "server": {
     "public_ip": "",
+    "public_ipv6": "",
     "bind_host": "0.0.0.0",
     "web_port": 8080,
     "admin_username": "admin",

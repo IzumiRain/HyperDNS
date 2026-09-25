@@ -89,6 +89,11 @@ type encClient struct {
 	TrafficResetAnchor    time.Time `json:"traffic_reset_anchor"`
 	TrafficResetCount     uint64    `json:"traffic_reset_count"`
 	TrafficPrevCycleBytes uint64    `json:"traffic_prev_cycle_bytes"`
+
+	// MaxDevices is the number of IPs this subscription may hold at once (v2.5).
+	// A plain small integer that names no subscriber and no address, so it is
+	// stored in the clear beside the quota counters. 0 reads as the default of 1.
+	MaxDevices int `json:"max_devices,omitempty"`
 }
 
 // plainToken returns the plaintext subscription token of a stored record,
@@ -210,6 +215,7 @@ func (db *DB) packClient(c Client) ([]byte, error) {
 		TrafficResetAnchor:    c.TrafficResetAnchor,
 		TrafficResetCount:     c.TrafficResetCount,
 		TrafficPrevCycleBytes: c.TrafficPrevCycleBytes,
+		MaxDevices:            c.MaxDevices,
 	}
 
 	return json.Marshal(enc)
@@ -284,6 +290,7 @@ func (db *DB) unpackClient(data []byte) (*Client, error) {
 		TrafficResetAnchor:    enc.TrafficResetAnchor,
 		TrafficResetCount:     enc.TrafficResetCount,
 		TrafficPrevCycleBytes: enc.TrafficPrevCycleBytes,
+		MaxDevices:            enc.MaxDevices,
 	}, nil
 }
 
@@ -569,12 +576,19 @@ func (db *DB) registerIP(client *Client, newIP string) (*Client, bool, error) {
 		}
 	}
 
-	alreadyPresent := len(client.AllowedIPs) == 1 && client.AllowedIPs[0] == newIP
+	alreadyPresent := false
+	for _, ip := range client.AllowedIPs {
+		if ip == newIP {
+			alreadyPresent = true
+			break
+		}
+	}
 
-	// A repeat visit from the same address changes nothing the resolver or the
-	// operator can observe except LastSeen, so it does not earn a write until that
-	// value is actually stale. Without this, every portal refresh cost an fsync.
-	if alreadyPresent && now.Sub(client.LastSeen) < lastSeenWriteInterval {
+	// A repeat visit from an address already bound changes nothing the resolver or
+	// the operator can observe except LastSeen (and its recency in the list), so a
+	// visit inside the write window does not earn an fsync.
+	if alreadyPresent && len(client.AllowedIPs) > 0 && client.AllowedIPs[len(client.AllowedIPs)-1] == newIP &&
+		now.Sub(client.LastSeen) < lastSeenWriteInterval {
 		return client, true, nil
 	}
 
@@ -590,11 +604,45 @@ func (db *DB) registerIP(client *Client, newIP string) (*Client, bool, error) {
 		return client, alreadyPresent, fmt.Errorf("%w: already bound to account %s", ErrDuplicateIPConflict, owner)
 	}
 
-	client.AllowedIPs = []string{newIP}
+	// Multi-device binding (v2.5): keep up to MaxDevices addresses, most-recent
+	// last. A repeat of an address already held moves it to the end; a new one
+	// past the limit evicts the oldest (front). MaxDevices 0 reads as 1, so an
+	// upgraded record with no value behaves exactly as the old single-IP path.
+	limit := NormalizeMaxDevices(client.MaxDevices)
+	list := make([]string, 0, len(client.AllowedIPs)+1)
+	for _, ip := range client.AllowedIPs {
+		if ip != newIP { // drop the old position of a repeat; re-appended below
+			list = append(list, ip)
+		}
+	}
+	list = append(list, newIP)
+	if len(list) > limit {
+		list = list[len(list)-limit:]
+	}
+	client.AllowedIPs = list
 	client.LastSeen = now
 
 	err := db.SaveClient(*client)
 	return client, alreadyPresent, err
+}
+
+// MaxDevicesCeiling is the largest simultaneous-device count an operator may set
+// (v2.5). Chosen small on purpose: the subscription is one household or one
+// reseller customer, not a public relay, and a low ceiling keeps the CGNAT-shared
+// address case (Mantis C-04) from being papered over with a huge limit.
+const MaxDevicesCeiling = 5
+
+// NormalizeMaxDevices clamps a stored/typed value into 1..MaxDevicesCeiling. 0
+// (the zero value on an upgraded record) resolves to 1, preserving the old
+// single-address behaviour for accounts created before the field existed.
+func NormalizeMaxDevices(n int) int {
+	if n <= 0 {
+		return 1
+	}
+	if n > MaxDevicesCeiling {
+		return MaxDevicesCeiling
+	}
+	return n
 }
 
 // findOwnerOfIP walks the accounts bucket for a record whose registered address

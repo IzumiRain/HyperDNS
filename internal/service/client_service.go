@@ -78,6 +78,7 @@ type UpdateClientRequest struct {
 	Enabled        *bool      `json:"enabled"`
 	Note           *string    `json:"note"`
 	CustomPolicies *[]string  `json:"custom_policies"`
+	MaxDevices     *int       `json:"max_devices"`
 
 	// TrafficResetCycle is "", "daily", "weekly" or "monthly". Switching a cycle on
 	// anchors it at the moment of the request, so the first rollover is a whole
@@ -343,6 +344,7 @@ type CreateClientRequest struct {
 
 	Note           string
 	CustomPolicies []string
+	MaxDevices     int
 }
 
 // ProvisionClient creates a subscriber account from a full plan in a single write.
@@ -427,6 +429,7 @@ func (s *ClientService) ProvisionClient(req CreateClientRequest) (*database.Clie
 		Enabled:        true,
 		Note:           req.Note,
 		CustomPolicies: policies,
+		MaxDevices:     database.NormalizeMaxDevices(req.MaxDevices),
 
 		RegisterSecret: registerSecret,
 
@@ -512,6 +515,16 @@ func (s *ClientService) UpdateClient(id string, req UpdateClientRequest) (*datab
 	}
 	if req.CustomPolicies != nil {
 		client.CustomPolicies = *req.CustomPolicies
+	}
+	if req.MaxDevices != nil {
+		// Clamp on write so a stored record is always in range; the registration
+		// path clamps again on read, so an out-of-range legacy value is harmless.
+		client.MaxDevices = database.NormalizeMaxDevices(*req.MaxDevices)
+		// Shrinking the limit trims the oldest bindings immediately, so the panel
+		// figure and the resolver agree without waiting for the next registration.
+		if len(client.AllowedIPs) > client.MaxDevices {
+			client.AllowedIPs = client.AllowedIPs[len(client.AllowedIPs)-client.MaxDevices:]
+		}
 	}
 
 	if err := s.db.SaveClient(*client); err != nil {
