@@ -361,17 +361,34 @@ func questionSummary(m *dns.Msg) string {
 // clipped. A failed TCP retry leaves the truncated UDP answer in place — clipped
 // beats nothing. Whatever comes back has to answer the question that was asked.
 func (p *UpstreamPool) queryOne(ctx context.Context, req *dns.Msg, addr string) (*dns.Msg, time.Duration, error) {
-	resp, rtt, err := p.udpClient.ExchangeContext(ctx, req, addr)
+	// Never forward the client's chosen transaction ID upstream. miekg/dns
+	// correlates a reply to its query by ID alone, so a resolver that echoes the
+	// client's ID upstream hands an off-path spoofer half the entropy RFC 5452
+	// relies on: the client picks the ID, leaving only the source port to guess,
+	// and a whitelisted subscriber who chose the ID can then blind-spray forged
+	// replies to poison the shared cache. Query under a fresh random ID per
+	// exchange and restore the client's ID on the reply; answersTheQuestion is
+	// the second fence, not the only one.
+	q := req.Copy()
+	clientID := req.Id
+	q.Id = dns.Id()
+
+	resp, rtt, err := p.udpClient.ExchangeContext(ctx, q, addr)
 	if err == nil && resp != nil && resp.Truncated {
-		if tcpResp, tcpRTT, tcpErr := p.tcpClient.ExchangeContext(ctx, req, addr); tcpErr == nil && tcpResp != nil {
+		if tcpResp, tcpRTT, tcpErr := p.tcpClient.ExchangeContext(ctx, q, addr); tcpErr == nil && tcpResp != nil {
 			resp, rtt, err = tcpResp, tcpRTT, nil
 		}
 	}
-	if err == nil && !answersTheQuestion(req, resp) {
+	if err == nil && !answersTheQuestion(q, resp) {
 		// Returned as an error rather than as a fallback so that neither exchange path
 		// can hand this message to the client or the cache.
 		return nil, rtt, fmt.Errorf("%w: asked %s of %s, got %s",
-			ErrQuestionMismatch, questionSummary(req), addr, questionSummary(resp))
+			ErrQuestionMismatch, questionSummary(q), addr, questionSummary(resp))
+	}
+	if resp != nil {
+		// Restore the client's ID so the handler can hand this reply — or a cache
+		// entry derived from it — back to the client that asked.
+		resp.Id = clientID
 	}
 	return resp, rtt, err
 }

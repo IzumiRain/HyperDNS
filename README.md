@@ -1,7 +1,7 @@
 # ⚡ HyperDNS — HyperRAIN Standalone SmartDNS & Gaming Gateway
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Release-v2.5.0-00f0ff?style=for-the-badge&logo=rocket" alt="Version">
+  <img src="https://img.shields.io/badge/Release-v2.6.0-00f0ff?style=for-the-badge&logo=rocket" alt="Version">
   <img src="https://img.shields.io/badge/Status-Production--Ready%20Beta-amber?style=for-the-badge" alt="Status">
   <img src="https://img.shields.io/badge/Language-Go%201.26-00ADD8?style=for-the-badge&logo=go" alt="Go">
   <img src="https://img.shields.io/badge/Architecture-Single%20Binary%20(Zero%20CGO)-a855f7?style=for-the-badge" alt="Single Binary">
@@ -80,9 +80,21 @@ and the box that hosts your resolver should not be the bottleneck your ping
 blames.
 
 Also required: a **domain** pointed at the server (HTTPS is mandatory; the
-daemon issues its own certificate), and these ports reachable: 53 UDP+TCP,
-80 TCP (ACME HTTP-01, issuance only), the panel port, and optionally 853 (DoT)
-and 8443 (DoH).
+daemon issues its own certificate), and these ports reachable:
+
+| Port | Protocol | Purpose |
+|------|----------|---------|
+| **53** | UDP + TCP | DNS resolver — the core service |
+| **443** | TCP | SNI relay for proxied game traffic + panel HTTPS |
+| **80** | TCP | ACME HTTP-01 certificate issuance + SNI relay HTTP |
+| **8443** | TCP | DoH (DNS-over-HTTPS) |
+| **853** | TCP | DoT (DNS-over-TLS) |
+| panel port | TCP | admin dashboard — a random high port, shown by the installer |
+
+If another service already owns **53** (a local `masterdns`/dnsmasq is the
+usual one), **443**, or **8443**, free it first or the daemon cannot bind that
+listener at start. The installer now lists these ports and warns about conflicts
+before it installs anything.
 
 ---
 
@@ -91,7 +103,7 @@ and 8443 (DoH).
 ### Option 1: One-Line Linux Installer (Recommended)
 Run as `root` on Ubuntu 20.04+, Debian 11+, or AlmaLinux/Rocky 8+:
 ```bash
-curl -fsSL https://raw.githubusercontent.com/IzumiRain/HyperDNS/v2.5.0-beta.1/scripts/install.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/IzumiRain/HyperDNS/v2.6.0-beta.1/scripts/install.sh | sudo bash
 ```
 
 > [!IMPORTANT]

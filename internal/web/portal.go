@@ -422,10 +422,14 @@ type portalData struct {
 	DoHPort int
 	DoTPort int
 	// ThemeCSS is the operator's custom stylesheet, already sanitised and
-	// wrapped in its own <style> element (or empty). template.CSS marks it as
-	// raw text for html/template — the sanitiser above it is the primary
-	// defence; this just stops double-escaping.
-	ThemeCSS template.CSS
+	// wrapped in its own <style> element (or a <link>, or empty). It is emitted
+	// into the page head verbatim, so it is typed template.HTML: a template.CSS
+	// value is escaped in an HTML element context (it is only raw inside a
+	// <style>/style="" context), which is why the v2.4 feature rendered inert —
+	// the <style> tags came out as visible &lt;style&gt; text. The SanitizeThemeCSS
+	// pass above it is the primary defence and is what makes template.HTML safe
+	// here: it defangs any </style>/<script> breakout and strips external loads.
+	ThemeCSS template.HTML
 	// ServerHost is what DoT and DoH have to be addressed by: the configured
 	// domain when there is one, falling back to ServerDNS when there is not.
 	//
@@ -516,11 +520,11 @@ func renderPortal(w http.ResponseWriter, code int, tpl *template.Template, data 
 // built-in stylesheet. An empty stylesheet produces an empty string, so a
 // deployment with no branding emits no element at all. Callers pass CSS that
 // has already been through SanitizeThemeCSS; the wrapper adds no trust.
-func wrapThemeCSS(css string) template.CSS {
+func wrapThemeCSS(css string) template.HTML {
 	if strings.TrimSpace(css) == "" {
 		return ""
 	}
-	return template.CSS("<style>\n" + css + "\n</style>")
+	return template.HTML("<style>\n" + css + "\n</style>")
 }
 
 // maxLocalThemeCSSBytes bounds a server-local CSS file. A real stylesheet is
@@ -533,7 +537,7 @@ const maxLocalThemeCSSBytes = 256 * 1024
 // sanitised <style>, while a URL becomes a <link> the subscriber's browser
 // loads. The daemon never fetches the URL itself — that keeps the resolver off
 // the hook for SSRF and latency, and matches how panels like 3x-ui do it.
-func resolvePortalThemeCSS(snap database.SubscriptionSnapshot) template.CSS {
+func resolvePortalThemeCSS(snap database.SubscriptionSnapshot) template.HTML {
 	switch snap.ThemeCSSSource {
 	case "url":
 		if snap.ThemeCSSURL == "" {
@@ -542,7 +546,7 @@ func resolvePortalThemeCSS(snap database.SubscriptionSnapshot) template.CSS {
 		// The value was validated to be an absolute http(s) URL on save;
 		// escape it for the attribute regardless, so a stored value that
 		// somehow carries a quote cannot break out of the href.
-		return template.CSS(`<link rel="stylesheet" href="` + template.HTMLEscapeString(snap.ThemeCSSURL) + `">`)
+		return template.HTML(`<link rel="stylesheet" href="` + template.HTMLEscapeString(snap.ThemeCSSURL) + `">`)
 	case "local":
 		if snap.ThemeCSSPath == "" {
 			return ""

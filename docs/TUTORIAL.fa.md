@@ -71,13 +71,13 @@
 <div dir="ltr">
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/IzumiRain/HyperDNS/v2.5.0-beta.1/scripts/install.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/IzumiRain/HyperDNS/v2.6.0-beta.1/scripts/install.sh | sudo bash
 ```
 
 نصاب در صورت وجود ترمینال تعاملی است. برای کاملاً اسکریپتی‌کردن:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/IzumiRain/HyperDNS/v2.5.0-beta.1/scripts/install.sh \
+curl -fsSL https://raw.githubusercontent.com/IzumiRain/HyperDNS/v2.6.0-beta.1/scripts/install.sh \
   -o install.sh
 
 # ضروری: دامنهٔ پنل، و یک ایمیل برای مرجع گواهی

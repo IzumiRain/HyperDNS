@@ -27,6 +27,7 @@ import (
 	"hyperdns/internal/database"
 	"hyperdns/internal/httpx"
 	"hyperdns/internal/presetupd"
+	"hyperdns/internal/selfupdate"
 	"hyperdns/internal/service"
 	"hyperdns/internal/service/acme"
 	"hyperdns/internal/version"
@@ -42,6 +43,7 @@ type WebServer struct {
 	customGroups   *service.CustomGroupService
 	upstreams      *upstream.UpstreamPool
 	dohHandler     http.Handler
+	updater        *selfupdate.Updater
 	settings       *database.ServerSettings
 	tlsSettings    *database.TLSSettings
 	dnsCfg         *database.DNSSettings
@@ -298,6 +300,29 @@ func spaLookup(path string) string {
 		p = strings.TrimSuffix(p, "/")
 	}
 	return p
+}
+
+// withRequestReadDeadline bounds how long a client may take to deliver a full
+// request on the panel listener, closing the slow-body gap that ReadHeaderTimeout
+// leaves open once the headers are parsed: after that a client can otherwise
+// dribble a JSON body one byte at a time and hold a goroutine and a socket
+// indefinitely on every decoding endpoint (/api/auth/login, /api/auth/unlock,
+// the config writers).
+//
+// It is applied per request instead of as a server-wide ReadTimeout because the
+// SSE stream (/api/stream/queries) deliberately holds its connection open and
+// watches r.Context(): a server ReadTimeout would fire mid-stream, cancel that
+// context, and kill the dashboard's live feed. The stream path is therefore
+// exempt; every other request gets a 30s ceiling. Best-effort — a transport that
+// cannot set the deadline (unlikely here) just keeps prior behaviour.
+func (ws *WebServer) withRequestReadDeadline(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/stream/queries" {
+			rc := http.NewResponseController(w)
+			_ = rc.SetReadDeadline(time.Now().Add(30 * time.Second))
+		}
+		next.ServeHTTP(w, r)
+	})
 }
 
 func (ws *WebServer) BuildHandler() http.Handler {
@@ -665,6 +690,11 @@ func (ws *WebServer) buildAdminMux() *http.ServeMux {
 	mux.HandleFunc("/api/config/rules", ws.requireAuth(ws.handleConfigRules))
 	mux.HandleFunc("/api/config/access", ws.requireAuth(ws.handleConfigAccess))
 	mux.HandleFunc("/api/config/server", ws.requireAuth(ws.handleConfigServer))
+	// Self-update (v2.6): check the main-branch version, apply a verified update,
+	// and poll its progress. All admin-gated.
+	mux.HandleFunc("/api/update/check", ws.requireAuth(ws.handleUpdateCheck))
+	mux.HandleFunc("/api/update/apply", ws.requireAuth(ws.handleUpdateApply))
+	mux.HandleFunc("/api/update/status", ws.requireAuth(ws.handleUpdateStatus))
 
 	// 6. Internal Dashboard Ajax APIs (all authenticated)
 	mux.HandleFunc("/api/diagnostics/run", ws.requireAuth(ws.handleDiagnosticsRun))
@@ -939,7 +969,7 @@ func (ws *WebServer) Start() error {
 	ws.stopServerCtx = stopServerCtx
 	ws.httpServer = &http.Server{
 		Addr:              addr,
-		Handler:           ws.BuildHandler(),
+		Handler:           ws.withRequestReadDeadline(ws.BuildHandler()),
 		ReadHeaderTimeout: 10 * time.Second,
 		// WriteTimeout must stay 0: the SSE event stream (/api/stream/queries)
 		// holds connections open indefinitely and would be killed by a
@@ -1024,7 +1054,10 @@ func (ws *WebServer) Start() error {
 			Addr:              redirAddr,
 			Handler:           http.HandlerFunc(ws.handleHTTPSRedirect),
 			ReadHeaderTimeout: 10 * time.Second,
-			IdleTimeout:       60 * time.Second,
+			// ReadTimeout bounds the whole request: this listener has no SSE stream
+			// to keep open, so a slow-body client cannot pin a connection here.
+			ReadTimeout: 30 * time.Second,
+			IdleTimeout: 60 * time.Second,
 		}
 	}
 
@@ -1148,9 +1181,13 @@ func (ws *WebServer) bindSubscriberListener(ctx context.Context, fatal bool) err
 		Addr:              subAddr,
 		Handler:           ws.subscriberSurface(),
 		ReadHeaderTimeout: 10 * time.Second,
-		WriteTimeout:      0,
-		IdleTimeout:       60 * time.Second,
-		BaseContext:       func(net.Listener) context.Context { return ctx },
+		// The subscriber surface serves only short portal pages and JSON binds —
+		// no SSE stream — so ReadTimeout can bound the whole request and keep a
+		// slow-body client from pinning a connection on the public listener.
+		ReadTimeout:  30 * time.Second,
+		WriteTimeout: 0,
+		IdleTimeout:  60 * time.Second,
+		BaseContext:  func(net.Listener) context.Context { return ctx },
 	}
 	subScheme := "http"
 	if subTLS != nil {
@@ -1373,7 +1410,21 @@ func (ws *WebServer) handleConfigAccess(w http.ResponseWriter, r *http.Request) 
 		if acc.DoHTokens == nil {
 			acc.DoHTokens = []string{}
 		}
-		_ = ws.db.SetSetting("access", acc)
+		// Persist first, and only claim success if the write landed: the previous
+		// code discarded this error and answered {"success":true} even when the
+		// save failed.
+		if err := ws.db.SetSetting("access", acc); err != nil {
+			httpx.WriteJSONError(w, http.StatusInternalServerError, "Could not save access settings")
+			return
+		}
+		// Then propagate to the LIVE DoH gate. Without this the saved token list
+		// only reached the handler at the next restart: a first-enabled gate
+		// stayed open and a revoked token kept working until then. The handler is
+		// held as an http.Handler; the concrete *dns.DoHHandler satisfies this
+		// narrow interface.
+		if gate, ok := ws.dohHandler.(interface{ SetDoHTokens([]string) }); ok {
+			gate.SetDoHTokens(acc.DoHTokens)
+		}
 		_ = json.NewEncoder(w).Encode(map[string]bool{"success": true})
 	default:
 		httpx.WriteMethodNotAllowed(w, "GET, POST")

@@ -722,6 +722,9 @@ All of these live **inside the admin namespace** (`/<admin-path>/api/...` below 
 | `POST /api/auth/ldap` | Saves the directory settings (`enabled`, `ldap_server_url` — must start with `ldap://`/`ldaps://` — `ldap_bind_dn`, `ldap_bind_password` (empty keeps the stored one), `ldap_base_dn`, `ldap_user_attr`, `ldap_login_mode`). Invalidates sessions. |
 | `POST /api/settings/regenerate-admin-path` | Replaces the hidden namespace. Body **must** be `{"confirm":true}`; every session and bookmark under the old path dies immediately. |
 | `GET/POST /api/settings/subscription` | The subscriber-surface record (enabled, domain, port, title, certificate paths, `use_panel_certificate`). A different domain is refused without a valid certificate naming it; `restart_required` is always stated. |
+| `GET /api/update/check` | *(v2.6)* Reports the running version, the version published on the project's `main` branch, and whether a newer one is available. Read-only. |
+| `POST /api/update/apply` | *(v2.6)* Starts a background, SHA-256-verified binary update and restart (**Linux/systemd only**). The data files are snapshotted first and never rewritten; returns immediately and the daemon restarts onto the new binary. |
+| `GET /api/update/status` | *(v2.6)* Live progress of an in-flight update, for the dashboard's progress modal to poll. |
 
 The password-change endpoint (`POST /api/config/server`) accepts a `code` field and enforces the same second-factor gate. Session invalidation after 2FA, LDAP-mode, admin-path and credential changes is deliberate and documented in the v2.1 plan.
 

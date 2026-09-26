@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"strconv"
+	"sync"
 
 	"github.com/miekg/dns"
 	"hyperdns/internal/netutil"
@@ -16,6 +17,12 @@ type DoHHandler struct {
 	// tokens, when non-empty, are the only values a DoH client may present as
 	// ?token= to be served. Comparison is constant-time per entry. An empty
 	// list means the endpoint is open to whoever the access layer allows.
+	//
+	// Guarded by mu: SetDoHTokens is called both at boot and live from the
+	// dashboard's access card (POST /api/config/access), while tokenOK reads it
+	// from every DoH request goroutine — an unguarded slice would be a data race
+	// the moment the operator saved a token on a running server.
+	mu     sync.RWMutex
 	tokens []string
 }
 
@@ -26,15 +33,25 @@ func NewDoHHandler(h *Handler) *DoHHandler {
 // SetDoHTokens installs the operator's DoH bearer tokens. An empty list
 // disables token checking. Wired from the "access" record (dashboard card and
 // config.json doh_tokens) — previously the card wrote the list and nothing
-// ever read it (v2.1.0 B-07 remediation).
+// ever read it (v2.1.0 B-07 remediation), and until v2.5 a live save persisted
+// but never reached this method, so the gate stayed at its boot-time state
+// until the next restart.
 func (h *DoHHandler) SetDoHTokens(tokens []string) {
-	h.tokens = tokens
+	// Copy so a later mutation of the caller's slice cannot reach into the live
+	// gate behind the lock.
+	cp := append([]string(nil), tokens...)
+	h.mu.Lock()
+	h.tokens = cp
+	h.mu.Unlock()
 }
 
 // tokenOK reports whether the request's ?token= is accepted. Constant-time
 // per entry so a wrong guess reveals nothing about which prefix matched.
 func (h *DoHHandler) tokenOK(r *http.Request) bool {
-	if len(h.tokens) == 0 {
+	h.mu.RLock()
+	tokens := h.tokens
+	h.mu.RUnlock()
+	if len(tokens) == 0 {
 		return true
 	}
 	given := r.URL.Query().Get("token")
@@ -42,7 +59,7 @@ func (h *DoHHandler) tokenOK(r *http.Request) bool {
 		return false
 	}
 	ok := false
-	for _, t := range h.tokens {
+	for _, t := range tokens {
 		if subtle.ConstantTimeCompare([]byte(t), []byte(given)) == 1 {
 			ok = true
 		}
@@ -84,6 +101,14 @@ func (h *DoHHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				http.Error(w, "Invalid base64 payload", http.StatusBadRequest)
 				return
 			}
+		}
+		// A DoH wire message is small; the POST branch caps the body at 4 KiB with
+		// io.LimitReader, and the GET branch has to enforce the same ceiling or a
+		// GET ?dns= is decoded and Unpack'd with no length bound at all — the same
+		// per-request parse work the POST path refuses (v2.5 GET/POST parity fix).
+		if len(raw) > 4096 {
+			http.Error(w, "DNS query too large", http.StatusBadRequest)
+			return
 		}
 		reqMsg = new(dns.Msg)
 		if err := reqMsg.Unpack(raw); err != nil {

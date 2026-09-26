@@ -30,6 +30,7 @@ import (
 	"hyperdns/internal/database"
 	"hyperdns/internal/netutil"
 	"hyperdns/internal/presetupd"
+	"hyperdns/internal/selfupdate"
 	"hyperdns/internal/service"
 	"hyperdns/internal/service/acme"
 	"hyperdns/internal/tui"
@@ -486,6 +487,16 @@ func main() {
 	// v2.5: publish the server's IPv6 for proxied AAAA when one is configured, so
 	// IPv6 clients reach the SNI proxy over v6 instead of being forced to IPv4.
 	dnsHandler.SetPublicIPv6(serverSettings.PublicIPv6)
+	// v2.6 self-service reachability: teach the resolver its own service names
+	// (panel domain, the DoH/DoT host, and the subscriber-portal domain) so it
+	// answers them with the public IP ahead of the access whitelist. Without this,
+	// a subscriber whose IP changed — and has therefore fallen off the whitelist —
+	// gets REFUSED for the very portal link they need to re-register from.
+	dnsHandler.SetSelfDomains([]string{
+		tlsSettings.Domain,
+		tlsSettings.DoTDomain,
+		subscriptionSettings.Domain,
+	})
 	dohHandler := dns.NewDoHHandler(dnsHandler)
 
 	// DoH bearer tokens (v2.1.0 B-07 remediation): config.json's access block
@@ -568,6 +579,22 @@ func main() {
 	webServer.SetSubscriptionSettings(subscriptionSettings)
 	webServer.SetAuthSettings(authSettings)
 	webServer.SetCustomGroupService(customGroupService)
+
+	// v2.6 self-update: let the dashboard check the main-branch version and apply
+	// a SHA256-verified binary swap + restart. It is handed the running binary and
+	// the data files to snapshot before any swap; those files are otherwise never
+	// touched, which is what keeps an update from losing subscribers or the admin
+	// credential (the pre-update backup lands in <data-dir>/backups).
+	if exePath, exeErr := os.Executable(); exeErr == nil {
+		cfgForBackup := *configPath
+		if cfgForBackup == "" {
+			cfgForBackup = filepath.Join(filepath.Dir(dPath), "config.json")
+		}
+		backupDir := filepath.Join(filepath.Dir(dPath), "backups")
+		webServer.SetUpdater(selfupdate.New(exePath, []string{dPath, kPath, cfgForBackup}, backupDir))
+	} else {
+		log.Printf("[Main] Self-update disabled: could not resolve the running binary path: %v", exeErr)
+	}
 
 	// v2.2.0: the embedded ACME client replaces certbot/acme.sh. It ships in
 	// the binary (an offline install can issue the moment it has internet,

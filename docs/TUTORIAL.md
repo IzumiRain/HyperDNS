@@ -74,13 +74,13 @@
 ### 1a. One-line online install
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/IzumiRain/HyperDNS/v2.5.0-beta.1/scripts/install.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/IzumiRain/HyperDNS/v2.6.0-beta.1/scripts/install.sh | sudo bash
 ```
 
 The installer is interactive when a TTY is present. To fully script it:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/IzumiRain/HyperDNS/v2.5.0-beta.1/scripts/install.sh \
+curl -fsSL https://raw.githubusercontent.com/IzumiRain/HyperDNS/v2.6.0-beta.1/scripts/install.sh \
   -o install.sh
 
 # Required: the panel domain, and an email for the certificate authority
@@ -256,6 +256,27 @@ That is it. From now on, every subscriber's link is generated on
 > always serves 443. It exists for setups where a CDN or reverse proxy in front
 > of the server terminates TLS on a different port; if you have no such layer,
 > leave it empty.
+
+---
+
+### 5c. Brand the subscriber portal with custom CSS
+
+The portal ships with a clean default theme, but you can override it with your own CSS — a background, brand colours, a logo, custom fonts. **Settings → Subscription Portal → Portal custom CSS** offers three sources; only the one you pick is stored:
+
+| Source | What to enter | How it is delivered |
+| :--- | :--- | :--- |
+| **Inline** | Paste CSS into the textbox (up to 16 KiB). | Sanitised and inlined in a `<style>` element on every portal page. |
+| **Local file** | An absolute path on the server, e.g. `/root/css/sub.css` (up to 256 KiB). | The daemon reads it (read-only), sanitises it, and inlines it. A missing or oversized file is ignored with a log line — the portal still renders. |
+| **URL** | An `http(s)` stylesheet address, e.g. `https://cdn.example/portal.css`. | Emitted as a `<link rel="stylesheet">` the subscriber's browser loads directly. The daemon never fetches it, so the resolver takes on no SSRF or latency risk. |
+
+**What the sanitiser removes (inline and local-file sources).** The CSS is served on a page shown to strangers, so before it is inlined the daemon strips the constructs that turn a stylesheet into an attack: `<style>`/`<script>` breakouts are defanged, `@import` and external / `//` `url()` loads are removed (including escape-obfuscated ones such as `url(\68 ttps://…)`), and `expression()` is stripped. Relative and `data:` URLs survive, so `background: url('/img/bg.png')` and inline data-URI images work. The **URL** source is *not* sanitised — the browser loads it directly — so point it only at a stylesheet you control.
+
+**Tips.**
+- Prefer the portal's structural classes over bare element selectors, so a future markup change does not fight your theme.
+- To ship a logo with no external request, embed it as a `data:` URI in `background-image`.
+- Changes apply on the next portal page load — no restart.
+
+> Custom CSS is set only by the panel admin and is applied to the pages your subscribers see. Treat a stylesheet copied from an untrusted source like any other code you run — the sanitiser is a safety net, not a licence to paste anything.
 
 ---
 

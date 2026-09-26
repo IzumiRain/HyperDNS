@@ -211,6 +211,13 @@ func TestDoHRejectsUnusablePayloadsWithoutAnswering(t *testing.T) {
 		{"a message larger than the body cap", func() *http.Request {
 			return httptest.NewRequest(http.MethodPost, "/dns-query", bytes.NewReader(oversizedWireQuery(t, 8<<10)))
 		}},
+		// GET must enforce the same 4 KB ceiling the POST branch does: a well-formed
+		// but oversized message decoded from ?dns= is rejected rather than processed,
+		// so the GET path is not an uncapped decode+unpack (v2.5 GET/POST parity fix).
+		{"a GET dns= larger than the body cap", func() *http.Request {
+			enc := base64.RawURLEncoding.EncodeToString(oversizedWireQuery(t, 8<<10))
+			return httptest.NewRequest(http.MethodGet, "/dns-query?dns="+enc, nil)
+		}},
 	}
 
 	for _, tc := range cases {

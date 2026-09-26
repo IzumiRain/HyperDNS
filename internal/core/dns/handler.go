@@ -42,6 +42,14 @@ type Handler struct {
 	telemetry    TelemetrySink
 	publicIP     string
 	publicIPv6   string
+	// selfNames holds this server's own service hostnames — the panel domain,
+	// the subscriber-portal domain, and the DoH/DoT host. Queries for these are
+	// answered with the server's public address ahead of the access whitelist
+	// (v2.6 self-service reachability), so a subscriber whose IP changed and has
+	// fallen off the whitelist can still resolve the portal link to re-register.
+	// Stored atomically: replaced when the operator changes a domain, read on the
+	// query hot path.
+	selfNames    atomic.Pointer[map[string]struct{}]
 	totalQueries atomic.Uint64
 
 	quota QuotaEnforcer
@@ -156,6 +164,34 @@ func (h *Handler) SetPublicIPv6(ip string) {
 		}
 	}
 	h.publicIPv6 = ip
+}
+
+// SetSelfDomains installs this server's own service hostnames (panel domain,
+// subscriber-portal domain, DoH/DoT host). A query for one of these is answered
+// with the server's public address ahead of the access whitelist, so a
+// subscriber whose source IP changed can still resolve the portal link they need
+// to re-register (v2.6). Blank entries are dropped and names are lower-cased and
+// stripped of a trailing dot so the hot-path lookup is a plain map hit.
+func (h *Handler) SetSelfDomains(domains []string) {
+	set := make(map[string]struct{}, len(domains))
+	for _, d := range domains {
+		d = strings.TrimSuffix(strings.ToLower(strings.TrimSpace(d)), ".")
+		if d != "" {
+			set[d] = struct{}{}
+		}
+	}
+	h.selfNames.Store(&set)
+}
+
+// isSelfName reports whether domain (lower-case, no trailing dot) is one of this
+// server's own service hostnames.
+func (h *Handler) isSelfName(domain string) bool {
+	set := h.selfNames.Load()
+	if set == nil {
+		return false
+	}
+	_, ok := (*set)[domain]
+	return ok
 }
 
 // TotalQueries is the number of questions this handler has processed since start,
@@ -400,6 +436,35 @@ func (h *Handler) ProcessQuery(r *dns.Msg, clientIP string, protocol ...string) 
 		return m
 	}
 
+	q := r.Question[0]
+	qName := strings.ToLower(q.Name)
+	domain := strings.TrimSuffix(qName, ".")
+
+	// Self-service reachability (v2.6): answer this server's OWN names — panel,
+	// subscriber portal, DoH/DoT host — with its public address BEFORE the access
+	// gate. A subscriber whose IP changed has fallen off the whitelist, so every
+	// name they ask is REFUSED, including the portal link they need to re-register.
+	// Answering only the server's own names, only A/AAAA, only its own address,
+	// still behind the rate limiter, keeps that one door open without turning the
+	// resolver into an open one.
+	if (q.Qtype == dns.TypeA || q.Qtype == dns.TypeAAAA) && h.isSelfName(domain) {
+		m := new(dns.Msg)
+		m.SetReply(r)
+		if q.Qtype == dns.TypeA && h.publicIP != "" {
+			if rr, err := dns.NewRR(fmt.Sprintf("%s 60 IN A %s", q.Name, h.publicIP)); err == nil {
+				m.Answer = append(m.Answer, rr)
+			}
+		} else if q.Qtype == dns.TypeAAAA && h.publicIPv6 != "" {
+			if rr, err := dns.NewRR(fmt.Sprintf("%s 60 IN AAAA %s", q.Name, h.publicIPv6)); err == nil {
+				m.Answer = append(m.Answer, rr)
+			}
+		}
+		// The other address family (or a missing public address) is a deliberate
+		// empty NOERROR: the name exists here, that family just has no address.
+		h.logQuery(start, clientIP, "Self", proto, domain, "Self-service", "SELF", false)
+		return m
+	}
+
 	// 1. Validate Access Control
 	var accountName = "Public"
 	var activeClient *database.Client
@@ -433,10 +498,6 @@ func (h *Handler) ProcessQuery(r *dns.Msg, clientIP string, protocol ...string) 
 		h.logQuery(start, clientIP, accountName, proto, questionName(r), "Traffic quota exceeded", "QUOTA", false)
 		return m
 	}
-
-	q := r.Question[0]
-	qName := strings.ToLower(q.Name)
-	domain := strings.TrimSuffix(qName, ".")
 
 	// 2. RFC 8482: never serve ANY. Dumping every RRset for a name is the
 	// classic DNS amplification primitive, so refuse before any lookup.

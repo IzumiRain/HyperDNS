@@ -6,6 +6,38 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## 🚀 [v2.6.0-beta.1] — In-Panel Updates, Self-Resolving Service Names, NAT-Aware Installer & a Security Pass
+
+Codename **HyperFORGE**. A reachability-and-maintenance release: the dashboard can update itself, the resolver always answers its own service names, the installer stops guessing the wrong public IP, and a round of audited security fixes lands — including a release-blocking dashboard defect that shipped in v2.5.
+
+### ✨ Added
+- **One-click updates from the dashboard.** The panel reads the version published on the project's `main` branch and, when a newer one exists, shows an **Update** badge. Clicking it opens a progress modal that downloads the matching release binary, **verifies its SHA-256 against the release `checksums.txt`**, backs up your data, swaps the binary atomically (keeping the previous one as `.bak`), and restarts onto the new version. Admin-only; Linux/systemd installs only (elsewhere it simply reports that a newer version exists).
+- **The resolver answers its own service names ahead of the access whitelist.** A subscriber whose IP changed used to fall off the whitelist and get `REFUSED` for *everything* — including the portal link they needed to re-register from. HyperDNS now answers its own panel / subscriber-portal / DoH-DoT hostnames with the server's public address for any source (still behind the rate limiter, only `A`/`AAAA`, only the server's own IP), so that door stays open without turning the resolver into an open one.
+- **Manual public-IP entry at install time.** On NAT'd VPSes — Iran-routed boxes especially — the echo services report a foreign address (Azerbaijan/UAE), which then breaks certificate issuance and subscriber links. The installer now shows the detected IP and lets you correct it (or set `HYPERDNS_PUBLIC_IP` for an unattended run), and writes the chosen value into `config.json` so the daemon uses it verbatim instead of re-detecting the wrong one. Mirrored across all three installers.
+- **Required-ports preflight.** The installer lists the ports HyperDNS needs (53, 443, 80, 8443, 853, plus the random panel port) and warns when one is already taken by another service — a local `masterdns`/dnsmasq on 53 is the usual culprit — before it installs anything. The README carries the same table.
+
+### 🔐 Security
+- **The forwarder no longer sends the client's transaction ID upstream (HIGH).** Echoing the client-chosen ID to a plaintext UDP upstream donated half the entropy an off-path spoofer needs (RFC 5452); each upstream exchange now uses a fresh random ID and restores the client's ID on the reply, so a whitelisted subscriber can no longer blind-spray a forged answer into the shared cache.
+- **DoH token changes apply live (MEDIUM).** Saving or revoking DoH bearer tokens in the dashboard took effect only at the next restart, and a failed save still reported success. The gate now updates in place (mutex-guarded) and the persist error is surfaced.
+- **Atomic IP binding (MEDIUM).** The registration read-modify-write is now a single transaction, closing two races: a bind in flight could revert an operator's concurrent account suspension, and two subscriptions could both claim the same address (Mantis C-04).
+- **Slow-body read deadline (MEDIUM)** on the web listeners (the SSE stream is exempt so it is not cut off), and the **DoH `GET ?dns=` now enforces the same 4 KiB cap as `POST` (LOW)**.
+
+### 🖼 Fixed
+- **The v2.5 dashboard bundle failed to parse (release-blocking).** A function header dropped during v2.5 left `web/js/app.js` syntactically invalid, so the entire dashboard script was rejected by the browser. Restored — the dashboard runs again.
+- **Custom subscriber-portal CSS now actually renders.** The v2.4 feature was inert: the stylesheet was emitted into the page head as a `template.CSS` value in an HTML element context, where `html/template` escapes it, so the `<style>` came out as visible `&lt;style&gt;` text and no theme ever applied. It is now typed `template.HTML` so it renders live, and `SanitizeThemeCSS` was hardened to also strip escape-obfuscated external `url()` (e.g. `url(\68 ttps://…)`) now that it is the primary control. See **[docs/TUTORIAL.md → Brand the subscriber portal with custom CSS](TUTORIAL.md#5c-brand-the-subscriber-portal-with-custom-css)**.
+
+### 💾 Data preservation
+- Updating never rewrites `data.db` / `master.key` / `config.json`; the in-panel updater snapshots them into `<data-dir>/backups/` before it swaps the binary. A 2.2 → 2.6 in-place upgrade keeps every subscriber, the admin credential and all settings (covered by a new reopen-and-migrate test).
+
+### 🧪 Quality gates this release passed
+- `go build ./...` (host + linux cross), `go vet ./...`, all packages green with `-count=1`; `web/js/app.js` passes `node --check`; all three installers pass `bash -n`.
+- New tests: upstream transaction-ID regeneration, live DoH-gate application, concurrent same-IP bind resolving to exactly one winner, bind-on-suspended refused without re-enabling, the DoH GET size cap, self-service name resolution, data preservation across reopen+migrate, and the version-compare logic behind the update check.
+
+### ⚠️ Upgrade notes
+- No data migration; an upgraded install behaves identically until you opt into anything new. The in-panel updater is Linux/systemd only. The stable line new users land on stays the pinned `v2.2.0-beta.1` — this `-beta` tag is published as an **UNSTABLE prerelease** and does not take the *Latest* badge.
+
+---
+
 ## 🌐 [v2.5.0-beta.1] — Per-Subscriber Device Limit & IPv6 for Proxied Names
 
 Codename **HyperFORGE**. Two networking features that had been on the roadmap since the fork feedback.

@@ -72,6 +72,11 @@ type testResolver struct {
 	udp     func(qname string) answer
 	tcp     func(qname string) answer
 
+	// lastID is the transaction ID of the most recent request the resolver saw.
+	// The pool must query upstream under a fresh ID, never the client's, so a
+	// test can assert this is not the ID the caller chose.
+	lastID atomic.Uint32
+
 	mu         sync.Mutex
 	lastSubnet *dns.EDNS0_SUBNET
 	sawEDNS    bool
@@ -142,6 +147,7 @@ func (r *testResolver) reply(w dns.ResponseWriter, req *dns.Msg, pick func(strin
 	if len(req.Question) == 0 {
 		return
 	}
+	r.lastID.Store(uint32(req.Id))
 	qname := req.Question[0].Name
 
 	if opt := req.IsEdns0(); opt != nil {
@@ -801,6 +807,43 @@ func TestConcurrentExchangeDuringReload(t *testing.T) {
 // These tests pin that a reply which answers something else is treated as an
 // upstream failure: not returned, not cached, and not counted as that resolver
 // working.
+
+// TestUpstreamGetsFreshTransactionID locks in the RFC 5452 defense: the pool
+// must query upstream under a fresh transaction ID rather than forwarding the
+// client's chosen one (which would let a client, or an off-path spoofer who
+// learned it, predict the ID and blind-spray a forged reply to poison the shared
+// cache). The client's ID must still come back on the reply, and the caller's
+// message must not be mutated.
+func TestUpstreamGetsFreshTransactionID(t *testing.T) {
+	r := newTestResolver(t, always(answer{rcode: dns.RcodeSuccess, ip: "127.0.0.1"}), nil)
+	p := newTestPool(t, []string{r.addr}, time.Second, false, "")
+
+	const clientID = 0x1234
+	seen := map[uint16]struct{}{}
+	for range 16 {
+		m := new(dns.Msg)
+		m.SetQuestion(probeName, dns.TypeA)
+		m.Id = clientID
+
+		resp, _, _, err := p.Exchange(m)
+		if err != nil {
+			t.Fatalf("exchange: %v", err)
+		}
+		if resp == nil || resp.Id != clientID {
+			t.Fatalf("the reply handed back to the client must carry its own ID 0x%04x", clientID)
+		}
+		if m.Id != clientID {
+			t.Fatalf("Exchange mutated the caller's message ID to 0x%04x; it must copy, not mutate", m.Id)
+		}
+		seen[uint16(r.lastID.Load())] = struct{}{}
+	}
+	// Forwarding the client ID verbatim would make every upstream query carry
+	// 0x1234, so the set of observed IDs would be exactly {0x1234}. A fresh
+	// per-exchange ID yields many distinct values.
+	if len(seen) <= 1 {
+		t.Fatalf("upstream saw a single transaction ID across 16 exchanges (%v); the ID must be regenerated per exchange", seen)
+	}
+}
 
 func TestUpstreamReplyForAnotherQuestionIsNeverReturned(t *testing.T) {
 	// The reply carries an A record for the name that was asked, under a question

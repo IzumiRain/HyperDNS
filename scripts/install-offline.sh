@@ -63,6 +63,43 @@ if [ -z "${PUBLIC_IP}" ]; then
     PUBLIC_IP="YOUR_SERVER_IP"
 fi
 
+# Detection is unreliable on NAT'd VPSes (Iran-routed boxes report an
+# Azerbaijan/UAE address), and offline there is often no echo service to ask at
+# all — hostname -I returns the private LAN address. Let the operator set the
+# real public IP; it is written into config.json's public_ip so the daemon uses
+# it verbatim instead of auto-detecting the wrong one. HYPERDNS_PUBLIC_IP
+# overrides non-interactively.
+validate_ip() {
+    case "$1" in
+        *[!0-9.:a-fA-F]* | "" ) return 1 ;;
+    esac
+    case "$1" in
+        *.*.*.* | *:* ) return 0 ;;
+        * ) return 1 ;;
+    esac
+}
+PUBLIC_IP_MANUAL=0
+if [ -n "${HYPERDNS_PUBLIC_IP:-}" ]; then
+    if validate_ip "${HYPERDNS_PUBLIC_IP}"; then
+        PUBLIC_IP="${HYPERDNS_PUBLIC_IP}"; PUBLIC_IP_MANUAL=1
+        echo -e "  ${CYAN}Using HYPERDNS_PUBLIC_IP=${PUBLIC_IP} (manual override).${NC}"
+    else
+        echo -e "  ${RED}HYPERDNS_PUBLIC_IP='${HYPERDNS_PUBLIC_IP}' is not a valid IP address; ignoring it.${NC}"
+    fi
+elif [ -t 0 ] || (exec </dev/tty) 2>/dev/null; then
+    _ip_reply=""
+    printf "%b" "${YELLOW}Detected public IP: ${BOLD}${PUBLIC_IP}${NC}${YELLOW}. If your VPS is NAT'd and its real public IP differs, type it now; otherwise press Enter to accept: ${NC}" >&2
+    if [ -t 0 ]; then read -r _ip_reply || _ip_reply=""; else read -r _ip_reply </dev/tty 2>/dev/null || _ip_reply=""; fi
+    if [ -n "${_ip_reply}" ]; then
+        if validate_ip "${_ip_reply}"; then
+            PUBLIC_IP="${_ip_reply}"; PUBLIC_IP_MANUAL=1
+            echo -e "  ${GREEN}Using ${PUBLIC_IP} as the server's public IP.${NC}"
+        else
+            echo -e "  ${RED}'${_ip_reply}' is not a valid IP address; keeping ${PUBLIC_IP}.${NC}"
+        fi
+    fi
+fi
+
 # Domain validation. The value is fed to sed against config.json, so a name
 # with a slash or ampersand in it corrupts the expression instead of failing;
 # it is also what the certificate is issued for. Anything that is not
@@ -232,6 +269,12 @@ if [ -n "${FRESH_CONFIG_SOURCE}" ]; then
     sed -i "s|\"admin_password\": \"[^\"]*\"|\"admin_password\": \"${GENERATED_ADMIN_PASSWORD}\"|" "${INSTALL_DIR}/config.json"
     sed -i "s|\"api_key\": \"[^\"]*\"|\"api_key\": \"${GENERATED_API_KEY}\"|" "${INSTALL_DIR}/config.json"
 
+    # Pin the confirmed public IP so the daemon uses it verbatim instead of
+    # auto-detecting (the NAT/offline misdetection this prompt exists to fix).
+    if [ "${PUBLIC_IP}" != "YOUR_SERVER_IP" ] && validate_ip "${PUBLIC_IP}"; then
+        sed -i "s|\"public_ip\": \"[^\"]*\"|\"public_ip\": \"${PUBLIC_IP}\"|" "${INSTALL_DIR}/config.json"
+    fi
+
     # v2.2.0: a random management (panel) port for fresh installs. 8080 is
     # everyone's default — panels, dev servers, proxies — and the dashboard
     # landing on it collides with whatever the operator already runs far more
@@ -269,6 +312,14 @@ fi
 # it found it, and chmod on a missing path is not worth aborting for.
 if [ -f "${INSTALL_DIR}/config.json" ]; then
     chmod 600 "${INSTALL_DIR}/config.json" 2>/dev/null || true
+fi
+
+# On an upgrade the fresh-config block did not run; if the operator supplied the
+# public IP by hand, write it into the existing config so the daemon stops
+# auto-detecting the wrong (NAT) address.
+if [ "${PUBLIC_IP_MANUAL:-0}" = "1" ] && [ -f "${INSTALL_DIR}/config.json" ]; then
+    sed -i "s|\"public_ip\": \"[^\"]*\"|\"public_ip\": \"${PUBLIC_IP}\"|" "${INSTALL_DIR}/config.json"
+    echo -e "  ${GREEN}✓ Wrote public IP ${PUBLIC_IP} into config.json${NC}"
 fi
 
 echo -e "  ${GREEN}✓ Binary installed to ${INSTALL_DIR}/hyperdns${NC}"

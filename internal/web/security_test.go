@@ -180,6 +180,12 @@ func TestSanitizeThemeCSSRemovesVectors(t *testing.T) {
 			wantPresent: []string{`body`, `background:`},
 		},
 		{
+			name:        "escape-obfuscated external url() removed",
+			input:       `body { background: url(\68 ttps://attacker.example/x.png); }`,
+			wantAbsent:  []string{`attacker.example`, `\68`},
+			wantPresent: []string{`body`},
+		},
+		{
 			name:        "expression() removed",
 			input:       `body { width: expression(alert(1)); }`,
 			wantAbsent:  []string{`expression(`, `alert(`},

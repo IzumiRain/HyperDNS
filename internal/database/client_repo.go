@@ -550,80 +550,91 @@ func (db *DB) RegisterIPForClient(id string, newIP string) (*Client, bool, error
 	return db.registerIP(client, newIP)
 }
 
+// registerIP binds newIP to the account identified by client.ID. The whole
+// read-modify-write — expiry/suspension/quota gates, the C-04 uniqueness scan,
+// and the save — runs inside ONE bolt.Update, so bbolt's single-writer model
+// makes check-and-write atomic. Before this, the record was read in one txn,
+// scanned in another, and saved in a third: two concurrent binds of one address
+// from different subscriptions could both pass the uniqueness scan (C-04 race),
+// and a bind in flight could re-save a stale whole record over an operator's
+// concurrent suspension — silently re-enabling the account it just disabled.
 func (db *DB) registerIP(client *Client, newIP string) (*Client, bool, error) {
+	id := client.ID
 	now := time.Now()
-	if !client.ExpiresAt.IsZero() && now.After(client.ExpiresAt) {
-		client.Enabled = false
-		_ = db.SaveClient(*client)
-		// This used to return os.ErrDeadlineExceeded, which forced callers to
-		// import os to recognise an expired account and is indistinguishable
-		// from a genuine I/O deadline.
-		return client, false, ErrClientExpired
-	}
-
-	// Phase B gates (Mantis C-01/C-02): the registration path must refuse an
-	// account the operator suspended and an account whose allowance is spent.
-	// Both used to sail straight through — a suspended subscriber kept moving
-	// their binding, and re-enabling one later silently adopted whatever
-	// binding they had last chosen.
-	if !client.Enabled {
-		return client, false, ErrClientSuspended
-	}
-	if client.TrafficLimitGB > 0 {
-		used := client.TrafficUsedBytes
-		if uint64(client.TrafficLimitGB*1024*1024*1024) <= used {
-			return client, false, ErrQuotaExceeded
+	var (
+		result         *Client
+		alreadyPresent bool
+		expired        bool
+	)
+	err := db.bolt.Update(func(tx *bolt.Tx) error {
+		b := tx.Bucket(bucketClients)
+		if b == nil {
+			return errors.New("clients bucket is missing")
 		}
-	}
-
-	alreadyPresent := false
-	for _, ip := range client.AllowedIPs {
-		if ip == newIP {
-			alreadyPresent = true
-			break
+		raw := b.Get([]byte(id))
+		if raw == nil {
+			return ErrClientNotFound
 		}
-	}
-
-	// A repeat visit from an address already bound changes nothing the resolver or
-	// the operator can observe except LastSeen (and its recency in the list), so a
-	// visit inside the write window does not earn an fsync.
-	if alreadyPresent && len(client.AllowedIPs) > 0 && client.AllowedIPs[len(client.AllowedIPs)-1] == newIP &&
-		now.Sub(client.LastSeen) < lastSeenWriteInterval {
-		return client, true, nil
-	}
-
-	// Phase B (Mantis C-04): refuse to bind an address that is already the
-	// registered address of a DIFFERENT live subscription. The scan is one pass
-	// over the accounts bucket on a bind — the write path this guards is
-	// rate-limited by human behaviour, not by a resolver hot loop — and it is
-	// the only place an IP->account uniqueness claim can be made honestly,
-	// because bbolt has no secondary index to consult. Deliberately NOT
-	// deactivating either account: CGNAT makes shared addresses routine, and
-	// the caller surfaces a 409 with instructions instead.
-	if existing, owner := db.findOwnerOfIP(newIP, client.ID); existing {
-		return client, alreadyPresent, fmt.Errorf("%w: already bound to account %s", ErrDuplicateIPConflict, owner)
-	}
-
-	// Multi-device binding (v2.5): keep up to MaxDevices addresses, most-recent
-	// last. A repeat of an address already held moves it to the end; a new one
-	// past the limit evicts the oldest (front). MaxDevices 0 reads as 1, so an
-	// upgraded record with no value behaves exactly as the old single-IP path.
-	limit := NormalizeMaxDevices(client.MaxDevices)
-	list := make([]string, 0, len(client.AllowedIPs)+1)
-	for _, ip := range client.AllowedIPs {
-		if ip != newIP { // drop the old position of a repeat; re-appended below
-			list = append(list, ip)
+		fresh, uerr := db.unpackClient(raw)
+		if uerr != nil {
+			return uerr
 		}
-	}
-	list = append(list, newIP)
-	if len(list) > limit {
-		list = list[len(list)-limit:]
-	}
-	client.AllowedIPs = list
-	client.LastSeen = now
+		result = fresh
 
-	err := db.SaveClient(*client)
-	return client, alreadyPresent, err
+		if !fresh.ExpiresAt.IsZero() && now.After(fresh.ExpiresAt) {
+			// Disable on disk in THIS txn, but report expiry to the caller.
+			// Returning the error would roll the disable back, so record it in
+			// `expired` and return nil so the disable commits.
+			expired = true
+			if !fresh.Enabled {
+				return nil
+			}
+			fresh.Enabled = false
+			return putClientTx(db, b, fresh)
+		}
+		if !fresh.Enabled {
+			return ErrClientSuspended
+		}
+		if fresh.TrafficLimitGB > 0 && uint64(fresh.TrafficLimitGB*1024*1024*1024) <= fresh.TrafficUsedBytes {
+			return ErrQuotaExceeded
+		}
+
+		for _, ip := range fresh.AllowedIPs {
+			if ip == newIP {
+				alreadyPresent = true
+				break
+			}
+		}
+		// A repeat visit from an address already bound changes nothing the
+		// resolver or the operator can observe except LastSeen, so a visit inside
+		// the write window does not earn an fsync.
+		if alreadyPresent && len(fresh.AllowedIPs) > 0 && fresh.AllowedIPs[len(fresh.AllowedIPs)-1] == newIP &&
+			now.Sub(fresh.LastSeen) < lastSeenWriteInterval {
+			return nil
+		}
+
+		// Phase B (Mantis C-04): refuse an address already bound to a DIFFERENT
+		// live subscription. Scanned in the SAME write txn as the Put below, so
+		// the check and the claim commit together — bbolt has no secondary index,
+		// and this is the only honest IP->account uniqueness point. Deliberately
+		// NOT deactivating either account: CGNAT makes shared addresses routine,
+		// and the caller surfaces a 409 with instructions instead.
+		if owner, ok := ownerOfIPInTx(db, b, newIP, id); ok {
+			return fmt.Errorf("%w: already bound to account %s", ErrDuplicateIPConflict, owner)
+		}
+
+		// Multi-device binding (v2.5): keep up to MaxDevices addresses, most-recent
+		// last; a repeat moves to the end, a new one past the limit evicts the oldest.
+		applyDeviceBind(fresh, newIP, now)
+		return putClientTx(db, b, fresh)
+	})
+	if expired {
+		return result, false, ErrClientExpired
+	}
+	if err != nil {
+		return result, alreadyPresent, err
+	}
+	return result, alreadyPresent, nil
 }
 
 // MaxDevicesCeiling is the largest simultaneous-device count an operator may set
@@ -645,36 +656,69 @@ func NormalizeMaxDevices(n int) int {
 	return n
 }
 
-// findOwnerOfIP walks the accounts bucket for a record whose registered address
-// is ip, belonging to a different client than excludeID. Returns whether such a
-// record exists and its account name (best-effort, for the error message).
-func (db *DB) findOwnerOfIP(ip string, excludeID string) (bool, string) {
+// ownerOfIPInTx reports whether ip is already bound to a client other than
+// excludeID, scanning within an existing write transaction so the check and the
+// bind that follows commit atomically. Returns the owning account name
+// (best-effort, for the error message).
+func ownerOfIPInTx(db *DB, b *bolt.Bucket, ip, excludeID string) (string, bool) {
 	owner := ""
 	found := false
-	_ = db.bolt.View(func(tx *bolt.Tx) error {
-		b := tx.Bucket(bucketClients)
-		if b == nil {
+	_ = b.ForEach(func(_, data []byte) error {
+		if found {
 			return nil
 		}
-		return b.ForEach(func(_, data []byte) error {
-			if found {
-				return nil
-			}
-			c, err := db.unpackClient(data)
-			if err != nil || c.ID == excludeID {
-				return nil
-			}
-			for _, bound := range c.AllowedIPs {
-				if bound == ip {
-					found = true
-					owner = c.Name
-					return nil
-				}
-			}
+		c, err := db.unpackClient(data)
+		if err != nil || c == nil || c.ID == excludeID {
 			return nil
-		})
+		}
+		for _, bound := range c.AllowedIPs {
+			if bound == ip {
+				owner = c.Name
+				found = true
+				return nil
+			}
+		}
+		return nil
 	})
-	return found, owner
+	return owner, found
+}
+
+// putClientTx packs and stores c inside an existing write transaction, filling a
+// missing UUID exactly as SaveClient does so a record written on the atomic bind
+// path is indistinguishable from one written through the normal save path.
+func putClientTx(db *DB, b *bolt.Bucket, c *Client) error {
+	if c.UUID == "" {
+		if c.ID != "" && c.Token != "" {
+			c.UUID = db.generateDeterministicUUID(c.ID, c.Token)
+		} else {
+			c.UUID = GenerateUUID()
+		}
+	}
+	packed, err := db.packClient(*c)
+	if err != nil {
+		return err
+	}
+	return b.Put([]byte(c.ID), packed)
+}
+
+// applyDeviceBind appends newIP as the most-recent allowed address, dropping any
+// earlier copy of it and evicting the oldest once MaxDevices is exceeded (v2.5).
+// MaxDevices 0 reads as 1, so an upgraded record with no value keeps the old
+// single-address behaviour.
+func applyDeviceBind(c *Client, newIP string, now time.Time) {
+	limit := NormalizeMaxDevices(c.MaxDevices)
+	list := make([]string, 0, len(c.AllowedIPs)+1)
+	for _, ip := range c.AllowedIPs {
+		if ip != newIP {
+			list = append(list, ip)
+		}
+	}
+	list = append(list, newIP)
+	if len(list) > limit {
+		list = list[len(list)-limit:]
+	}
+	c.AllowedIPs = list
+	c.LastSeen = now
 }
 
 // AddClientTraffic adds each delta to the stored usage of its account inside a

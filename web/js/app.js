@@ -775,6 +775,14 @@ function renderConfig(cfg) {
     }
   }
 
+  // v2.6: once the running version is known, ask the server whether a newer one
+  // is published on the project's main branch. Runs once per page load and is
+  // non-fatal when the box is offline.
+  if (!window.__hdnsUpdateChecked) {
+    window.__hdnsUpdateChecked = true;
+    checkForUpdate();
+  }
+
   // Header & guide public IP
   const pubIP = cfg.server.public_ip || '127.0.0.1';
   const headerIPEl = document.getElementById('header-public-ip');
@@ -1045,6 +1053,8 @@ async function deleteCustomGroup(id) {
     }
   } catch (e) { /* ignore */ }
 }
+
+function renderCustomRecords(records) {
   const container = document.getElementById('custom-records-list');
   if (!container) return;
   container.innerHTML = '';
@@ -5165,3 +5175,128 @@ function showToast(msg, type = 'info') {
       }
     });
   }
+
+// =======================================================
+// SELF-UPDATE (v2.6): check the main-branch version, then apply a
+// SHA256-verified binary swap + restart. Data is preserved and backed up.
+// =======================================================
+async function checkForUpdate() {
+  try {
+    const res = await fetch(api('/api/update/check'), { headers: { 'Authorization': 'Bearer ' + authToken } });
+    if (!res.ok) return;
+    const st = await res.json();
+    if (st && st.update_available && st.supported) showUpdateAvailable(st);
+  } catch (e) { /* an offline check is non-fatal — no badge, no error */ }
+}
+
+let hdnsUpdateBtn = null;
+function showUpdateAvailable(st) {
+  if (!hdnsUpdateBtn) {
+    const btn = document.createElement('button');
+    btn.id = 'update-available-btn';
+    btn.type = 'button';
+    btn.className = 'mt-1 inline-flex items-center gap-1.5 text-[10px] font-bold px-2 py-1 rounded-lg bg-amber-500/20 text-amber-300 border border-amber-500/40 hover:bg-amber-500/30 transition';
+    btn.addEventListener('click', () => openUpdateModal(st));
+    const anchor = document.getElementById('app-version-badge');
+    if (anchor && anchor.parentElement) anchor.parentElement.appendChild(btn);
+    else document.body.appendChild(btn);
+    hdnsUpdateBtn = btn;
+  }
+  hdnsUpdateBtn.innerHTML = `<i data-feather="download-cloud" class="w-3 h-3"></i> Update &rarr; v${escapeHTML(st.latest)}`;
+  hdnsUpdateBtn.classList.remove('hidden');
+  safeFeatherReplace();
+}
+let hdnsUpdateModal = null;
+function openUpdateModal(st) {
+  if (hdnsUpdateModal) hdnsUpdateModal.remove();
+  const backdrop = document.createElement('div');
+  backdrop.className = 'fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md px-4';
+  backdrop.innerHTML = `
+    <div class="glass-panel p-6 w-full max-w-md border border-cyan-500/40 shadow-2xl shadow-cyan-500/10" role="dialog" aria-modal="true" aria-labelledby="hdns-update-title">
+      <div class="flex items-center gap-3 mb-4">
+        <div class="w-10 h-10 rounded-xl bg-cyan-500/20 flex items-center justify-center text-cyan-400 border border-cyan-500/30 shrink-0"><i data-feather="download-cloud"></i></div>
+        <div>
+          <h2 id="hdns-update-title" class="text-lg font-bold text-white font-heading">Update available</h2>
+          <p class="text-xs text-cyan-400 font-mono">v${escapeHTML(st.current)} &rarr; v${escapeHTML(st.latest)}${st.codename ? ' · ' + escapeHTML(st.codename) : ''}</p>
+        </div>
+      </div>
+      <p class="text-sm text-slate-300 mb-4">The new binary is downloaded from GitHub, its SHA-256 is verified against the release checksums, your data is backed up, and the service restarts on the new version. Subscribers, clients and settings are preserved.</p>
+      <div id="hdns-update-progress-wrap" class="hidden mb-4">
+        <div class="h-2 w-full rounded-full bg-slate-800 overflow-hidden"><div id="hdns-update-bar" class="h-full bg-gradient-to-r from-cyan-500 to-blue-500 transition-all duration-300" style="width:0%"></div></div>
+        <p id="hdns-update-msg" class="text-xs text-slate-400 mt-1 font-mono">Starting…</p>
+      </div>
+      <div class="flex gap-3">
+        <button id="hdns-update-cancel" type="button" class="flex-1 py-3 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold rounded-lg text-sm">Cancel</button>
+        <button id="hdns-update-go" type="button" class="flex-1 py-3 bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-400 text-slate-950 font-bold rounded-lg text-sm">Update now</button>
+      </div>
+    </div>`;
+  document.body.appendChild(backdrop);
+  hdnsUpdateModal = backdrop;
+  safeFeatherReplace();
+  const close = () => { backdrop.remove(); hdnsUpdateModal = null; };
+  backdrop.querySelector('#hdns-update-cancel').addEventListener('click', close);
+  backdrop.addEventListener('click', (e) => { if (e.target === backdrop) close(); });
+  backdrop.querySelector('#hdns-update-go').addEventListener('click', () => applyUpdate(backdrop));
+}
+async function applyUpdate(modal) {
+  const go = modal.querySelector('#hdns-update-go');
+  const cancel = modal.querySelector('#hdns-update-cancel');
+  const wrap = modal.querySelector('#hdns-update-progress-wrap');
+  const bar = modal.querySelector('#hdns-update-bar');
+  const msg = modal.querySelector('#hdns-update-msg');
+  const lock = (on) => { go.disabled = on; go.classList.toggle('opacity-50', on); };
+  lock(true);
+  wrap.classList.remove('hidden');
+
+  try {
+    const res = await fetch(api('/api/update/apply'), { method: 'POST', headers: { 'Authorization': 'Bearer ' + authToken } });
+    if (!res.ok) {
+      msg.textContent = await errorMessage(res, 'Could not start the update');
+      lock(false);
+      return;
+    }
+  } catch (e) {
+    msg.textContent = 'Network error starting the update';
+    lock(false);
+    return;
+  }
+
+  const poll = setInterval(async () => {
+    let p;
+    try {
+      const r = await fetch(api('/api/update/status'), { headers: { 'Authorization': 'Bearer ' + authToken }, cache: 'no-store' });
+      p = await r.json();
+    } catch (e) {
+      // The restart drops the connection — that is the success path, not a failure.
+      clearInterval(poll);
+      bar.style.width = '100%';
+      msg.textContent = 'Restarting on the new version… this page will reload automatically.';
+      waitForServerBack();
+      return;
+    }
+    bar.style.width = (p.percent || 0) + '%';
+    msg.textContent = p.message || p.phase || '';
+    if (p.phase === 'error') {
+      clearInterval(poll);
+      msg.textContent = 'Update failed: ' + (p.error || 'unknown error');
+      cancel.textContent = 'Close';
+    } else if (p.restarting) {
+      clearInterval(poll);
+      bar.style.width = '100%';
+      msg.textContent = 'Restarting on the new version… this page will reload automatically.';
+      waitForServerBack();
+    }
+  }, 1500);
+}
+
+function waitForServerBack() {
+  let tries = 0;
+  const probe = setInterval(async () => {
+    tries++;
+    try {
+      const r = await fetch(api('/api/update/check'), { headers: { 'Authorization': 'Bearer ' + authToken }, cache: 'no-store' });
+      if (r.ok || r.status === 401) { clearInterval(probe); location.reload(); return; }
+    } catch (e) { /* still restarting */ }
+    if (tries > 40) { clearInterval(probe); location.reload(); }
+  }, 3000);
+}

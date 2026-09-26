@@ -336,6 +336,13 @@ func SanitizeThemeCSS(css string) string {
 	css = themeCSSTagRe.ReplaceAllString(css, "&lt;$1$2")
 	css = themeCSSImportRe.ReplaceAllString(css, "")
 	css = themeCSSExternalURLRe.ReplaceAllString(css, "")
+	// Any url() carrying a CSS backslash escape is obfuscation, not a real local
+	// asset (local paths never need an escape): url(\68 ttps://…) resolves back to
+	// url(https://…) in the browser and slips past the literal-scheme strip above.
+	// A backslash inside url() is therefore treated as hostile and the whole
+	// reference removed. Runs after the render fix that made this text active, so
+	// the sanitiser is the primary control (v2.6).
+	css = themeCSSEscapedURLRe.ReplaceAllString(css, "")
 	css = themeCSSExpressionRe.ReplaceAllString(css, "")
 	return css
 }
@@ -347,7 +354,11 @@ var (
 	themeCSSTagRe         = regexp.MustCompile(`(?i)<(/?)(style|script)`)
 	themeCSSImportRe      = regexp.MustCompile(`(?i)@import\s+[^;{}]*;?`)
 	themeCSSExternalURLRe = regexp.MustCompile(`(?i)url\(\s*(?:["']?)\s*(?:https?:|//)[^"')]*["']?\s*\)`)
-	themeCSSExpressionRe  = regexp.MustCompile(`(?i)expression\s*\([^)]*\)`)
+	// themeCSSEscapedURLRe matches a url() whose argument contains a backslash —
+	// a CSS escape, which is only ever used here to hide an external scheme from
+	// themeCSSExternalURLRe (url(\68 ttps://evil) → url(https://evil)).
+	themeCSSEscapedURLRe = regexp.MustCompile(`(?i)url\(\s*["']?[^)]*\\[^)]*\)`)
+	themeCSSExpressionRe = regexp.MustCompile(`(?i)expression\s*\([^)]*\)`)
 )
 
 // themeCSSHasExternalReference reports whether the CSS pulls content from

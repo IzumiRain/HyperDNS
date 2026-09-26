@@ -35,7 +35,7 @@ import (
 
 // allowSourceFiles are the files in this package that answer a request with 405.
 // TestNoOther405SitesEscapeTheCheck keeps the list honest.
-var allowSourceFiles = []string{"server.go", "auth.go", "static.go", "portal.go", "tls.go", "landing.go", "auth2fa.go", "sse_ticket.go", "preset_update.go", "custom_groups.go"}
+var allowSourceFiles = []string{"server.go", "auth.go", "static.go", "portal.go", "tls.go", "landing.go", "auth2fa.go", "sse_ticket.go", "preset_update.go", "custom_groups.go", "update.go"}
 
 // methodVerbs maps the net/http constant to the token that belongs in an Allow header. Only
 // these nine exist, so a guard naming anything else is a guard this file does not understand

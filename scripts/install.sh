@@ -158,6 +158,47 @@ if [ -z "${PUBLIC_IP}" ]; then
     PUBLIC_IP="YOUR_SERVER_IP"
 fi
 
+# The echo services above report the address the INTERNET sees, which on a
+# NAT'd VPS is not the address a subscriber reaches. Iran-routed networks are
+# the common case: the box sits behind carrier NAT and every echo service
+# geolocates it to Azerbaijan/UAE/Russia, so auto-detection hands back an IP
+# that is not the server's — and that the panel certificate is then issued
+# against. Let the operator correct it at install time instead of discovering it
+# when SSL and subscriber links fail. HYPERDNS_PUBLIC_IP overrides
+# non-interactively; an interactive run is offered the detected value to accept
+# or replace, and whatever is chosen is written into config.json's public_ip so
+# the daemon uses it verbatim rather than re-detecting the wrong one.
+validate_ip() {
+    case "$1" in
+        *[!0-9.:a-fA-F]* | "" ) return 1 ;;
+    esac
+    case "$1" in
+        *.*.*.* | *:* ) return 0 ;;
+        * ) return 1 ;;
+    esac
+}
+PUBLIC_IP_MANUAL=0
+if [ -n "${HYPERDNS_PUBLIC_IP:-}" ]; then
+    if validate_ip "${HYPERDNS_PUBLIC_IP}"; then
+        PUBLIC_IP="${HYPERDNS_PUBLIC_IP}"; PUBLIC_IP_MANUAL=1
+        echo -e "  ${CYAN}Using HYPERDNS_PUBLIC_IP=${PUBLIC_IP} (manual override).${NC}"
+    else
+        echo -e "  ${RED}HYPERDNS_PUBLIC_IP='${HYPERDNS_PUBLIC_IP}' is not a valid IP address; ignoring it.${NC}"
+    fi
+elif [ -t 0 ] || (exec </dev/tty) 2>/dev/null; then
+    _ip_reply=""
+    printf "%b" "${YELLOW}Detected public IP: ${BOLD}${PUBLIC_IP}${NC}${YELLOW}. If your VPS is NAT'd and its real public IP differs, type it now; otherwise press Enter to accept: ${NC}" >&2
+    if [ -t 0 ]; then read -r _ip_reply || _ip_reply=""; else read -r _ip_reply </dev/tty 2>/dev/null || _ip_reply=""; fi
+    if [ -n "${_ip_reply}" ]; then
+        if validate_ip "${_ip_reply}"; then
+            PUBLIC_IP="${_ip_reply}"; PUBLIC_IP_MANUAL=1
+            echo -e "  ${GREEN}Using ${PUBLIC_IP} as the server's public IP.${NC}"
+        else
+            echo -e "  ${RED}'${_ip_reply}' is not a valid IP address; keeping ${PUBLIC_IP}.${NC}"
+        fi
+    fi
+fi
+
 # Domain validation. The value is fed to sed against config.json, so a name
 # with a slash or ampersand in it corrupts the expression instead of failing;
 # it is also what the certificate is issued for. Anything that is not
@@ -171,6 +212,43 @@ validate_domain() {
         *)   return 1 ;;
     esac
 }
+
+# ==============================================================================
+# PORT PREFLIGHT — say what HyperDNS needs, and warn about conflicts up front
+# ==============================================================================
+# Operators kept hitting this blind: nothing documented that the resolver binds
+# 53 (DNS), the SNI relay binds 80/443, and DoT/DoH bind 853/8443 — so a box
+# already running its own DNS on 53 (masterdns, dnsmasq) or a web server on
+# 443/8443 only failed later, at daemon start, with a bind error. List the
+# ports, then flag any that are already taken by something other than HyperDNS.
+# This is advisory only (never aborts): systemd-resolved's own :53 is handled in
+# step 2, and the operator may have deliberately freed a port already.
+echo -e "${CYAN}${BOLD}HyperDNS uses these ports:${NC}"
+echo -e "  ${BOLD}53/udp,53/tcp${NC}  DNS resolver (plain)      ${BOLD}853${NC}  DoT (DNS-over-TLS)"
+echo -e "  ${BOLD}443${NC}          SNI relay / HTTPS          ${BOLD}8443${NC} DoH (DNS-over-HTTPS)"
+echo -e "  ${BOLD}80${NC}           SNI relay + ACME HTTP-01   ${BOLD}(panel port is random, shown below)${NC}"
+_port_lister=""
+if command -v ss >/dev/null 2>&1; then _port_lister="ss"; elif command -v netstat >/dev/null 2>&1; then _port_lister="netstat"; fi
+if [ -n "${_port_lister}" ]; then
+    _conflicts=""
+    for _rp in 53 80 443 853 8443; do
+        if [ "${_port_lister}" = "ss" ]; then
+            _row="$(ss -H -ltnup "sport = :${_rp}" 2>/dev/null || true)"
+        else
+            _row="$(netstat -ltnup 2>/dev/null | awk -v p=":${_rp}$" '$4 ~ p' || true)"
+        fi
+        if [ -n "${_row}" ] && ! printf '%s' "${_row}" | grep -q "hyperdns"; then
+            # systemd-resolved on :53 is expected and freed in step 2 — do not scare the operator about it.
+            if [ "${_rp}" = "53" ] && printf '%s' "${_row}" | grep -q "systemd-resolve"; then continue; fi
+            _conflicts="${_conflicts} ${_rp}"
+        fi
+    done
+    if [ -n "${_conflicts}" ]; then
+        echo -e "  ${YELLOW}⚠ Already in use by another service:${BOLD}${_conflicts}${NC}${YELLOW} — free ${NC}${BOLD}these${NC}${YELLOW} or HyperDNS will fail to bind them at start.${NC}"
+    else
+        echo -e "  ${GREEN}✓ No conflicts detected on the required ports.${NC}"
+    fi
+fi
 
 # ==============================================================================
 # STEP 1: FETCH THE LATEST RELEASE BINARY
@@ -374,6 +452,13 @@ if [ -n "${FRESH_CONFIG_SOURCE}" ]; then
     sed -i "s|\"admin_password\": \"[^\"]*\"|\"admin_password\": \"${GENERATED_ADMIN_PASSWORD}\"|" "${INSTALL_DIR}/config.json"
     sed -i "s|\"api_key\": \"[^\"]*\"|\"api_key\": \"${GENERATED_API_KEY}\"|" "${INSTALL_DIR}/config.json"
 
+    # Pin the confirmed public IP into the fresh config so the daemon uses it
+    # verbatim instead of auto-detecting (which, on a NAT'd/Iran-routed box,
+    # returns the wrong country's address and breaks SSL + subscriber links).
+    if [ "${PUBLIC_IP}" != "YOUR_SERVER_IP" ] && validate_ip "${PUBLIC_IP}"; then
+        sed -i "s|\"public_ip\": \"[^\"]*\"|\"public_ip\": \"${PUBLIC_IP}\"|" "${INSTALL_DIR}/config.json"
+    fi
+
     # v2.2.0: a random management (panel) port for fresh installs. 8080 is
     # everyone's default — panels, dev servers, proxies — and the dashboard
     # landing on it collides with whatever the operator already runs far more
@@ -411,6 +496,16 @@ fi
 # it found it, and chmod on a missing path is not worth aborting for.
 if [ -f "${INSTALL_DIR}/config.json" ]; then
     chmod 600 "${INSTALL_DIR}/config.json" 2>/dev/null || true
+fi
+
+# On an UPGRADE the fresh-config block above did not run, so a manual IP
+# override would otherwise be dropped. If the operator supplied the public IP by
+# hand, write it into the existing config so the daemon stops auto-detecting the
+# wrong (NAT) address. An accepted auto-detected value is left untouched here so
+# an operator who already set public_ip in the panel is not overwritten.
+if [ "${PUBLIC_IP_MANUAL:-0}" = "1" ] && [ -f "${INSTALL_DIR}/config.json" ]; then
+    sed -i "s|\"public_ip\": \"[^\"]*\"|\"public_ip\": \"${PUBLIC_IP}\"|" "${INSTALL_DIR}/config.json"
+    echo -e "  ${GREEN}✓ Wrote public IP ${PUBLIC_IP} into config.json${NC}"
 fi
 
 echo -e "  ${GREEN}✓ Binary installed to ${INSTALL_DIR}/hyperdns${NC}"
