@@ -236,7 +236,9 @@ func (ws *WebServer) handleAuth2FADisable(w http.ResponseWriter, r *http.Request
 	}
 	if ws.authSettings.TOTPEnabledNow() {
 		code := strings.TrimSpace(body.Get("code"))
-		if code == "" || !auth.ValidateTOTP(ws.authSettings.GetTOTPSecret(), code) {
+		if code == "" || !auth.ValidateTOTP(ws.authSettings.GetTOTPSecret(), code) || !ws.totpReplay.spend(code) {
+			// Audit fix (LOW): spend the code like the login paths do, so a
+			// validated code cannot be replayed inside its ±1-step window.
 			httpx.WriteJSONError(w, http.StatusUnauthorized, "Invalid credentials")
 			return
 		}

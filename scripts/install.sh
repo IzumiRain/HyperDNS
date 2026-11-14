@@ -290,6 +290,41 @@ if curl -fL --retry 3 --connect-timeout 10 "${RELEASE_BASE}/hyperdns-linux-${BIN
     # mismatching checksums.txt is a hard failure, not a warning.
     SUM_TMP="$(mktemp /tmp/hyperdns-sum.XXXXXX)"
     if curl -fL --retry 3 --connect-timeout 10 "${RELEASE_BASE}/checksums.txt" -o "${SUM_TMP}" 2>/dev/null && [ -s "${SUM_TMP}" ]; then
+        # Audit fix (MEDIUM, v2.8 audit finding #1): a bare hash compare is an
+        # unauthenticated self-consistency test — checksums.txt and the binary
+        # come from the same origin, so whoever can serve one can serve the
+        # other. Verify the detached ed25519 signature over the raw
+        # checksums.txt bytes (checksums.sig, published by the release
+        # workflow) against the pinned release public key — the same identity
+        # the daemon pins in internal/selfupdate/selfupdate.go (ReleasePubKey).
+        # A missing or invalid signature is a hard failure, like a bad hash.
+        # The check needs openssl (Ed25519 via pkeyutl); without it the
+        # installer refuses the binary rather than installing unverified.
+        if ! command -v openssl >/dev/null 2>&1; then
+            echo -e "${RED}[Error] openssl is required to verify the release signature (refusing an unverifiable binary).${NC}"
+            rm -f "${DL_BIN}" "${SUM_TMP}"
+            exit 1
+        fi
+        SIG_TMP="$(mktemp /tmp/hyperdns-sig.XXXXXX)"
+        if ! curl -fL --retry 3 --connect-timeout 10 "${RELEASE_BASE}/checksums.sig" -o "${SIG_TMP}" 2>/dev/null || [ ! -s "${SIG_TMP}" ]; then
+            echo -e "${RED}[Error] Could not download the release checksums.sig (refusing an unverified binary).${NC}"
+            rm -f "${DL_BIN}" "${SUM_TMP}" "${SIG_TMP}"
+            exit 1
+        fi
+        PUB_DER="$(mktemp /tmp/hyperdns-pub.XXXXXX)"
+        PUB_PEM="${PUB_DER}.pem"
+        SIG_BIN="$(mktemp /tmp/hyperdns-sigbin.XXXXXX)"
+        # Ed25519 SubjectPublicKeyInfo DER prefix, then the raw 32-byte key.
+        { printf '\060\052\060\005\006\003\053\145\160\003\041\000'; echo "kbPBMII0wuIGvhca5hnB1+LmNJWgGZ6ZcncEBw0qRmE=" | base64 -d; } > "${PUB_DER}"
+        if ! openssl pkey -pubin -inform DER -in "${PUB_DER}" -outform PEM -out "${PUB_PEM}" 2>/dev/null \
+            || ! base64 -d "${SIG_TMP}" > "${SIG_BIN}" 2>/dev/null \
+            || ! openssl pkeyutl -verify -pubin -inkey "${PUB_PEM}" -rawin -in "${SUM_TMP}" -sigfile "${SIG_BIN}" >/dev/null 2>&1; then
+            echo -e "${RED}[Error] checksums.txt signature verification failed (not signed by the release key).${NC}"
+            rm -f "${DL_BIN}" "${SUM_TMP}" "${SIG_TMP}" "${PUB_DER}" "${PUB_PEM}" "${SIG_BIN}"
+            exit 1
+        fi
+        rm -f "${SIG_TMP}" "${PUB_DER}" "${PUB_PEM}" "${SIG_BIN}"
+        echo -e "  ${GREEN}✓ Release manifest signature verified (ed25519)${NC}"
         WANT_SUM="$(awk -v n="hyperdns-linux-${BIN_ARCH}" '$2 == n {print $1}' "${SUM_TMP}")"
         GOT_SUM="$(sha256sum "${DL_BIN}" | awk '{print $1}')"
         if [ -z "${WANT_SUM}" ] || [ "${GOT_SUM}" != "${WANT_SUM}" ]; then

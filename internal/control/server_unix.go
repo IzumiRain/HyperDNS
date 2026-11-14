@@ -108,7 +108,11 @@ func (s *Server) Start() error {
 	}
 
 	authorized := &authorizedListener{Listener: listener, peerUID: s.peerUID}
-	httpServer := &http.Server{Handler: s.handler}
+	httpServer := &http.Server{
+		Handler:           s.handler,
+		ReadHeaderTimeout: 10 * time.Second,
+		IdleTimeout:       60 * time.Second,
+	}
 	s.listener = listener
 	s.http = httpServer
 	s.owned = owned

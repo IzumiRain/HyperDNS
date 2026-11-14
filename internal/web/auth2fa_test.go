@@ -370,8 +370,18 @@ func TestTwoFactorDisableRequiresBothFactors(t *testing.T) {
 		t.Fatal("2FA was disabled without a code")
 	}
 
-	// Both factors: disabled, sessions wiped.
-	code = codeFor(t, ws.authSettings.GetTOTPSecret(), totpStepStart())
+	// The code the login already spent: rejected — a validated code is
+	// single-use, the same rule the credential-change gates enforce.
+	if w := post(`{"username":"admin","current_password":"` + testAdminPassword + `","code":"` + code + `"}`); w.Code != http.StatusUnauthorized {
+		t.Errorf("disable with the login-spent code = %d, want 401", w.Code)
+	}
+	if !ws.authSettings.TOTPEnabledNow() {
+		t.Fatal("2FA was disabled with a spent code")
+	}
+
+	// Both factors: disabled, sessions wiped. The code must come from a
+	// different step than the login spent (see TestSecondFactorGatesCredentialChanges).
+	code = codeFor(t, ws.authSettings.GetTOTPSecret(), totpStepStart().Add(auth.TOTPStep))
 	w := post(`{"username":"admin","current_password":"` + testAdminPassword + `","code":"` + code + `"}`)
 	if w.Code != http.StatusOK {
 		t.Fatalf("disable with both factors = %d — %s", w.Code, w.Body.String())
