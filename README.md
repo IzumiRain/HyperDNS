@@ -15,10 +15,12 @@
 </p>
 
 > [!IMPORTANT]
-> ### v2.2.0 — Built-In ACME, Whitelist by Default, API v2 & a Real Console
-> Certificates are now **issued by the daemon itself**: an in-process ACME client (RFC 8555) replaces certbot/acme.sh entirely — issuance and daily renewal happen while the service runs, and renewed certificates hot-swap into the live listeners without a restart. **Client access whitelist is on by default**: an unknown source is refused by DNS (with an RFC 8914 Extended DNS Error so the client learns *why*) instead of being served for free. A new versioned **REST API v2** joins v1 (which carries `Deprecation`/`Sunset` headers), and the console can stop, start and uninstall the service. See [CHANGELOG.md](docs/CHANGELOG.md) for the full list.
+> ### v2.8.0-beta.1 — HyperFORGE: Signed Updates & a Hardened Core (Beta)
+> This branch (`hyperforge`) carries the **HyperFORGE** line — v2.3 through v2.8, the current development state of HyperDNS. It is **beta, not yet the stable line**: the stable release remains **v2.2.0** on the `main` branch, and nothing here moves to `main` until this line is declared stable.
 >
-> Since v2.6 the dashboard can update itself (v2.8 signs every release bundle with a pinned ed25519 key, and the updater never honours a proxy), the installer asks for the server's public IP on NAT'd hosts, and the resolver answers its own service names so a subscriber whose IP changed can still reach the portal link.
+> What changed since v2.2: a **signed preset-update channel** with the 171+ catalog shipped as embedded JSON and named custom policy groups (v2.3); **custom portal CSS** loaded from a file or URL (v2.4); a **per-subscriber device limit (1–5)** and **IPv6 answers for proxied names** (v2.5); **one-click updates in the dashboard**, the resolver answering its own service names, a NAT-aware installer and forwarder TXID randomization (v2.6); **real policy icons** (Simple Icons) and custom group icons (v2.7); and **ed25519-signed self-update bundles** — the updater never honours a proxy — with atomic operator writes and honest save errors, closing out an independent security audit (v2.8). The full per-release list is in [CHANGELOG.md](docs/CHANGELOG.md).
+>
+> The v2.2 foundations all remain: certificates **issued by the daemon itself** (in-process ACME, RFC 8555, hot-swapped on renewal), the **client whitelist on by default** (unknown sources refused with an RFC 8914 Extended DNS Error), and the versioned **REST API v2** alongside the deprecated v1.
 
 <p align="center">
   <a href="#-quick-installation--deployment">🚀 Install</a> •
